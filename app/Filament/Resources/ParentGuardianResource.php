@@ -56,29 +56,29 @@ class ParentGuardianResource extends Resource
                             ->required()
                             ->rows(3)
                             ->columnSpanFull(),
-                        Forms\Components\Select::make('user_id')
-                            ->relationship('user', 'name')
-                            ->searchable()
-                            ->preload()
-                            ->createOptionForm([
-                                Forms\Components\TextInput::make('name')
-                                    ->required()
-                                    ->maxLength(255),
-                                Forms\Components\TextInput::make('email')
-                                    ->email()
-                                    ->required()
-                                    ->maxLength(255),
-                                Forms\Components\TextInput::make('password')
-                                    ->password()
-                                    ->required()
-                                    ->confirmed()
-                                    ->maxLength(255),
-                                Forms\Components\TextInput::make('password_confirmation')
-                                    ->password()
-                                    ->required()
-                                    ->maxLength(255),
-                            ])
-                            ->helperText('Link to a user account for portal access'),
+                        // Forms\Components\Select::make('user_id')
+                        //     ->relationship('user', 'name')
+                        //     ->searchable()
+                        //     ->preload()
+                        //     ->createOptionForm([
+                        //         Forms\Components\TextInput::make('name')
+                        //             ->required()
+                        //             ->maxLength(255),
+                        //         Forms\Components\TextInput::make('email')
+                        //             ->email()
+                        //             ->required()
+                        //             ->maxLength(255),
+                        //         Forms\Components\TextInput::make('password')
+                        //             ->password()
+                        //             ->required()
+                        //             ->confirmed()
+                        //             ->maxLength(255),
+                        //         Forms\Components\TextInput::make('password_confirmation')
+                        //             ->password()
+                        //             ->required()
+                        //             ->maxLength(255),
+                        //     ])
+                        //     ->helperText('Link to a user account for portal access'),
                     ])->columns(2),
             ]);
     }

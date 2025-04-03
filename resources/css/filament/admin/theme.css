@@ -1,0 +1,115 @@
+@import '../../../../vendor/filament/filament/resources/css/theme.css';
+
+@config "./tailwind.config.js";
+
+/* Sidebar Styles */
+.fi-sidebar {
+    @apply bg-primary-900/10 dark:bg-gray-900 !important;
+}
+
+.fi-sidebar-header {
+    @apply bg-transparent shadow-transparent !important;
+}
+
+.fi-sidebar-item-label {
+    @apply text-primary-700 dark:text-white hover:text-primary-600 dark:hover:text-primary-400 !important;
+}
+
+.fi-sidebar-item {
+    @apply bg-transparent !important;
+}
+
+.fi-sidebar-item-button {
+    @apply bg-transparent hover:bg-primary-500/10 dark:hover:bg-primary-500/20 !important;
+}
+
+.fi-sidebar-item .fi-active .fi-sidebar-item-active {
+    @apply hover:bg-transparent border-r-8 border-secondary-500 bg-transparent !important;
+}
+
+.fi-sidebar-item-active .fi-sidebar-item-label {
+    @apply text-primary-700 dark:text-white hover:text-primary-600 !important;
+}
+
+.fi-sidebar-item-active .fi-sidebar-item-button {
+    @apply bg-primary-500/20 rounded-lg border-r-4 border-secondary-500 text-primary-700 dark:text-white !important;
+}
+
+.fi-sidebar-item-active .fi-sidebar-item-icon {
+    @apply p-1 rounded-lg bg-opacity-20 shadow-md border border-secondary-500 group-hover:border-transparent text-primary-700 dark:text-white !important;
+}
+
+.fi-sidebar-item-icon {
+    @apply p-1 rounded-lg bg-opacity-20 shadow-md border border-primary-300 group-hover:border-transparent text-primary-600 dark:text-primary-400 !important;
+}
+
+.fi-sidebar-group-label {
+    @apply text-primary-800 dark:text-primary-300 text-sm !important;
+}
+
+/* Topbar Styles */
+.fi-topbar nav {
+    @apply bg-transparent !important;
+}
+
+.fi-topbar {
+    @apply shadow-primary-500/10 !important;
+}
+
+/* Body Styles */
+.fi-body {
+    @apply bg-gray-50 dark:bg-gray-900 !important;
+}
+
+/* Header Styles */
+.fi-header-heading {
+    @apply text-2xl text-primary-700 dark:text-primary-400 !important;
+}
+
+.fi-icon-btn-icon {
+    @apply text-secondary-600 dark:text-secondary-400 !important;
+}
+
+.fi-header-subheading {
+    @apply text-sm !important;
+}
+
+/* Button Styles */
+.fi-btn-primary {
+    @apply bg-primary-600 hover:bg-primary-700 focus:ring-primary-600 !important;
+}
+
+.fi-btn-secondary {
+    @apply bg-secondary-500 hover:bg-secondary-600 text-gray-900 !important;
+}
+
+/* Table Styles */
+.fi-ta-header-cell {
+    @apply bg-primary-50 dark:bg-primary-950/50 !important;
+}
+
+/* Form Styles */
+.fi-input-wrapper {
+    @apply focus-within:ring-primary-600 !important;
+}
+
+.fi-input {
+    @apply focus:border-primary-600 !important;
+}
+
+/* Badge Styles */
+.fi-badge.fi-badge-success {
+    @apply bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 !important;
+}
+
+.fi-badge.fi-badge-danger {
+    @apply bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300 !important;
+}
+
+.fi-badge.fi-badge-warning {
+    @apply bg-secondary-100 text-secondary-800 dark:bg-secondary-900 dark:text-secondary-300 !important;
+}
+
+.fi-badge.fi-badge-info {
+    @apply bg-primary-100 text-primary-800 dark:bg-primary-900 dark:text-primary-300 !important;
+}
