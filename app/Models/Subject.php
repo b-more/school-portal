@@ -16,6 +16,7 @@ class Subject extends Model
         'code',
         'description',
         'grade_level',
+        'department',
         'is_active',
     ];
 
@@ -36,5 +37,15 @@ class Subject extends Model
     public function results(): HasMany
     {
         return $this->hasMany(Result::class);
+    }
+
+    public function getFullNameAttribute(): string
+    {
+        return "{$this->name} ({$this->grade_level})";
+    }
+
+    public function schoolClasses(): BelongsToMany
+    {
+        return $this->belongsToMany(SchoolClass::class, 'class_subject', 'subject_id', 'class_id');
     }
 }

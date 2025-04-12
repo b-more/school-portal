@@ -11,13 +11,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('subjects', function (Blueprint $table) {
+        Schema::create('classes', function (Blueprint $table) {
             $table->id();
-            $table->string('name')->nullable();
-            $table->string('code')->unique()->nullable();
-            $table->text('description')->nullable();
-            $table->string('department')->nullable();
-            $table->string('grade_level')->nullable();
+            $table->string('name');
+            $table->string('department'); // 'ECL', 'Primary', 'Secondary'
+            $table->string('grade')->nullable();
+            $table->string('section')->nullable();
             $table->boolean('is_active')->default(true);
             $table->timestamps();
         });
@@ -28,6 +27,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('subjects');
+        Schema::dropIfExists('classes');
     }
 };

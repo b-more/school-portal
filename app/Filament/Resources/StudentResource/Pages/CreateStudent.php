@@ -27,6 +27,11 @@ class CreateStudent extends CreateRecord
      */
     protected function handleRecordCreation(array $data): Model
     {
+        // Generate student ID if not provided
+        if (empty($data['student_id_number']) && !empty($data['grade'])) {
+            $data['student_id_number'] = StudentResource::generateStudentId($data['grade']);
+        }
+
         // Wrap in a transaction to ensure both student and user (if created) are created or neither
         return DB::transaction(function () use ($data) {
             // Create the student record
@@ -46,6 +51,10 @@ class CreateStudent extends CreateRecord
                     'password' => Hash::make($password),
                     'status' => 'active',
                 ]);
+
+                // Update the student with the user ID
+                $student->user_id = $user->id;
+                $student->save();
 
                 // Get parent/guardian's phone to send the credentials to
                 if (isset($data['parent_guardian_id']) && $data['parent_guardian_id']) {

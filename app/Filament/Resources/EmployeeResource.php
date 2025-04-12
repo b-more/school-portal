@@ -29,11 +29,12 @@ class EmployeeResource extends Resource
                             ->maxLength(255),
                         Forms\Components\TextInput::make('email')
                             ->email()
-                            ->required()
+                           // ->required()
                             ->maxLength(255),
                         Forms\Components\TextInput::make('phone')
                             ->tel()
                             ->required()
+                            ->placeholder("260xxxxxxxx")
                             ->maxLength(255),
                         Forms\Components\FileUpload::make('profile_photo')
                             ->image()
@@ -56,9 +57,15 @@ class EmployeeResource extends Resource
                                 'other' => 'Other',
                             ])
                             ->required(),
-                        Forms\Components\TextInput::make('department')
-                            ->required()
-                            ->maxLength(255),
+                        Forms\Components\Select::make('department')
+                            ->options([
+                                'ecl' => 'ECL',
+                                'primary' => 'Primary School',
+                                'secondary' => 'Secondary School',
+                                'administration' => 'Administration',
+                                'support' => 'Support Staff',
+                            ])
+                            ->required(),
                         Forms\Components\TextInput::make('position')
                             ->required()
                             ->maxLength(255),
@@ -74,7 +81,7 @@ class EmployeeResource extends Resource
                         Forms\Components\TextInput::make('basic_salary')
                             ->numeric()
                             ->prefix('ZMW')
-                            ->required(),
+                            //->required(),
                         // Forms\Components\Select::make('user_id')
                         //     ->relationship('user', 'name')
                         //     ->searchable()

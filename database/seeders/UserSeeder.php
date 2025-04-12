@@ -5,7 +5,7 @@ namespace Database\Seeders;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class UserSeeder extends Seeder
 {
@@ -14,54 +14,147 @@ class UserSeeder extends Seeder
      */
     public function run(): void
     {
-        // Clear any existing users to prevent duplicates
-        // Comment this out if you don't want to delete existing users
-        // DB::table('users')->truncate();
+        $this->command->info('Creating users...');
 
-        // Check if admin user exists
-        if (!User::where('email', 'admin@example.com')->exists()) {
+        // Create admin user
+        User::create([
+            'name' => 'System Administrator',
+            'email' => 'admin@stfrancisofassisi.tech',
+            'username' => 'admin@stfrancisofassisi.tech',
+            'email_verified_at' => now(),
+            'password' => Hash::make('password'), // Change this to a secure password
+            'remember_token' => Str::random(10),
+            'status' => 'active',
+        ]);
+
+        // Create staff users (for teachers and admin staff)
+        $this->createStaffUsers(40);
+
+        // Create student users (older students)
+        $this->createStudentUsers(20);
+
+        // Create parent users
+        $this->createParentUsers(30);
+
+        $this->command->info('Successfully created ' . User::count() . ' users!');
+    }
+
+    /**
+     * Create staff users
+     */
+    private function createStaffUsers(int $count): void
+    {
+        $this->command->info("Creating {$count} staff users...");
+
+        for ($i = 1; $i <= $count; $i++) {
+            $name = $this->getRandomName();
+            $email = $this->generateUniqueEmail($name, 'staff');
+
             User::create([
-                'name' => 'Admin User',
-                'email' => 'admin@example.com',
-                'phone' => '260977123456',
-                'username' => 'admin',
+                'name' => $name,
+                'email' => $email,
+                'username' => $email,
+                'email_verified_at' => now(),
                 'password' => Hash::make('password'),
+                'remember_token' => Str::random(10),
                 'status' => 'active',
-                'last_login_at' => now(),
             ]);
         }
+    }
 
-        // Check if teacher user exists
-        if (!User::where('email', 'teacher@example.com')->exists()) {
+    /**
+     * Create student users
+     */
+    private function createStudentUsers(int $count): void
+    {
+        $this->command->info("Creating {$count} student users...");
+
+        for ($i = 1; $i <= $count; $i++) {
+            $name = $this->getRandomName();
+            $email = $this->generateUniqueEmail($name, 'student');
+
             User::create([
-                'name' => 'Teacher User',
-                'email' => 'teacher@example.com',
-                'phone' => '260977123457',
-                'username' => 'teacher',
+                'name' => $name,
+                'email' => $email,
+                'username' => $email,
+                'email_verified_at' => now(),
                 'password' => Hash::make('password'),
+                'remember_token' => Str::random(10),
                 'status' => 'active',
-                'last_login_at' => now(),
             ]);
         }
+    }
 
-        // Check if parent user exists
-        if (!User::where('email', 'parent@example.com')->exists()) {
+    /**
+     * Create parent users
+     */
+    private function createParentUsers(int $count): void
+    {
+        $this->command->info("Creating {$count} parent users...");
+
+        for ($i = 1; $i <= $count; $i++) {
+            $name = $this->getRandomName();
+            $email = $this->generateUniqueEmail($name, 'parent');
+
             User::create([
-                'name' => 'Parent User',
-                'email' => 'parent@example.com',
-                'phone' => '260977123458',
-                'username' => 'parent',
+                'name' => $name,
+                'email' => $email,
+                'username' => $email,
+                'email_verified_at' => now(),
                 'password' => Hash::make('password'),
+                'remember_token' => Str::random(10),
                 'status' => 'active',
-                'last_login_at' => now(),
             ]);
         }
+    }
 
-        // Create additional users - only if fewer than 10 additional users exist
-        $additionalUserCount = User::count() - 3; // Subtract the 3 specific users
-        if ($additionalUserCount < 10) {
-            $usersToCreate = 10 - $additionalUserCount;
-            User::factory($usersToCreate)->create();
+    /**
+     * Generate a random name
+     */
+    private function getRandomName(): string
+    {
+        $firstNames = [
+            'Chipo', 'Mulenga', 'Mutale', 'Bwalya', 'Chomba', 'Mwila', 'Nkonde', 'Musonda', 'Chilufya', 'Kalaba',
+            'Mwamba', 'Chanda', 'Zulu', 'Tembo', 'Banda', 'Phiri', 'Mbewe', 'Lungu', 'Daka', 'Mumba',
+            'James', 'John', 'Michael', 'David', 'Robert', 'Mary', 'Patricia', 'Jennifer', 'Linda', 'Elizabeth'
+        ];
+
+        $lastNames = [
+            'Mwila', 'Banda', 'Phiri', 'Mbewe', 'Zulu', 'Tembo', 'Chanda', 'Mutale', 'Bwalya', 'Musonda',
+            'Daka', 'Mulenga', 'Mumba', 'Ngoma', 'Ngulube', 'Sinkala', 'Ng\'andu', 'Kalumba', 'Chisenga', 'Mwansa',
+            'Mwape', 'Kabwe', 'Muleya', 'Kalaba', 'Chikwanda', 'Chilufya', 'Nkonde', 'Chisanga', 'Siame', 'Mofya'
+        ];
+
+        return $firstNames[array_rand($firstNames)] . ' ' . $lastNames[array_rand($lastNames)];
+    }
+
+    /**
+     * Generate a unique email address
+     */
+    private function generateUniqueEmail(string $name, string $type): string
+    {
+        $baseName = strtolower(str_replace(' ', '.', $name));
+        $email = $baseName;
+
+        // Add type suffix (staff, student, parent)
+        if ($type === 'student') {
+            $email .= '.student';
+        } elseif ($type === 'parent') {
+            $email .= '.parent';
         }
+
+        // Add domain
+        $email .= '@stfrancisofassisi.tech';
+
+        // Ensure uniqueness
+        $counter = 1;
+        $originalEmail = $email;
+
+        while (User::where('email', $email)->exists()) {
+            $email = str_replace('@', $counter . '@', $originalEmail);
+            $counter++;
+        }
+
+        return $email;
     }
 }

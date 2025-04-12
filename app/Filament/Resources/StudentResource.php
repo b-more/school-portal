@@ -33,109 +33,262 @@ class StudentResource extends Resource
     {
         return $form
             ->schema([
-                Forms\Components\Section::make('Personal Information')
+                Forms\Components\Group::make()
                     ->schema([
-                        Forms\Components\TextInput::make('name')
-                            ->required()
-                            ->maxLength(255),
-                        Forms\Components\DatePicker::make('date_of_birth')
-                            ->required(),
-                        Forms\Components\Select::make('gender')
-                            ->options([
-                                'male' => 'Male',
-                                'female' => 'Female',
-                                'other' => 'Other',
-                            ])
-                            ->required(),
-                        Forms\Components\FileUpload::make('profile_photo')
-                            ->image()
-                            ->directory('student-photos')
-                            ->maxSize(2048)
-                            ->columnSpanFull(),
-                    ])->columns(2),
-
-                Forms\Components\Section::make('School Information')
-                    ->schema([
-                        Forms\Components\TextInput::make('student_id_number')
-                            ->required()
-                            ->unique(ignoreRecord: true)
-                            ->maxLength(255),
-                        Forms\Components\Select::make('grade')
-                            ->options([
-                                'Grade 1' => 'Grade 1',
-                                'Grade 2' => 'Grade 2',
-                                'Grade 3' => 'Grade 3',
-                                'Grade 4' => 'Grade 4',
-                                'Grade 5' => 'Grade 5',
-                                'Grade 6' => 'Grade 6',
-                                'Grade 7' => 'Grade 7',
-                                'Grade 8' => 'Grade 8',
-                                'Grade 9' => 'Grade 9',
-                                'Grade 10' => 'Grade 10',
-                                'Grade 11' => 'Grade 11',
-                                'Grade 12' => 'Grade 12',
-                            ])
-                            ->required(),
-                        Forms\Components\DatePicker::make('admission_date')
-                            ->required(),
-                        Forms\Components\Select::make('enrollment_status')
-                            ->options([
-                                'active' => 'Active',
-                                'inactive' => 'Inactive',
-                                'graduated' => 'Graduated',
-                                'transferred' => 'Transferred',
-                            ])
-                            ->default('active')
-                            ->required(),
-                        Forms\Components\TextInput::make('previous_school')
-                            ->maxLength(255),
-                    ])->columns(2),
-
-                Forms\Components\Section::make('Parent/Guardian Information')
-                    ->schema([
-                        Forms\Components\Select::make('parent_guardian_id')
-                            ->relationship('parentGuardian', 'name')
-                            ->searchable()
-                            ->preload()
-                            ->createOptionForm([
+                        Forms\Components\Section::make('Personal Information')
+                            ->description('Enter the student\'s basic personal details')
+                            ->icon('heroicon-o-user')
+                            ->schema([
                                 Forms\Components\TextInput::make('name')
+                                    ->label('Full Name')
                                     ->required()
-                                    ->maxLength(255),
-                                Forms\Components\TextInput::make('email')
-                                    ->email()
-                                    ->required()
-                                    ->maxLength(255),
-                                Forms\Components\TextInput::make('phone')
-                                    ->required()
-                                    ->tel()
-                                    ->maxLength(255),
-                                Forms\Components\Select::make('relationship')
-                                    ->options([
-                                        'father' => 'Father',
-                                        'mother' => 'Mother',
-                                        'guardian' => 'Guardian',
-                                        'other' => 'Other',
+                                    ->maxLength(255)
+                                    ->placeholder('Enter full name as it appears on official documents'),
+
+                                Forms\Components\Grid::make()
+                                    ->schema([
+                                        Forms\Components\DatePicker::make('date_of_birth')
+                                            ->label('Date of Birth')
+                                            ->required()
+                                            ->displayFormat('d/m/Y')
+                                            ->closeOnDateSelection()
+                                            ->weekStartsOnSunday(),
+
+                                        Forms\Components\TextInput::make('place_of_birth')
+                                            ->label('Place of Birth')
+                                            ->maxLength(255)
+                                            ->placeholder('e.g., Lusaka, Zambia'),
+                                    ])
+                                    ->columns(2),
+
+                                Forms\Components\Grid::make()
+                                    ->schema([
+                                        Forms\Components\Select::make('gender')
+                                            ->options([
+                                                'male' => 'Male',
+                                                'female' => 'Female',
+                                            ])
+                                            ->required(),
+
+                                        Forms\Components\Select::make('religious_denomination')
+                                            ->options([
+                                                'Christian' => 'Christian',
+                                                'Catholic' => 'Catholic',
+                                                'Protestant' => 'Protestant',
+                                                'Pentecostal' => 'Pentecostal',
+                                                'SDA' => 'Seventh Day Adventist',
+                                                'Anglican' => 'Anglican',
+                                                'Muslim' => 'Muslim',
+                                                'Hindu' => 'Hindu',
+                                                'Buddhist' => 'Buddhist',
+                                                'Traditional' => 'Traditional',
+                                                'Other' => 'Other',
+                                                'None' => 'None',
+                                            ])
+                                            ->searchable()
+                                            ->placeholder('Select denomination'),
+                                    ])
+                                    ->columns(2),
+
+                                Forms\Components\Textarea::make('address')
+                                    ->label('Residential Address')
+                                    ->maxLength(255)
+                                    ->placeholder('Enter full residential address')
+                                    ->rows(2),
+                            ]),
+
+                        Forms\Components\Section::make('Education Details')
+                            ->description('Information about student\'s current and previous education')
+                            ->icon('heroicon-o-academic-cap')
+                            ->schema([
+                                Forms\Components\Grid::make()
+                                    ->schema([
+                                        Forms\Components\Card::make()
+                                            ->schema([
+                                                Forms\Components\Select::make('grade')
+                                                    ->label('Current Grade')
+                                                    ->options([
+                                                        'Baby Class' => 'Baby Class',
+                                                        'Middle Class' => 'Middle Class',
+                                                        'Reception' => 'Reception',
+                                                        'Grade 1' => 'Grade 1',
+                                                        'Grade 2' => 'Grade 2',
+                                                        'Grade 3' => 'Grade 3',
+                                                        'Grade 4' => 'Grade 4',
+                                                        'Grade 5' => 'Grade 5',
+                                                        'Grade 6' => 'Grade 6',
+                                                        'Grade 7' => 'Grade 7',
+                                                        'Grade 8' => 'Grade 8',
+                                                        'Grade 9' => 'Grade 9',
+                                                        'Grade 10' => 'Grade 10',
+                                                        'Grade 11' => 'Grade 11',
+                                                        'Grade 12' => 'Grade 12',
+                                                    ])
+                                                    ->required()
+                                                    ->live()
+                                                    ->afterStateUpdated(function (string $state, callable $set) {
+                                                        // Clear the ID field so it gets auto-generated
+                                                        $set('student_id_number', null);
+                                                    }),
+
+                                                Forms\Components\Hidden::make('student_id_number')
+                                                    ->dehydrated(true)
+                                                    ->default(null),
+
+                                                Forms\Components\Placeholder::make('student_id_preview')
+                                                    ->label('Student ID')
+                                                    ->content(function (callable $get, ?string $state) {
+                                                        $grade = $get('grade');
+                                                        if (!$grade) {
+                                                            return 'Select a grade to generate Student ID';
+                                                        }
+
+                                                        // Generate the ID if not already set
+                                                        return self::generateStudentId($grade);
+                                                    }),
+                                            ]),
+
+                                        Forms\Components\Card::make()
+                                            ->schema([
+                                                Forms\Components\Select::make('standard_of_education')
+                                                    ->label('Level of Education')
+                                                    ->options([
+                                                        'Nursery' => 'Nursery',
+                                                        'Primary' => 'Primary',
+                                                        'Junior Secondary' => 'Junior Secondary',
+                                                        'Senior Secondary' => 'Senior Secondary',
+                                                    ])
+                                                    ->helperText('Educational category the student belongs to'),
+
+                                                Forms\Components\Select::make('enrollment_status')
+                                                    ->options([
+                                                        'active' => 'Active',
+                                                        'inactive' => 'Inactive',
+                                                        'graduated' => 'Graduated',
+                                                        'transferred' => 'Transferred',
+                                                    ])
+                                                    ->default('active')
+                                                    ->required(),
+                                            ]),
+                                    ])
+                                    ->columns(2),
+
+                                Forms\Components\Grid::make()
+                                    ->schema([
+                                        Forms\Components\DatePicker::make('admission_date')
+                                            ->label('Date of Admission')
+                                            ->required()
+                                            ->default(now())
+                                            ->displayFormat('d/m/Y'),
+
+                                        Forms\Components\TextInput::make('previous_school')
+                                            ->label('Previous School')
+                                            ->maxLength(255)
+                                            ->placeholder('Name of previous institution (if any)'),
+                                    ])
+                                    ->columns(2),
+                            ]),
+
+                        Forms\Components\Section::make('Medical Information')
+                            ->description('Health-related information for school records')
+                            ->icon('heroicon-o-heart')
+                            ->schema([
+                                Forms\Components\Grid::make()
+                                    ->schema([
+                                        Forms\Components\Select::make('smallpox_vaccination')
+                                            ->label('Smallpox Vaccination')
+                                            ->options([
+                                                'Yes' => 'Yes',
+                                                'No' => 'No',
+                                                'Not Sure' => 'Not Sure',
+                                            ])
+                                            ->required()
+                                            ->live(),
+
+                                        Forms\Components\DatePicker::make('date_vaccinated')
+                                            ->label('Date of Vaccination')
+                                            ->displayFormat('d/m/Y')
+                                            ->visible(fn (callable $get) => $get('smallpox_vaccination') === 'Yes'),
+                                    ])
+                                    ->columns(2),
+
+                                Forms\Components\Textarea::make('medical_information')
+                                    ->label('Other Medical Information')
+                                    ->maxLength(65535)
+                                    ->rows(3)
+                                    ->placeholder('Include any allergies, medical conditions, or medications')
+                                    ->helperText('Please include important health information the school should be aware of'),
+                            ]),
+                    ])
+                    ->columnSpan(['lg' => 2]),
+
+                Forms\Components\Group::make()
+                    ->schema([
+                        Forms\Components\Section::make('Profile Image')
+                            ->schema([
+                                Forms\Components\FileUpload::make('profile_photo')
+                                    ->label('Student Photo')
+                                    ->image()
+                                    ->directory('student-photos')
+                                    ->maxSize(2048)
+                                    ->imageCropAspectRatio('1:1')
+                                    ->imageResizeTargetWidth('300')
+                                    ->imageResizeTargetHeight('300'),
+                            ]),
+
+                        Forms\Components\Section::make('Parent/Guardian Information')
+                            ->description('Student\'s parent or guardian details')
+                            ->icon('heroicon-o-users')
+                            ->schema([
+                                Forms\Components\Select::make('parent_guardian_id')
+                                    ->relationship('parentGuardian', 'name')
+                                    ->searchable()
+                                    ->preload()
+                                    ->createOptionForm([
+                                        Forms\Components\TextInput::make('name')
+                                            ->label('Full Name')
+                                            ->required()
+                                            ->maxLength(255),
+                                        Forms\Components\TextInput::make('email')
+                                            ->label('Email Address')
+                                            ->email()
+                                            ->required()
+                                            ->maxLength(255),
+                                        Forms\Components\TextInput::make('phone')
+                                            ->label('Phone Number')
+                                            ->required()
+                                            ->tel()
+                                            ->placeholder('+260 XXX XXX XXX')
+                                            ->maxLength(255),
+                                        Forms\Components\Select::make('relationship')
+                                            ->label('Relationship to Student')
+                                            ->options([
+                                                'father' => 'Father',
+                                                'mother' => 'Mother',
+                                                'guardian' => 'Guardian',
+                                                'other' => 'Other',
+                                            ])
+                                            ->required(),
+                                        Forms\Components\TextInput::make('address')
+                                            ->label('Contact Address')
+                                            ->required(),
                                     ])
                                     ->required(),
-                                Forms\Components\TextInput::make('address')
-                                    ->required(),
-                            ])
-                            ->required(),
-                    ]),
+                            ]),
 
-                Forms\Components\Section::make('Additional Information')
-                    ->schema([
-                        Forms\Components\Textarea::make('address')
-                            ->maxLength(65535)
-                            ->columnSpanFull(),
-                        Forms\Components\Textarea::make('medical_information')
-                            ->maxLength(65535)
-                            ->columnSpanFull(),
-                        Forms\Components\Textarea::make('notes')
-                            ->maxLength(65535)
-                            ->columnSpanFull(),
-                    ]),
-            ]);
+                        Forms\Components\Section::make('Additional Notes')
+                            ->schema([
+                                Forms\Components\Textarea::make('notes')
+                                    ->maxLength(65535)
+                                    ->rows(5)
+                                    ->placeholder('Any additional information about the student')
+                                    ->helperText('For internal use only'),
+                            ])
+                            ->collapsible(),
+                    ])
+                    ->columnSpan(['lg' => 1]),
+            ])
+            ->columns(3);
     }
 
     public static function table(Table $table): Table
@@ -143,6 +296,7 @@ class StudentResource extends Resource
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('student_id_number')
+                    ->label('Student ID')
                     ->searchable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('name')
@@ -187,6 +341,9 @@ class StudentResource extends Resource
                     ]),
                 Tables\Filters\SelectFilter::make('grade')
                     ->options([
+                        'Baby Class' => 'Baby Class',
+                        'Middle Class' => 'Middle Class',
+                        'Reception' => 'Reception',
                         'Grade 1' => 'Grade 1',
                         'Grade 2' => 'Grade 2',
                         'Grade 3' => 'Grade 3',
@@ -384,6 +541,51 @@ class StudentResource extends Resource
         return parent::getEloquentQuery()
             ->withCount('results')
             ->withCount('fees');
+    }
+
+    /**
+     * Generate a student ID based on the student's grade
+     * Format: SFG1001, SFG2001, etc.
+     */
+    public static function generateStudentId(string $grade): string
+    {
+        // Map different grades to their prefix codes
+        $gradeMap = [
+            'Baby Class' => 'SFBC',
+            'Middle Class' => 'SFMC',
+            'Reception' => 'SFR',
+            'Grade 1' => 'SFG1',
+            'Grade 2' => 'SFG2',
+            'Grade 3' => 'SFG3',
+            'Grade 4' => 'SFG4',
+            'Grade 5' => 'SFG5',
+            'Grade 6' => 'SFG6',
+            'Grade 7' => 'SFG7',
+            'Grade 8' => 'SFG8',
+            'Grade 9' => 'SFG9',
+            'Grade 10' => 'SFG10',
+            'Grade 11' => 'SFG11',
+            'Grade 12' => 'SFG12',
+        ];
+
+        $prefix = $gradeMap[$grade] ?? 'SF';
+
+        // Get the latest student number for this grade
+        $lastStudent = Student::where('grade', $grade)
+            ->where('student_id_number', 'like', $prefix . '%')
+            ->orderBy('student_id_number', 'desc')
+            ->first();
+
+        if ($lastStudent) {
+            // Extract the numeric part from the last ID
+            $lastIdNumber = (int) substr($lastStudent->student_id_number, strlen($prefix));
+            $newIdNumber = $lastIdNumber + 1;
+        } else {
+            $newIdNumber = 1;
+        }
+
+        // Format with leading zeros to ensure 3 digits
+        return $prefix . str_pad($newIdNumber, 3, '0', STR_PAD_LEFT);
     }
 
     /**

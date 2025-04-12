@@ -16,10 +16,15 @@ return new class extends Migration
             $table->string('name')->nullable();
             $table->unsignedBigInteger('user_id')->nullable();
             $table->date('date_of_birth')->nullable();
-            $table->enum('gender', ['male', 'female', 'other'])->nullable();
+            $table->string('place_of_birth')->nullable();
+            $table->string('religious_denomination')->nullable();
+            $table->string('standard_of_education')->nullable();
+            $table->enum('smallpox_vaccination', ['Yes', 'No', 'Not Sure'])->nullable();
+            $table->date('date_vaccinated')->nullable();
+            $table->enum('gender', ['male', 'female'])->nullable();
             $table->string('address')->nullable();
             $table->string('student_id_number')->unique()->nullable();
-            $table->foreignId('parent_guardian_id')->nullable();
+            $table->UnsignedBigInteger('parent_guardian_id')->nullable();
             $table->string('grade')->nullable();
             $table->date('admission_date')->nullable();
             $table->enum('enrollment_status', ['active', 'inactive', 'graduated', 'transferred'])->default('active')->nullable();

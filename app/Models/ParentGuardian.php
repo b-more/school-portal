@@ -14,6 +14,8 @@ class ParentGuardian extends Model
     protected $fillable = [
         'name',
         'email',
+        'nrc',
+        'nationality',
         'phone',
         'alternate_phone',
         'relationship',

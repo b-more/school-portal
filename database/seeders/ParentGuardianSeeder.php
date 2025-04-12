@@ -2,9 +2,8 @@
 
 namespace Database\Seeders;
 
-use App\Models\ParentGuardian;
-use App\Models\Student;
 use App\Models\User;
+use App\Models\ParentGuardian;
 use Illuminate\Database\Seeder;
 
 class ParentGuardianSeeder extends Seeder
@@ -14,75 +13,104 @@ class ParentGuardianSeeder extends Seeder
      */
     public function run(): void
     {
-        // Link the parent user
-        $parentUser = User::where('email', 'parent@example.com')->first();
+        $this->command->info('Creating parent/guardian records...');
 
-        // Create main test parent with user account
-        $testParent = ParentGuardian::create([
-            'name' => 'Jane Doe',
-            'email' => 'parent@example.com',
-            'phone' => '260977123458',
-            'alternate_phone' => '260967123458',
-            'relationship' => 'mother',
-            'occupation' => 'Accountant',
-            'address' => '123 Main St, Lusaka',
-            'user_id' => $parentUser->id,
+        // Get parent users
+        $parentUsers = User::where('email', 'like', '%.parent@stfrancisofassisi.tech')->get();
+
+        foreach ($parentUsers as $user) {
+            $this->createParentGuardian($user);
+        }
+
+        // Also create some parents without user accounts (just records)
+        for ($i = 1; $i <= 20; $i++) {
+            $this->createParentGuardian();
+        }
+
+        $this->command->info('Successfully seeded ' . ParentGuardian::count() . ' parents/guardians!');
+    }
+
+    /**
+     * Create a parent/guardian record
+     */
+    private function createParentGuardian(?User $user = null): ParentGuardian
+    {
+        // Generate a random parent name if no user is provided
+        $name = $user ? $user->name : $this->getRandomName();
+
+        // Generate a random Zambian phone number
+        $phoneNumber = '+26097' . rand(1000000, 9999999);
+        $alternatePhone = rand(0, 1) ? '+26096' . rand(1000000, 9999999) : null;
+
+        // Generate a random Zambian NRC number (National Registration Card)
+        $nrc = rand(100000, 999999) . '/' . rand(10, 99) . '/' . rand(1, 9);
+
+        // Relationship options matching your enum
+        $relationships = ['father', 'mother', 'guardian', 'other'];
+
+        // Nationality (mostly Zambian with some others)
+        $nationalities = [
+            'Zambian', 'Zambian', 'Zambian', 'Zambian', 'Zambian',
+            'Zambian', 'Zambian', 'Zambian', 'Zambian', 'Zambian', // 10x Zambian for higher probability
+            'Zimbabwean', 'Malawian', 'South African', 'Congolese', 'Tanzanian',
+            'Kenyan', 'Ugandan', 'Namibian', 'Botswanan', 'Angolan'
+        ];
+
+        // Occupation options
+        $occupations = [
+            'Teacher', 'Doctor', 'Nurse', 'Engineer', 'Farmer', 'Business Owner',
+            'Government Employee', 'Bank Employee', 'Driver', 'Mechanic', 'Lawyer',
+            'Accountant', 'Police Officer', 'Military Personnel', 'Trader', 'Miner',
+            'Construction Worker', 'Tailor', 'Retired', 'Self-employed'
+        ];
+
+        // Address parts for realistic Zambian addresses
+        $areas = [
+            'Kabulonga', 'Woodlands', 'Chilenje', 'Matero', 'Kalingalinga', 'Chelstone',
+            'Avondale', 'Roma', 'Northmead', 'Olympia', 'Sunningdale', 'Emmasdale',
+            'Garden', 'Ibex Hill', 'Kabwata', 'Kamwala', 'Libala', 'Longacres',
+            'Makeni', 'Chainda', 'Chawama', 'Mtendere', 'PHI'
+        ];
+
+        // Create address
+        $houseNumber = rand(1, 999);
+        $area = $areas[array_rand($areas)];
+        $address = "House No. {$houseNumber}, {$area}, Lusaka";
+
+        // Create the parent/guardian record
+        $parent = new ParentGuardian([
+            'name' => $name,
+            'email' => $user ? $user->email : strtolower(str_replace(' ', '.', $name)) . '@example.com',
+            'phone' => $phoneNumber,
+            'nrc' => $nrc,
+            'nationality' => $nationalities[array_rand($nationalities)],
+            'alternate_phone' => $alternatePhone,
+            'relationship' => $relationships[array_rand($relationships)],
+            'occupation' => $occupations[array_rand($occupations)],
+            'address' => $address,
+            'user_id' => $user?->id,
         ]);
 
-        // Create students for this parent - one in each grade for testing
-        $grades = ['Grade 1', 'Grade 2', 'Grade 3', 'Grade 8', 'Grade 9'];
+        $parent->save();
+        return $parent;
+    }
 
-        foreach ($grades as $index => $grade) {
-            Student::create([
-                'name' => 'Child ' . ($index + 1) . ' Doe',
-                'date_of_birth' => now()->subYears(5 + $index),
-                'gender' => $index % 2 == 0 ? 'male' : 'female',
-                'address' => '123 Main St, Lusaka',
-                'student_id_number' => 'ST' . str_pad($index + 1, 4, '0', STR_PAD_LEFT),
-                'parent_guardian_id' => $testParent->id,
-                'grade' => $grade,
-                'admission_date' => now()->subMonths(rand(1, 24)),
-                'enrollment_status' => 'active',
-                'previous_school' => $index > 0 ? 'Previous School ' . $index : null,
-            ]);
-        }
+    /**
+     * Generate a random name
+     */
+    private function getRandomName(): string
+    {
+        $firstNames = [
+            'Chipo', 'Mulenga', 'Mutale', 'Bwalya', 'Chomba', 'Mwila', 'Nkonde', 'Musonda', 'Chilufya', 'Kalaba',
+            'Mwamba', 'Chanda', 'Zulu', 'Tembo', 'Banda', 'Phiri', 'Mbewe', 'Lungu', 'Daka', 'Mumba',
+            'Muleya', 'Ngoma', 'Ngulube', 'Sinkala', 'Ng\'andu', 'Kalumba', 'Mwansa', 'Kabwe', 'Bupe', 'Mwape'
+        ];
 
-        // Create 20 more parents with 1-3 children each
-        for ($i = 1; $i <= 20; $i++) {
-            $parent = ParentGuardian::create([
-                'name' => fake()->name(),
-                'email' => fake()->unique()->email(),
-                'phone' => '26097' . fake()->numberBetween(1000000, 9999999),
-                'alternate_phone' => rand(0, 1) ? '26096' . fake()->numberBetween(1000000, 9999999) : null,
-                'relationship' => fake()->randomElement(['father', 'mother', 'guardian']),
-                'occupation' => fake()->jobTitle(),
-                'address' => fake()->address(),
-                'user_id' => null,
-            ]);
+        $lastNames = [
+            'Mwila', 'Banda', 'Phiri', 'Mbewe', 'Zulu', 'Tembo', 'Chanda', 'Mutale', 'Bwalya', 'Musonda',
+            'Daka', 'Mulenga', 'Mumba', 'Ngoma', 'Ngulube', 'Sinkala', 'Ng\'andu', 'Kalumba', 'Chisenga', 'Mwansa'
+        ];
 
-            // Create 1-3 students for this parent
-            $childrenCount = rand(1, 3);
-
-            for ($j = 1; $j <= $childrenCount; $j++) {
-                $grade = $grades[array_rand($grades)];
-                $age = $grade == 'Grade 1' ? rand(6, 7) :
-                       ($grade == 'Grade 2' ? rand(7, 8) :
-                       ($grade == 'Grade 3' ? rand(8, 9) :
-                       ($grade == 'Grade 8' ? rand(13, 14) : rand(14, 15))));
-
-                Student::create([
-                    'name' => fake()->name(),
-                    'date_of_birth' => now()->subYears($age)->subMonths(rand(0, 11)),
-                    'gender' => fake()->randomElement(['male', 'female']),
-                    'address' => $parent->address,
-                    'student_id_number' => 'ST' . fake()->unique()->numberBetween(1000, 9999),
-                    'parent_guardian_id' => $parent->id,
-                    'grade' => $grade,
-                    'admission_date' => now()->subMonths(rand(1, 36)),
-                    'enrollment_status' => fake()->randomElement(['active', 'active', 'active', 'inactive']),
-                    'previous_school' => fake()->randomElement(['', 'Previous School A', 'Previous School B', 'Home Schooled']),
-                ]);
-            }
-        }
+        return $firstNames[array_rand($firstNames)] . ' ' . $lastNames[array_rand($lastNames)];
     }
 }

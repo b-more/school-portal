@@ -14,8 +14,10 @@ return new class extends Migration
         Schema::create('parent_guardians', function (Blueprint $table) {
             $table->id();
             $table->string('name')->nullable();
-            $table->string('email')->unique()->nullable();
+            $table->string('email')->nullable();
             $table->string('phone')->nullable();
+            $table->string('nrc')->nullable();
+            $table->string('nationality')->nullable();
             $table->string('alternate_phone')->nullable();
             $table->enum('relationship', ['father', 'mother', 'guardian', 'other'])->nullable();
             $table->string('occupation')->nullable();

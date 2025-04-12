@@ -53,11 +53,6 @@ class Employee extends Model
         return $this->hasMany(Homework::class, 'assigned_by');
     }
 
-    public function subjects(): BelongsToMany
-    {
-        return $this->belongsToMany(Subject::class, 'employee_subject');
-    }
-
     public function news(): HasMany
     {
         return $this->hasMany(News::class, 'author_id');
@@ -71,5 +66,37 @@ class Employee extends Model
     public function results(): HasMany
     {
         return $this->hasMany(Result::class, 'recorded_by');
+    }
+
+    public function school_classes(): BelongsToMany
+    {
+        return $this->belongsToMany(SchoolClass::class, 'class_teacher', 'employee_id', 'class_id')
+                    ->withPivot('role', 'is_primary')
+                    ->withTimestamps();
+    }
+
+    /**
+     * Alias for school_classes() relationship
+     * This resolves the "Call to undefined method App\Models\Employee::classes()" error
+     */
+    public function classes(): BelongsToMany
+    {
+        return $this->school_classes();
+    }
+
+    public function subjects(): BelongsToMany
+    {
+        return $this->belongsToMany(Subject::class, 'employee_subject')
+                    ->withTimestamps();
+    }
+
+    /**
+     * Get the subject-class assignments for this employee (teacher)
+     */
+    public function classSubjectAssignments(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(SchoolClass::class, 'class_subject_teacher', 'employee_id', 'class_id')
+                    ->withPivot('subject_id')
+                    ->withTimestamps();
     }
 }
