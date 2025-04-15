@@ -22,6 +22,7 @@ class ParentGuardian extends Model
         'occupation',
         'address',
         'user_id',
+        'role',
     ];
 
     public function user(): BelongsTo

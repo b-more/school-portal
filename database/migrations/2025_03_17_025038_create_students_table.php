@@ -31,6 +31,7 @@ return new class extends Migration
             $table->string('previous_school')->nullable();
             $table->string('profile_photo')->nullable();
             $table->text('medical_information')->nullable();
+            $table->string('role')->default('student');
             $table->text('notes')->nullable();
             $table->timestamps();
         });

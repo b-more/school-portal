@@ -17,12 +17,9 @@ class ClassSeeder extends Seeder
 
         // ECL Department Classes
         $eclClasses = [
-            ['name' => 'Baby Class A', 'grade' => 'Baby Class', 'section' => 'A'],
-            ['name' => 'Baby Class B', 'grade' => 'Baby Class', 'section' => 'B'],
-            ['name' => 'Middle Class A', 'grade' => 'Middle Class', 'section' => 'A'],
-            ['name' => 'Middle Class B', 'grade' => 'Middle Class', 'section' => 'B'],
-            ['name' => 'Reception A', 'grade' => 'Reception', 'section' => 'A'],
-            ['name' => 'Reception B', 'grade' => 'Reception', 'section' => 'B'],
+            ['name' => 'Baby Class', 'grade' => 'Baby Class', 'section' => ''],
+            ['name' => 'Middle Class', 'grade' => 'Middle Class', 'section' => ''],
+            ['name' => 'Reception', 'grade' => 'Reception', 'section' => ''],
         ];
 
         foreach ($eclClasses as $class) {
@@ -37,38 +34,42 @@ class ClassSeeder extends Seeder
 
         // Primary Department Classes (Grades 1-7)
         for ($grade = 1; $grade <= 7; $grade++) {
-            // Create 2 sections (A & B) for each grade
-            foreach (['A', 'B'] as $section) {
-                SchoolClass::create([
-                    'name' => "Grade {$grade}{$section}",
-                    'department' => 'Primary',
-                    'grade' => "Grade {$grade}",
-                    'section' => $section,
-                    'is_active' => true,
-                ]);
-            }
+            SchoolClass::create([
+                'name' => "Grade {$grade}",
+                'department' => 'Primary',
+                'grade' => "Grade {$grade}",
+                'section' => '',
+                'is_active' => true,
+            ]);
         }
 
-        // Secondary Department Classes (Grades 8-12)
-        for ($grade = 8; $grade <= 12; $grade++) {
-            // Create multiple sections for each grade based on streams for higher grades
-            if ($grade < 10) {
-                // Junior secondary (grades 8-9): just A and B sections
-                $sections = ['A', 'B'];
-            } else {
-                // Senior secondary (grades 10-12): divided by academic streams
-                $sections = ['Science', 'Arts', 'Commerce'];
-            }
+        // Secondary Department Classes
+        $secondaryClasses = [
+            // Form 1 (Grade 8)
+            ['name' => 'Form 1 Archivers', 'grade' => 'Form 1', 'section' => 'Archivers'],
+            ['name' => 'Form 1 Success', 'grade' => 'Form 1', 'section' => 'Success'],
 
-            foreach ($sections as $section) {
-                SchoolClass::create([
-                    'name' => "Grade {$grade} {$section}",
-                    'department' => 'Secondary',
-                    'grade' => "Grade {$grade}",
-                    'section' => $section,
-                    'is_active' => true,
-                ]);
-            }
+            // Form 2 (Grade 9)
+            ['name' => 'Form 2 Lilly', 'grade' => 'Form 2', 'section' => 'Lilly'],
+            ['name' => 'Form 2 Lotus', 'grade' => 'Form 2', 'section' => 'Lotus'],
+
+            // Form 3 (Grade 10)
+            ['name' => 'Form 3 A', 'grade' => 'Form 3', 'section' => 'A'],
+            ['name' => 'Form 3 B', 'grade' => 'Form 3', 'section' => 'B'],
+
+            // Form 4 & 5 (Grade 11 & 12)
+            ['name' => 'Form 4', 'grade' => 'Form 4', 'section' => ''],
+            ['name' => 'Form 5', 'grade' => 'Form 5', 'section' => ''],
+        ];
+
+        foreach ($secondaryClasses as $class) {
+            SchoolClass::create([
+                'name' => $class['name'],
+                'department' => 'Secondary',
+                'grade' => $class['grade'],
+                'section' => $class['section'],
+                'is_active' => true,
+            ]);
         }
 
         $this->command->info('Successfully seeded ' . SchoolClass::count() . ' classes!');

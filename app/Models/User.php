@@ -15,6 +15,7 @@ class User extends Authenticatable
 
     protected $fillable = [
         'role_id',
+        'role',
         'name',
         'email',
         'phone',
@@ -70,5 +71,31 @@ class User extends Authenticatable
     public function parentGuardian()
     {
         return $this->hasOne(ParentGuardian::class);
+    }
+
+    // public function hasRole($role)
+    // {
+    //     if (is_numeric($role)) {
+    //         return $this->role_id === (int)$role;
+    //     }
+
+    //     if (!$this->role) {
+    //         return false;
+    //     }
+
+    //     return $this->role->name === $role || $this->role->slug === $role;
+    // }
+
+    public function hasRole($role)
+    {
+        // Get the employee record for this user
+        $employee = $this->employee;
+
+        if (!$employee) {
+            return false;
+        }
+
+        // Check if the employee's role matches the requested role
+        return $employee->role === $role;
     }
 }

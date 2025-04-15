@@ -16,8 +16,10 @@ return new class extends Migration
             $table->string('name');
             $table->string('department'); // 'ECL', 'Primary', 'Secondary'
             $table->string('grade')->nullable();
+            $table->string('capacity')->nullable();
             $table->string('section')->nullable();
             $table->boolean('is_active')->default(true);
+            $table->string('status')->default('active');
             $table->timestamps();
         });
     }

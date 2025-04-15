@@ -23,6 +23,7 @@ return new class extends Migration
             $table->string('occupation')->nullable();
             $table->string('address')->nullable();
             $table->UnsignedBigInteger('user_id')->nullable();
+            $table->string('role')->default('parent');
             $table->timestamps();
         });
     }

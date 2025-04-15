@@ -15,12 +15,14 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             UserSeeder::class,
+            ParentGuardianSeeder::class,
+            StudentSeeder::class,
 
             // 2. Create employees (teachers and staff)
             EmployeeSeeder::class,
 
             // 3. Create parent/guardian records
-            ParentGuardianSeeder::class,
+            //ParentGuardianSeeder::class,
 
             // 4. Create classes for all departments
             ClassSeeder::class,
@@ -29,7 +31,7 @@ class DatabaseSeeder extends Seeder
             SubjectSeeder::class,
 
             // 6. Create students
-            StudentSeeder::class,
+            //StudentSeeder::class,
 
             // 7. Create teacher assignments (must come after teachers, classes and subjects)
             TeacherAssignmentSeeder::class,

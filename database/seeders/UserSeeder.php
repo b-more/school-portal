@@ -27,16 +27,68 @@ class UserSeeder extends Seeder
             'status' => 'active',
         ]);
 
-        // Create staff users (for teachers and admin staff)
-        $this->createStaffUsers(40);
+        // Create specific teacher users first
+        $this->createSpecificTeachers();
+
+        // Create additional staff users (for teachers and admin staff)
+        //$this->createStaffUsers(10);
 
         // Create student users (older students)
         $this->createStudentUsers(20);
 
         // Create parent users
-        $this->createParentUsers(30);
+        $this->createParentUsers(10);
 
         $this->command->info('Successfully created ' . User::count() . ' users!');
+    }
+
+    /**
+     * Create specific teachers from the requirements
+     */
+    private function createSpecificTeachers(): void
+    {
+        $this->command->info("Creating specific teacher users...");
+
+        $teachers = [
+            'Chungu',
+            'Zunda',
+            'Constance',
+            'Musa Doris',
+            'Musakanya Mutale',
+            'Eunice Kansa',
+            'Euelle Sinyangwe',
+            'Mukupa Agness',
+            'Mubisa Martin',
+            'Kopakopa Leonard',
+            'Kaposhi',
+            'Muonda Bwalya',
+            'Chibwe Quintino',
+            'Mwaba Breven',
+            'Sintomba Freddy',
+            'Mulenga Vincent',
+            'Bwalya Sylvester',
+            'Singongo Bruce',
+            'Mercy Kapelenga',
+            'Sylvester Lupando',
+            'Tiza Nkhomo'
+        ];
+
+        // Generate phone number for specific teachers
+        foreach ($teachers as $name) {
+            $email = $this->generateUniqueEmail($name, 'staff');
+            $phone = '+26097' . rand(1000000, 9999999);
+
+            User::create([
+                'name' => $name,
+                'email' => $email,
+                'username' => $email,
+                'phone' => $phone,
+                'email_verified_at' => now(),
+                'password' => Hash::make('password'),
+                'remember_token' => Str::random(10),
+                'status' => 'active',
+            ]);
+        }
     }
 
     /**
@@ -44,16 +96,18 @@ class UserSeeder extends Seeder
      */
     private function createStaffUsers(int $count): void
     {
-        $this->command->info("Creating {$count} staff users...");
+        $this->command->info("Creating {$count} additional staff users...");
 
         for ($i = 1; $i <= $count; $i++) {
             $name = $this->getRandomName();
             $email = $this->generateUniqueEmail($name, 'staff');
+            $phone = '+26097' . rand(1000000, 9999999);
 
             User::create([
                 'name' => $name,
                 'email' => $email,
                 'username' => $email,
+                'phone' => $phone,
                 'email_verified_at' => now(),
                 'password' => Hash::make('password'),
                 'remember_token' => Str::random(10),
@@ -95,11 +149,13 @@ class UserSeeder extends Seeder
         for ($i = 1; $i <= $count; $i++) {
             $name = $this->getRandomName();
             $email = $this->generateUniqueEmail($name, 'parent');
+            $phone = '+26097' . rand(1000000, 9999999);
 
             User::create([
                 'name' => $name,
                 'email' => $email,
                 'username' => $email,
+                'phone' => $phone,
                 'email_verified_at' => now(),
                 'password' => Hash::make('password'),
                 'remember_token' => Str::random(10),

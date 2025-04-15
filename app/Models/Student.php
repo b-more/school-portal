@@ -31,6 +31,7 @@ class Student extends Model
         'profile_photo',
         'medical_information',
         'notes',
+        'role'
     ];
 
     protected $casts = [

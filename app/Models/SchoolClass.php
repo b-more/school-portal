@@ -18,6 +18,7 @@ class SchoolClass extends Model
         'grade',
         'section',
         'is_active',
+        'status',
     ];
 
     protected $casts = [
