@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\StudentFeeController;
 use App\Http\Controllers\HomeworkController;
+use App\Http\Controllers\FeeStatementsController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -14,6 +15,13 @@ use Illuminate\Support\Facades\Route;
 | be assigned to the "web" middleware group. Make something great!
 |
 */
+
+
+Route::prefix('fee-statements')->group(function () {
+    Route::get('/', [FeeStatementsController::class, 'index'])->name('fee-statements.index');
+    Route::post('/generate', [FeeStatementsController::class, 'generate'])->name('fee-statements.generate');
+    Route::post('/summary', [FeeStatementsController::class, 'summary'])->name('fee-statements.summary');
+});
 
 Route::get('/student-fees/{studentFee}/receipt', [StudentFeeController::class, 'generateReceipt'])->name('student-fees.receipt');
 Route::post('/student-fees/bulk-receipts', [StudentFeeController::class, 'generateBulkReceipts'])->name('student-fees.bulk-receipts');

@@ -15,6 +15,7 @@ return new class extends Migration
             $table->id();
             $table->unsignedBigInteger('student_id')->nullable();
             $table->unsignedBigInteger('fee_structure_id')->nullable();
+            $table->unsignedBigInteger('grade_id')->nullable();
             $table->enum('payment_status', ['unpaid', 'partial', 'paid'])->default('unpaid')->nullable();
             $table->decimal('amount_paid', 10, 2)->default(0)->nullable();
             $table->decimal('balance', 10, 2)->nullable();

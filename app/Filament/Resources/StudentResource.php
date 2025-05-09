@@ -105,30 +105,24 @@ class StudentResource extends Resource
                                     ->schema([
                                         Forms\Components\Card::make()
                                             ->schema([
-                                                Forms\Components\Select::make('grade')
-                                                    ->label('Current Grade')
-                                                    ->options([
-                                                        'Baby Class' => 'Baby Class',
-                                                        'Middle Class' => 'Middle Class',
-                                                        'Reception' => 'Reception',
-                                                        'Grade 1' => 'Grade 1',
-                                                        'Grade 2' => 'Grade 2',
-                                                        'Grade 3' => 'Grade 3',
-                                                        'Grade 4' => 'Grade 4',
-                                                        'Grade 5' => 'Grade 5',
-                                                        'Grade 6' => 'Grade 6',
-                                                        'Grade 7' => 'Grade 7',
-                                                        'Grade 8' => 'Grade 8',
-                                                        'Grade 9' => 'Grade 9',
-                                                        'Grade 10' => 'Grade 10',
-                                                        'Grade 11' => 'Grade 11',
-                                                        'Grade 12' => 'Grade 12',
-                                                    ])
+                                                Forms\Components\Select::make('grade_id')
+                                                    ->label('Grade')
+                                                    ->options(function () {
+                                                        return Grade::query()
+                                                            ->where('is_active', true)
+                                                            ->orderBy('level')
+                                                            ->get()
+                                                            ->pluck('name', 'id');
+                                                    })
                                                     ->required()
+                                                    ->searchable()
+                                                    ->preload()
                                                     ->live()
-                                                    ->afterStateUpdated(function (string $state, callable $set) {
-                                                        // Clear the ID field so it gets auto-generated
-                                                        $set('student_id_number', null);
+                                                    ->afterStateUpdated(function ($state, callable $set) {
+                                                        // Clear dependent selections when this changes
+                                                        $set('fee_structure_id', null);
+                                                        $set('student_id', null);
+                                                        $set('balance', null);
                                                     }),
 
                                                 Forms\Components\Hidden::make('student_id_number')

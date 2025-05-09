@@ -68,9 +68,17 @@ class Employee extends Model
         return $this->hasMany(Result::class, 'recorded_by');
     }
 
+    // public function school_classes(): BelongsToMany
+    // {
+    //     return $this->belongsToMany(SchoolClass::class, 'class_teacher', 'employee_id', 'class_id')
+    //                 ->withPivot('role', 'is_primary')
+    //                 ->withTimestamps();
+    // }
+
     public function school_classes(): BelongsToMany
     {
         return $this->belongsToMany(SchoolClass::class, 'class_teacher', 'employee_id', 'class_id')
+                    ->select(['classes.*']) // This fixes the ambiguous 'id' column issue
                     ->withPivot('role', 'is_primary')
                     ->withTimestamps();
     }
@@ -84,11 +92,29 @@ class Employee extends Model
         return $this->school_classes();
     }
 
+    /**
+     * Alias for school_classes() relationship
+     * This resolves the "Call to undefined method App\Models\Employee::classes()" error
+     */
+    // public function classes(): BelongsToMany
+    // {
+    //     return $this->school_classes();
+    // }
+
+    // public function subjects(): BelongsToMany
+    // {
+    //     return $this->belongsToMany(Subject::class, 'employee_subject')
+    //                 ->withTimestamps();
+    // }
+
     public function subjects(): BelongsToMany
     {
         return $this->belongsToMany(Subject::class, 'employee_subject')
-                    ->withTimestamps();
+                    ->withTimestamps()
+                    ->select(['subjects.*']); // This fixes the ambiguous 'id' column issue
     }
+
+
 
     /**
      * Get the subject-class assignments for this employee (teacher)

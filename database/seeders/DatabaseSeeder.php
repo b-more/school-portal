@@ -15,6 +15,9 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             UserSeeder::class,
+            SchoolSectionSeeder::class,
+            AcademicYearAndTermSeeder::class,
+            GradeSeeder::class,
             ParentGuardianSeeder::class,
             StudentSeeder::class,
 
@@ -29,9 +32,10 @@ class DatabaseSeeder extends Seeder
 
             // 5. Create subjects for all grades
             SubjectSeeder::class,
+            TeacherSubjectSeeder::class,
 
             // 6. Create students
-            //StudentSeeder::class,
+            StudentSeeder::class,
 
             // 7. Create teacher assignments (must come after teachers, classes and subjects)
             TeacherAssignmentSeeder::class,

@@ -18,6 +18,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Schema;
 
 class TeacherHomeworkResource extends Resource
 {
@@ -79,7 +80,37 @@ class TeacherHomeworkResource extends Resource
         $subjectOptions = [];
 
         if ($teacher) {
-            $subjectOptions = $teacher->subjects()->pluck('name', 'id')->toArray();
+            // Get the teacher's assigned subjects
+            $teacherSubjects = $teacher->subjects()->pluck('name', 'id')->toArray();
+
+            // If teacher has subjects assigned, use those
+            if (!empty($teacherSubjects)) {
+                $subjectOptions = $teacherSubjects;
+            } else {
+                // If no subjects assigned, get subjects based on teacher's department
+                if (in_array($teacher->department, ['ECL', 'Primary'])) {
+                    $subjectOptions = Subject::where('grade_level', $teacher->department)
+                        ->orWhere('grade_level', 'All')
+                        ->pluck('name', 'id')
+                        ->toArray();
+                } elseif ($teacher->department === 'Secondary') {
+                    $subjectOptions = Subject::where('grade_level', 'Secondary')
+                        ->orWhere('grade_level', 'All')
+                        ->pluck('name', 'id')
+                        ->toArray();
+                } else {
+                    // Fallback to all subjects
+                    $subjectOptions = Subject::pluck('name', 'id')->toArray();
+                }
+            }
+
+            // Log for debugging
+            Log::info('Subject options for teacher', [
+                'teacher_id' => $teacher->id,
+                'teacher_name' => $teacher->name,
+                'subject_count' => count($subjectOptions),
+                'subjects' => array_keys($subjectOptions)
+            ]);
         } else if ($user->hasRole('admin')) {
             $subjectOptions = Subject::pluck('name', 'id')->toArray();
         }
@@ -115,7 +146,21 @@ class TeacherHomeworkResource extends Resource
                             ->label('Subject')
                             ->options($subjectOptions)
                             ->searchable()
-                            ->required(),
+                            ->required()
+                            ->reactive()
+                            ->afterStateUpdated(function (Forms\Components\Select $component, $state) use ($teacher) {
+                                // If a subject is selected, we might want to filter grades based on it
+                                if ($state) {
+                                    $subject = Subject::find($state);
+                                    if ($subject) {
+                                        Log::info('Subject selected', [
+                                            'subject_id' => $state,
+                                            'subject_name' => $subject->name,
+                                            'grade_level' => $subject->grade_level
+                                        ]);
+                                    }
+                                }
+                            }),
                         Forms\Components\Select::make('grade')
                             ->label('Grade')
                             ->options(function() use ($teacher, $user) {
@@ -196,6 +241,8 @@ class TeacherHomeworkResource extends Resource
                     ]),
             ]);
     }
+
+    // ... [keep the rest of the class unchanged] ...
 
     public static function table(Table $table): Table
     {

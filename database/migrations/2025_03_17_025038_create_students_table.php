@@ -26,6 +26,7 @@ return new class extends Migration
             $table->string('student_id_number')->unique()->nullable();
             $table->UnsignedBigInteger('parent_guardian_id')->nullable();
             $table->string('grade')->nullable();
+            $table->unsignedBigInteger('school_class_id')->nullable();
             $table->date('admission_date')->nullable();
             $table->enum('enrollment_status', ['active', 'inactive', 'graduated', 'transferred'])->default('active')->nullable();
             $table->string('previous_school')->nullable();

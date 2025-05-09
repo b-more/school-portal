@@ -5,6 +5,9 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\FeeStructureResource\Pages;
 use App\Filament\Resources\FeeStructureResource\RelationManagers;
 use App\Models\FeeStructure;
+use App\Models\AcademicYear;
+use App\Models\Term;
+use App\Models\Grade;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -27,98 +30,191 @@ class FeeStructureResource extends Resource
     {
         return $form
             ->schema([
-                Forms\Components\Select::make('grade')
-                    ->options([
-                        'Grade 1' => 'Grade 1',
-                        'Grade 2' => 'Grade 2',
-                        'Grade 3' => 'Grade 3',
-                        'Grade 4' => 'Grade 4',
-                        'Grade 5' => 'Grade 5',
-                        'Grade 6' => 'Grade 6',
-                        'Grade 7' => 'Grade 7',
-                        'Grade 8' => 'Grade 8',
-                        'Grade 9' => 'Grade 9',
-                        'Grade 10' => 'Grade 10',
-                        'Grade 11' => 'Grade 11',
-                        'Grade 12' => 'Grade 12',
-                    ])
-                    ->required(),
-                Forms\Components\Select::make('term')
-                    ->options([
-                        'Term 1' => 'Term 1',
-                        'Term 2' => 'Term 2',
-                        'Term 3' => 'Term 3',
-                    ])
-                    ->required(),
-                Forms\Components\Select::make('academic_year')
-                    ->options([
-                        '2025-2026' => '2025-2026',
-                        '2026-2027' => '2026-2027',
-                        '2027-2028' => '2027-2028',
-                        '2028-2029' => '2028-2029',
-                        '2029-2030' => '2029-2030',
-                    ])
-                    ->required(),
-                Forms\Components\TextInput::make('basic_fee')
-                    ->required()
-                    ->numeric()
-                    ->prefix('ZMW')
-                    ->step(0.01)
-                    ->reactive()
-                    ->live()
-                    ->afterStateUpdated(function ($state, callable $set, $get) {
-                        $set('total_fee', self::calculateTotal($state, $get('additional_charges')));
-                    }),
-                Forms\Components\Repeater::make('additional_charges')
+                Forms\Components\Section::make('Academic Period')
                     ->schema([
-                        Forms\Components\Select::make('description')
-                            ->options([
-                                'Uniform' => 'Uniform',
-                                'P.E Attire' => 'P.E Attire',
-                                'Jersey' => 'Jersey',
-                                'School Neck Tie' => 'School Neck Tie',
-                                'Exam Fee' => 'Exam Fee',
-                                'Books' => 'Books',
-                                'Computer Lab Fee' => 'Computer Lab Fee',
-                                'Science Lab Fee' => 'Science Lab Fee',
-                                'Transportation' => 'Transportation',
-                                'Boarding' => 'Boarding',
-                                'Development Fund' => 'Development Fund',
-                                'Sports Fee' => 'Sports Fee',
-                                'Library Fee' => 'Library Fee',
-                                'Other' => 'Other (Specify in Description)'
-                            ])
-                            ->required(),
-                        Forms\Components\TextInput::make('amount')
-                            ->numeric()
+                        Forms\Components\Select::make('academic_year_id')
+                            ->label('Academic Year')
+                            ->options(function () {
+                                return AcademicYear::query()
+                                    ->orderBy('name', 'desc')
+                                    ->get()
+                                    ->pluck('name', 'id');
+                            })
                             ->required()
+                            ->createOptionForm([
+                                Forms\Components\TextInput::make('name')
+                                    ->required()
+                                    ->placeholder('e.g. 2025'),
+                                Forms\Components\DatePicker::make('start_date')
+                                    ->required()
+                                    ->default(now()->startOfYear()),
+                                Forms\Components\DatePicker::make('end_date')
+                                    ->required()
+                                    ->default(now()->endOfYear()),
+                                Forms\Components\Toggle::make('is_active')
+                                    ->label('Set as Current Academic Year')
+                                    ->helperText('Only one academic year can be active at a time')
+                                    ->default(true),
+                                Forms\Components\TextInput::make('number_of_terms')
+                                    ->numeric()
+                                    ->default(3)
+                                    ->required()
+                                    ->helperText('This will automatically create the specified number of terms'),
+                                Forms\Components\Textarea::make('description')
+                                    ->rows(2)
+                                    ->maxLength(500),
+                            ])
+                            ->searchable()
+                            ->preload()
+                            ->live()
+                            ->afterStateUpdated(fn ($state, callable $set) => $set('term_id', null)),
+
+                        Forms\Components\Select::make('term_id')
+                            ->label('Term')
+                            ->options(function (callable $get) {
+                                $academicYearId = $get('academic_year_id');
+                                if (!$academicYearId) {
+                                    return [];
+                                }
+
+                                return Term::where('academic_year_id', $academicYearId)
+                                    ->orderBy('name')
+                                    ->get()
+                                    ->pluck('name', 'id');
+                            })
+                            ->searchable()
+                            ->preload()
+                            ->required()
+                            ->createOptionForm([
+                                Forms\Components\TextInput::make('name')
+                                    ->required()
+                                    ->placeholder('e.g. Term 1'),
+                                Forms\Components\DatePicker::make('start_date')
+                                    ->required()
+                                    ->default(now()->startOfQuarter()),
+                                Forms\Components\DatePicker::make('end_date')
+                                    ->required()
+                                    ->default(now()->endOfQuarter()),
+                                Forms\Components\Toggle::make('is_active')
+                                    ->label('Set as Current Term')
+                                    ->default(false)
+                                    ->helperText('Only one term per academic year can be active at a time'),
+                                Forms\Components\Hidden::make('academic_year_id')
+                                    ->default(function (callable $get) {
+                                        return $get('../../academic_year_id');
+                                    }),
+                            ]),
+
+                        Forms\Components\Select::make('grade_id')
+                            ->label('Grade')
+                            ->options(function () {
+                                return Grade::query()
+                                    ->orderBy('level')
+                                    ->get()
+                                    ->pluck('name', 'id');
+                            })
+                            ->searchable()
+                            ->preload()
+                            ->required()
+                            ->createOptionForm([
+                                Forms\Components\Select::make('school_section_id')
+                                    ->relationship('schoolSection', 'name')
+                                    ->required(),
+                                Forms\Components\TextInput::make('name')
+                                    ->required()
+                                    ->placeholder('e.g. Grade 1'),
+                                Forms\Components\TextInput::make('code')
+                                    ->required()
+                                    ->placeholder('e.g. G1'),
+                                Forms\Components\TextInput::make('level')
+                                    ->numeric()
+                                    ->required(),
+                                Forms\Components\TextInput::make('capacity')
+                                    ->numeric()
+                                    ->default(35)
+                                    ->required(),
+                                Forms\Components\TextInput::make('breakeven_number')
+                                    ->numeric()
+                                    ->default(20)
+                                    ->required(),
+                                Forms\Components\Textarea::make('description')
+                                    ->rows(2),
+                                Forms\Components\Toggle::make('is_active')
+                                    ->default(true),
+                            ]),
+                    ])
+                    ->columns(3),
+
+                Forms\Components\Section::make('Fee Details')
+                    ->schema([
+                        Forms\Components\TextInput::make('basic_fee')
+                            ->required()
+                            ->numeric()
                             ->prefix('ZMW')
                             ->step(0.01)
                             ->reactive()
                             ->live()
                             ->afterStateUpdated(function ($state, callable $set, $get) {
-                                $set('total_fee', self::calculateTotal($get('basic_fee'), $get('additional_charges')));
+                                $set('total_fee', self::calculateTotal($state, $get('additional_charges')));
                             }),
-                    ])
-                    ->columns(2)
-                    ->reactive()
-                    ->live()
-                    ->afterStateUpdated(function ($state, callable $set, $get) {
-                        $set('total_fee', self::calculateTotal($get('basic_fee'), $state));
-                    }),
-                Forms\Components\TextInput::make('total_fee')
-                    ->required()
-                    ->numeric()
-                    ->prefix('ZMW')
-                    ->step(0.01)
-                    ->disabled()
-                    ->helperText('Total fee is automatically calculated'),
-                Forms\Components\Textarea::make('description')
-                    ->maxLength(65535)
-                    ->columnSpanFull(),
-                Forms\Components\Toggle::make('is_active')
-                    ->required()
-                    ->default(true),
+
+                        Forms\Components\Repeater::make('additional_charges')
+                            ->schema([
+                                Forms\Components\Select::make('description')
+                                    ->options([
+                                        'Uniform' => 'Uniform',
+                                        'P.E Attire' => 'P.E Attire',
+                                        'Jersey' => 'Jersey',
+                                        'School Neck Tie' => 'School Neck Tie',
+                                        'Exam Fee' => 'Exam Fee',
+                                        'Books' => 'Books',
+                                        'Computer Lab Fee' => 'Computer Lab Fee',
+                                        'Science Lab Fee' => 'Science Lab Fee',
+                                        'Transportation' => 'Transportation',
+                                        'Boarding' => 'Boarding',
+                                        'Development Fund' => 'Development Fund',
+                                        'Sports Fee' => 'Sports Fee',
+                                        'Library Fee' => 'Library Fee',
+                                        'Other' => 'Other (Specify in Description)'
+                                    ])
+                                    ->required(),
+                                Forms\Components\TextInput::make('amount')
+                                    ->numeric()
+                                    ->required()
+                                    ->prefix('ZMW')
+                                    ->step(0.01)
+                                    ->reactive()
+                                    ->live()
+                                    ->afterStateUpdated(function ($state, callable $set, $get) {
+                                        $set('total_fee', self::calculateTotal($get('basic_fee'), $get('additional_charges')));
+                                    }),
+                            ])
+                            ->columns(2)
+                            ->reactive()
+                            ->live()
+                            ->afterStateUpdated(function ($state, callable $set, $get) {
+                                $set('total_fee', self::calculateTotal($get('basic_fee'), $state));
+                            })
+                            ->collapsible(),
+
+                        Forms\Components\TextInput::make('total_fee')
+                            ->required()
+                            ->numeric()
+                            ->prefix('ZMW')
+                            ->step(0.01)
+                            ->disabled()
+                            ->helperText('Total fee is automatically calculated'),
+
+                        Forms\Components\Textarea::make('description')
+                            ->maxLength(65535)
+                            ->columnSpanFull()
+                            ->hint('Additional notes about this fee structure'),
+
+                        Forms\Components\Toggle::make('is_active')
+                            ->required()
+                            ->default(true)
+                            ->helperText('Inactive fee structures will not be available for student fee assignments'),
+                    ]),
             ]);
     }
 
@@ -145,13 +241,20 @@ class FeeStructureResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\TextColumn::make('grade')
+                Tables\Columns\TextColumn::make('grade.name')
+                    ->label('Grade')
                     ->searchable()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('term')
+                Tables\Columns\TextColumn::make('grade.schoolSection.name')
+                    ->label('Section')
                     ->searchable()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('academic_year')
+                Tables\Columns\TextColumn::make('academicYear.name')
+                    ->label('Academic Year')
+                    ->searchable()
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('term.name')
+                    ->label('Term')
                     ->searchable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('basic_fee')
@@ -172,35 +275,28 @@ class FeeStructureResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                Tables\Filters\SelectFilter::make('grade')
-                    ->options([
-                        'Grade 1' => 'Grade 1',
-                        'Grade 2' => 'Grade 2',
-                        'Grade 3' => 'Grade 3',
-                        'Grade 4' => 'Grade 4',
-                        'Grade 5' => 'Grade 5',
-                        'Grade 6' => 'Grade 6',
-                        'Grade 7' => 'Grade 7',
-                        'Grade 8' => 'Grade 8',
-                        'Grade 9' => 'Grade 9',
-                        'Grade 10' => 'Grade 10',
-                        'Grade 11' => 'Grade 11',
-                        'Grade 12' => 'Grade 12',
-                    ]),
-                Tables\Filters\SelectFilter::make('term')
-                    ->options([
-                        'Term 1' => 'Term 1',
-                        'Term 2' => 'Term 2',
-                        'Term 3' => 'Term 3',
-                    ]),
-                Tables\Filters\SelectFilter::make('academic_year')
-                    ->options([
-                        '2025-2026' => '2025-2026',
-                        '2026-2027' => '2026-2027',
-                        '2027-2028' => '2027-2028',
-                        '2028-2029' => '2028-2029',
-                        '2029-2030' => '2029-2030',
-                    ]),
+                Tables\Filters\SelectFilter::make('grade_id')
+                    ->label('Grade')
+                    ->options(function() {
+                        return Grade::orderBy('level')
+                            ->get()
+                            ->pluck('name', 'id')
+                            ->toArray();
+                    }),
+                Tables\Filters\SelectFilter::make('academic_year_id')
+                    ->label('Academic Year')
+                    ->options(function() {
+                        return AcademicYear::orderBy('name')
+                            ->pluck('name', 'id')
+                            ->toArray();
+                    }),
+                Tables\Filters\SelectFilter::make('term_id')
+                    ->label('Term')
+                    ->options(function() {
+                        return Term::orderBy('name')
+                            ->pluck('name', 'id')
+                            ->toArray();
+                    }),
                 Tables\Filters\TernaryFilter::make('is_active')
                     ->label('Active Status')
                     ->placeholder('All fee structures')
@@ -221,9 +317,17 @@ class FeeStructureResource extends Resource
                     ->icon('heroicon-o-document-text')
                     ->color('success')
                     ->action(function (FeeStructure $record) {
+                        // Get related data safely with fallbacks
+                        $academicYearName = $record->academicYear->name ?? 'Unknown Academic Year';
+                        $termName = $record->term->name ?? 'Unknown Term';
+                        $gradeName = $record->grade->name ?? 'Unknown Grade';
+
                         // Generate PDF
                         $pdf = Pdf::loadView('pdf.fee-structure', [
                             'feeStructure' => $record,
+                            'academicYear' => $academicYearName,
+                            'term' => $termName,
+                            'grade' => $gradeName,
                             'schoolName' => 'St. Francis Of Assisi Private School',
                             'schoolLogo' => public_path('images/logo.png'),
                             'schoolAddress' => 'Plot No 1310/4 East Kamenza, Chililabombwe, Zambia',
@@ -231,7 +335,7 @@ class FeeStructureResource extends Resource
                         ]);
 
                         // Save PDF to storage
-                        $filename = 'fee-structure-' . $record->grade . '-' . $record->term . '-' . $record->academic_year . '.pdf';
+                        $filename = 'fee-structure-' . $gradeName . '-' . $termName . '-' . $academicYearName . '.pdf';
                         Storage::disk('public')->put('pdfs/fee-structures/' . $filename, $pdf->output());
 
                         $url = Storage::disk('public')->url('pdfs/fee-structures/' . $filename);
@@ -281,9 +385,17 @@ class FeeStructureResource extends Resource
 
                             $count = 0;
                             foreach ($feeStructures as $feeStructure) {
+                                // Get related data safely with fallbacks
+                                $academicYearName = $feeStructure->academicYear->name ?? 'Unknown Academic Year';
+                                $termName = $feeStructure->term->name ?? 'Unknown Term';
+                                $gradeName = $feeStructure->grade->name ?? 'Unknown Grade';
+
                                 // Generate PDF for each fee structure
                                 $pdf = Pdf::loadView('pdf.fee-structure', [
                                     'feeStructure' => $feeStructure,
+                                    'academicYear' => $academicYearName,
+                                    'term' => $termName,
+                                    'grade' => $gradeName,
                                     'schoolName' => 'St. Francis Of Assisi Private School',
                                     'schoolLogo' => public_path('images/logo.png'),
                                     'schoolAddress' => 'Plot No 1310/4 East Kamenza, Chililabombwe, Zambia',
@@ -291,7 +403,7 @@ class FeeStructureResource extends Resource
                                 ]);
 
                                 // Save PDF to storage
-                                $filename = 'fee-structure-' . $feeStructure->grade . '-' . $feeStructure->term . '-' . $feeStructure->academic_year . '.pdf';
+                                $filename = 'fee-structure-' . $gradeName . '-' . $termName . '-' . $academicYearName . '.pdf';
                                 Storage::disk('public')->put('pdfs/fee-structures/' . $filename, $pdf->output());
                                 $count++;
                             }

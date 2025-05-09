@@ -171,7 +171,7 @@ class TeacherAssignmentResource extends Resource
                                 ->reactive()
                                 ->required(),
 
-                            Forms\Components\Select::make('class_ids')
+                            Forms\Components\Select::make('school_class_ids')
                                 ->label('Classes')
                                 ->options(
                                     SchoolClass::where('department', 'Secondary')
@@ -190,7 +190,7 @@ class TeacherAssignmentResource extends Resource
                                 (Subject::find($subjectId)?->name ?? "Subject #$subjectId") :
                                 'No subject selected';
 
-                            $classCount = isset($state['class_ids']) ? count($state['class_ids']) : 0;
+                            $classCount = isset($state['school_class_ids']) ? count($state['school_class_ids']) : 0;
                             return "$subjectName ($classCount classes)";
                         })
                 ])

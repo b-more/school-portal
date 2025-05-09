@@ -156,7 +156,7 @@
 
         <div class="receipt-info">
             <div class="receipt-no">Receipt No: {{ $studentFee->receipt_number }}</div>
-            <div class="date">Date: {{ $studentFee->payment_date->format('F j, Y') }}</div>
+            <div class="date">Date: {{ $studentFee->payment_date ? $studentFee->payment_date->format('F j, Y') : now()->format('F j, Y') }}</div>
         </div>
 
         <div class="student-info">
@@ -165,17 +165,47 @@
                     <td>Student:</td>
                     <td>{{ $studentFee->student->name }}</td>
                     <td>ID:</td>
-                    <td>{{ $studentFee->student->student_id_number }}</td>
+                    <td>{{ $studentFee->student->student_id_number ?? 'N/A' }}</td>
                 </tr>
                 <tr>
                     <td>Grade:</td>
-                    <td>{{ $studentFee->student->grade }}</td>
+                    <td>
+                        @if(isset($studentFee->feeStructure->grade))
+                            @if(is_object($studentFee->feeStructure->grade))
+                                {{ $studentFee->feeStructure->grade->name ?? 'Unknown' }}
+                            @else
+                                {{ $studentFee->feeStructure->grade }}
+                            @endif
+                        @else
+                            {{ $studentFee->student->grade ?? 'N/A' }}
+                        @endif
+                    </td>
                     <td>Term:</td>
-                    <td>{{ $studentFee->feeStructure->term }}</td>
+                    <td>
+                        @if(isset($studentFee->feeStructure->term))
+                            @if(is_object($studentFee->feeStructure->term))
+                                {{ $studentFee->feeStructure->term->name ?? 'Unknown' }}
+                            @else
+                                {{ $studentFee->feeStructure->term }}
+                            @endif
+                        @else
+                            N/A
+                        @endif
+                    </td>
                 </tr>
                 <tr>
                     <td>Year:</td>
-                    <td colspan="3">{{ $studentFee->feeStructure->academic_year }}</td>
+                    <td colspan="3">
+                        @if(isset($studentFee->feeStructure->academicYear))
+                            @if(is_object($studentFee->feeStructure->academicYear))
+                                {{ $studentFee->feeStructure->academicYear->name ?? 'Unknown' }}
+                            @else
+                                {{ $studentFee->feeStructure->academic_year }}
+                            @endif
+                        @else
+                            N/A
+                        @endif
+                    </td>
                 </tr>
             </table>
         </div>

@@ -13,15 +13,36 @@ return new class extends Migration
     {
         Schema::create('fee_structures', function (Blueprint $table) {
             $table->id();
-            $table->string('grade')->nullable();
-            $table->string('term')->nullable();
-            $table->string('academic_year')->nullable();
-            $table->decimal('basic_fee', 10, 2)->nullable();
+
+            // Relationship fields
+            $table->unsignedBigInteger('grade_id');
+            $table->unsignedBigInteger('term_id');
+            $table->unsignedBigInteger('academic_year_id');
+
+            // Fee fields
+            $table->decimal('basic_fee', 10, 2);
             $table->json('additional_charges')->nullable();
-            $table->decimal('total_fee', 10, 2)->nullable();
+            $table->decimal('total_fee', 10, 2);
+
+            // Additional information
             $table->text('description')->nullable();
             $table->boolean('is_active')->default(true);
+
+            // Timestamps
             $table->timestamps();
+
+            // // Foreign keys
+            // $table->foreign('grade_id')->references('id')->on('grades')
+            //       ->onDelete('restrict')->onUpdate('cascade');
+
+            // $table->foreign('term_id')->references('id')->on('terms')
+            //       ->onDelete('restrict')->onUpdate('cascade');
+
+            // $table->foreign('academic_year_id')->references('id')->on('academic_years')
+            //       ->onDelete('restrict')->onUpdate('cascade');
+
+            // Unique constraint to prevent duplicates
+            $table->unique(['grade_id', 'term_id', 'academic_year_id']);
         });
     }
 

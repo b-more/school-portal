@@ -196,4 +196,13 @@ class EmployeeResource extends Resource
             'edit' => Pages\EditEmployee::route('/{record}/edit'),
         ];
     }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        // Get the authenticated user
+        $user = auth()->user();
+
+        // Return true only if the user has the admin role
+        return $user && $user->hasRole('teacher');
+    }
 }

@@ -47,7 +47,9 @@ class CreateParentGuardian extends CreateRecord
 
             // Send the login credentials via SMS
             try {
-                $message = "Hello {$data['name']}, your parent portal account has been created. Username: {$user->username}@stfrancisofassisi.tech, Password: {$password}. Please log in and change your password. You can access your child's homework and other information through this account.";
+                //$message = "Hello {$data['name']}, your parent portal account has been created. Username: {$user->username}@stfrancisofassisi.tech, Password: {$password}. Please log in and change your password. You can access your child's homework and other information through this account.";
+                $message = "Hello {$data['name']}. You have been added to the St. Francis School system where you will be receiving notifications and other updates.";
+
                 $formattedPhone = $this->formatPhoneNumber($data['phone']);
                 $this->sendMessage($message, $formattedPhone);
 

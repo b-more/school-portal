@@ -57,7 +57,7 @@ class TeacherHomeworkSubmissionResource extends Resource
         $teacherSubjectIds = $teacher->subjects()->pluck('subjects.id')->toArray();
 
         // Get students in teacher's classes
-        $studentIds = Student::whereIn('class_id', $teacherClassIds)
+        $studentIds = Student::whereIn('school_class_id', $teacherClassIds)
             ->pluck('id')
             ->toArray();
 
@@ -100,7 +100,7 @@ class TeacherHomeworkSubmissionResource extends Resource
         // Get students in teacher's classes
         $studentOptions = [];
         if (!empty($teacherClassIds)) {
-            $studentOptions = Student::whereIn('class_id', $teacherClassIds)
+            $studentOptions = Student::whereIn('school_class_id', $teacherClassIds)
                 ->pluck('name', 'id')
                 ->toArray();
         } else if ($user->hasRole('admin')) {

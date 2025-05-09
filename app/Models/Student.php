@@ -20,6 +20,7 @@ class Student extends Model
         'smallpox_vaccination',
         'date_vaccinated',
         'gender',
+        'school_class_id',
         'address',
         'student_id_number',
         'parent_guardian_id',
