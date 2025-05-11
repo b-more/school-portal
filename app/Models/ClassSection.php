@@ -38,9 +38,10 @@ class ClassSection extends Model
 
     public function classTeacher(): BelongsTo
     {
-        return $this->belongsTo(Employee::class, 'class_teacher_id');
+        return $this->belongsTo(Teacher::class, 'class_teacher_id');
     }
 
+    // This relationship is already correctly defined - students have class_section_id
     public function students(): HasMany
     {
         return $this->hasMany(Student::class);
@@ -69,5 +70,11 @@ class ClassSection extends Model
     public static function generateCode($gradeCode, $sectionName)
     {
         return "{$gradeCode}-{$sectionName}";
+    }
+
+    // Get display name including grade
+    public function getFullNameAttribute()
+    {
+        return "{$this->grade->name} - {$this->name}";
     }
 }

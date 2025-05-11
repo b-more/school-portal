@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class Homework extends Model
 {
@@ -20,7 +21,7 @@ class Homework extends Model
         'file_attachment',
         'homework_file',
         'assigned_by',
-        'grade',
+        'grade_id',
         'subject_id',
         'due_date',
         'submission_start',
@@ -44,16 +45,33 @@ class Homework extends Model
         'file_attachment' => 'array',
     ];
 
+    /**
+     * Get the teacher who assigned this homework
+     */
     public function assignedBy(): BelongsTo
     {
-        return $this->belongsTo(Employee::class, 'assigned_by');
+        return $this->belongsTo(Teacher::class, 'assigned_by');
     }
 
+    /**
+     * Get the grade this homework is assigned to
+     */
+    public function grade(): BelongsTo
+    {
+        return $this->belongsTo(Grade::class);
+    }
+
+    /**
+     * Get the subject this homework belongs to
+     */
     public function subject(): BelongsTo
     {
         return $this->belongsTo(Subject::class);
     }
 
+    /**
+     * Get all submissions for this homework
+     */
     public function submissions(): HasMany
     {
         return $this->hasMany(HomeworkSubmission::class);
@@ -145,9 +163,9 @@ class Homework extends Model
     {
         return $this->submissions()
             ->join('students', 'homework_submissions.student_id', '=', 'students.id')
-            ->select('students.grade', DB::raw('count(*) as total'))
-            ->groupBy('students.grade')
-            ->pluck('total', 'grade')
+            ->select('students.grade_id', DB::raw('count(*) as total'))
+            ->groupBy('students.grade_id')
+            ->pluck('total', 'grade_id')
             ->toArray();
     }
 
@@ -240,7 +258,10 @@ class Homework extends Model
         // When a new homework is created, send SMS notifications if enabled
         static::created(function ($homework) {
             if ($homework->notify_parents) {
-                \App\Filament\Resources\HomeworkResource::sendSmsNotifications($homework);
+                // Only send if HomeworkResource class exists
+                if (class_exists('\App\Filament\Resources\HomeworkResource')) {
+                    \App\Filament\Resources\HomeworkResource::sendSmsNotifications($homework);
+                }
             }
         });
     }

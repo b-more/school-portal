@@ -5,9 +5,10 @@ namespace App\Filament\Resources;
 use App\Filament\Resources\HomeworkResource\Pages;
 use App\Models\Homework;
 use App\Models\Subject;
+use App\Models\Grade;
 use App\Models\Student;
-use App\Models\SmsLog;
-use App\Services\SmsService;
+use App\Models\ParentGuardian;
+use App\Models\Employee;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -16,115 +17,100 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Log;
-use Filament\Support\Colors\Color;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Http;
 
 class HomeworkResource extends Resource
 {
     protected static ?string $model = Homework::class;
-
     protected static ?string $navigationIcon = 'heroicon-o-document-text';
-
-    protected static ?string $navigationGroup = 'Academic Management';
+    protected static ?string $navigationGroup = 'Teaching';
+    protected static ?string $navigationLabel = 'Homework';
+    protected static ?int $navigationSort = 1;
 
     public static function form(Form $form): Form
     {
+        $user = Auth::user();
+        $teacher = Employee::where('user_id', $user->id)->first();
+
+        // Get subjects for the teacher
+        $subjectOptions = [];
+        if ($teacher) {
+            $subjectOptions = $teacher->subjects()->pluck('name', 'id')->toArray();
+        } else if ($user->hasRole('Admin')) {
+            $subjectOptions = Subject::pluck('name', 'id')->toArray();
+        }
+
+        // Get grades for the teacher
+        $gradeOptions = [];
+        if ($teacher) {
+            // Get grades from teacher's classes
+            $gradeOptions = $teacher->classes()
+                ->with('grade')
+                ->get()
+                ->pluck('grade.name', 'grade.id')
+                ->unique()
+                ->toArray();
+        } else if ($user->hasRole('Admin')) {
+            $gradeOptions = Grade::where('is_active', true)->pluck('name', 'id')->toArray();
+        }
+
         return $form
             ->schema([
-                Forms\Components\Section::make('Homework Details')
+                Forms\Components\Section::make('Homework Information')
+                    ->description('Upload homework for students to access')
                     ->schema([
                         Forms\Components\TextInput::make('title')
                             ->required()
-                            ->maxLength(255),
-                        Forms\Components\Textarea::make('description')
-                            ->required()
+                            ->maxLength(255)
                             ->columnSpanFull(),
-                        Forms\Components\FileUpload::make('homework_file')
-                            ->label('Main Homework Document (PDF)')
-                            ->helperText('Upload the main homework document that students will need to complete')
-                            ->acceptedFileTypes(['application/pdf'])
-                            ->directory('homework-files')
-                            ->maxSize(10240) // 10MB
-                            ->columnSpanFull(),
-                        Forms\Components\FileUpload::make('file_attachment')
-                            ->label('Additional Resources (Optional)')
-                            ->helperText('Upload any additional resources or reference materials')
-                            ->directory('homework-resources')
-                            //->multiple()
-                            ->maxSize(10240) // 10MB
-                            ->columnSpanFull(),
-                    ]),
 
-                Forms\Components\Section::make('Assignment Information')
-                    ->schema([
                         Forms\Components\Select::make('subject_id')
                             ->label('Subject')
-                            ->options(Subject::query()->pluck('name', 'id'))
+                            ->options($subjectOptions)
                             ->searchable()
                             ->required(),
-                        Forms\Components\TextInput::make('grade')
-                            ->required()
-                            ->maxLength(255),
+
+                        Forms\Components\Select::make('grade_id')
+                            ->label('Grade')
+                            ->options($gradeOptions)
+                            ->required(),
+
                         Forms\Components\DatePicker::make('due_date')
                             ->label('Due Date')
-                            ->required(),
-                        Forms\Components\Select::make('status')
-                            ->options([
-                                'active' => 'Active',
-                                'completed' => 'Completed',
-                            ])
                             ->required()
-                            ->default('active'),
-                        Forms\Components\Select::make('assigned_by')
-                            ->relationship('assignedBy', 'name')
-                            ->searchable(),
-                            //->required(),
-                        Forms\Components\TextInput::make('max_score')
-                            ->label('Maximum Score')
-                            ->numeric()
-                            ->default(100)
-                            ->required(),
-                    ])->columns(2),
+                            ->default(now()->addWeek()),
 
-                Forms\Components\Section::make('Submission Settings')
-                    ->schema([
-                        Forms\Components\DateTimePicker::make('submission_start')
-                            ->label('Open Submission From')
-                            ->helperText('When can students start submitting their homework?')
-                            ->required(),
-                        Forms\Components\DateTimePicker::make('submission_end')
-                            ->label('Submission Deadline')
-                            ->helperText('When is the regular submission deadline?')
-                            ->required()
-                            ->after('submission_start'),
-                        Forms\Components\Toggle::make('allow_late_submission')
-                            ->label('Allow Late Submissions')
-                            ->default(false)
-                            ->reactive(),
-                        Forms\Components\DateTimePicker::make('late_submission_deadline')
-                            ->label('Late Submission Deadline')
-                            ->helperText('Final deadline after which no submissions will be accepted')
-                            ->required(fn (callable $get) => $get('allow_late_submission'))
-                            ->visible(fn (callable $get) => $get('allow_late_submission'))
-                            ->after('submission_end'),
-                        Forms\Components\Textarea::make('submission_instructions')
-                            ->label('Submission Instructions')
-                            ->helperText('Provide detailed instructions on how to complete and submit the homework')
+                        Forms\Components\Textarea::make('description')
+                            ->label('Instructions')
+                            ->rows(3)
                             ->columnSpanFull(),
-                    ])->columns(2),
 
-                Forms\Components\Section::make('Parent Notification')
-                    ->schema([
+                        Forms\Components\FileUpload::make('homework_file')
+                            ->label('Homework Document')
+                            ->acceptedFileTypes(['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'])
+                            ->directory('homework-files')
+                            ->maxSize(10240) // 10MB
+                            ->required()
+                            ->columnSpanFull(),
+
+                        Forms\Components\Hidden::make('assigned_by')
+                            ->default(function() use ($teacher) {
+                                return $teacher ? $teacher->id : null;
+                            }),
+
+                        Forms\Components\Hidden::make('status')
+                            ->default('active'),
+
+                        Forms\Components\Hidden::make('max_score')
+                            ->default(100),
+
                         Forms\Components\Toggle::make('notify_parents')
                             ->label('Send SMS notifications to parents')
                             ->default(true)
-                            ->helperText('This will automatically send SMS notifications to parents/guardians of students in this grade'),
-                        Forms\Components\Textarea::make('sms_message')
-                            ->label('Custom SMS Message (optional)')
-                            ->placeholder('Leave empty to use the default message template')
-                            ->helperText('Default template includes homework title, subject, and due date')
-                            ->visible(fn (callable $get) => $get('notify_parents'))
-                            ->maxLength(160),
-                    ]),
+                            ->helperText('Automatically notify all parents of students in this grade'),
+                    ])
+                    ->columns(2),
             ]);
     }
 
@@ -138,7 +124,8 @@ class HomeworkResource extends Resource
                 Tables\Columns\TextColumn::make('subject.name')
                     ->searchable()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('grade')
+                Tables\Columns\TextColumn::make('grade.name')
+                    ->label('Grade')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('assignedBy.name')
                     ->sortable()
@@ -146,55 +133,39 @@ class HomeworkResource extends Resource
                 Tables\Columns\TextColumn::make('due_date')
                     ->date()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('submission_end')
-                    ->dateTime()
-                    ->label('Submission Deadline')
-                    ->sortable(),
+                Tables\Columns\IconColumn::make('homework_file')
+                    ->label('File')
+                    ->boolean()
+                    ->getStateUsing(fn ($record) => !empty($record->homework_file)),
                 Tables\Columns\BadgeColumn::make('status')
                     ->colors([
                         'warning' => 'active',
                         'success' => 'completed',
                     ]),
-                Tables\Columns\TextColumn::make('submissions_count')
-                    ->counts('submissions')
-                    ->label('Submissions')
-                    ->color(Color::Blue),
-                Tables\Columns\TextColumn::make('sms_sent_count')
-                    ->counts('smsLogs')
-                    ->label('SMS Sent')
-                    ->tooltip('Number of SMS notifications sent'),
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('subject')
                     ->relationship('subject', 'name'),
+                Tables\Filters\SelectFilter::make('grade')
+                    ->relationship('grade', 'name'),
                 Tables\Filters\SelectFilter::make('status')
                     ->options([
                         'active' => 'Active',
                         'completed' => 'Completed',
                     ]),
-                Tables\Filters\Filter::make('due_date')
-                    ->form([
-                        Forms\Components\DatePicker::make('due_from'),
-                        Forms\Components\DatePicker::make('due_until'),
-                    ])
-                    ->query(function (Builder $query, array $data): Builder {
-                        return $query
-                            ->when(
-                                $data['due_from'],
-                                fn (Builder $query, $date): Builder => $query->whereDate('due_date', '>=', $date),
-                            )
-                            ->when(
-                                $data['due_until'],
-                                fn (Builder $query, $date): Builder => $query->whereDate('due_date', '<=', $date),
-                            );
-                    }),
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\Action::make('downloadFile')
+                    ->label('Download')
+                    ->icon('heroicon-o-arrow-down-tray')
+                    ->color('primary')
+                    ->url(fn (Homework $record) => route('homework.download', $record))
+                    ->openUrlInNewTab()
+                    ->visible(fn (Homework $record) => !empty($record->homework_file)),
                 Tables\Actions\Action::make('sendNotifications')
-                    ->label('Send SMS Notifications')
+                    ->label('Send SMS')
                     ->icon('heroicon-o-paper-airplane')
                     ->color('warning')
                     ->action(function (Homework $record) {
@@ -203,146 +174,161 @@ class HomeworkResource extends Resource
                     ->requiresConfirmation()
                     ->modalHeading('Send SMS Notifications')
                     ->modalDescription('This will send SMS notifications to all parents/guardians of students in this grade. Are you sure you want to continue?')
-                    ->modalSubmitActionLabel('Yes, Send Notifications')
-                    ->visible(fn (Homework $record) => $record->status === 'active'),
-                Tables\Actions\Action::make('viewSubmissions')
-                    ->label('View Submissions')
-                    ->icon('heroicon-o-clipboard-document-check')
-                    ->color('success')
-                    ->url(fn (Homework $record) => route('filament.admin.resources.homework-submissions.index', ['tableFilters[homework][value]' => $record->id])),
+                    ->modalSubmitActionLabel('Yes, Send Notifications'),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make(),
-                    Tables\Actions\BulkAction::make('mark_completed')
-                        ->action(function (Builder $query) {
-                            $query->update(['status' => 'completed']);
-                        })
-                        ->deselectRecordsAfterCompletion()
-                        ->icon('heroicon-o-check')
-                        ->color('success')
-                        ->requiresConfirmation(),
-                    Tables\Actions\BulkAction::make('send_bulk_notifications')
-                        ->label('Send SMS Notifications')
-                        ->icon('heroicon-o-paper-airplane')
-                        ->color('warning')
-                        ->action(function (Builder $query) {
-                            $homeworks = $query->where('status', 'active')->get();
-
-                            foreach ($homeworks as $homework) {
-                                self::sendSmsNotifications($homework);
-                            }
-
-                            Notification::make()
-                                ->title('SMS Notifications Queued')
-                                ->body('SMS notifications are being sent to parents.')
-                                ->success()
-                                ->send();
-                        })
-                        ->requiresConfirmation()
-                        ->modalHeading('Send Bulk SMS Notifications')
-                        ->modalDescription('This will send SMS notifications for all selected active homeworks. Are you sure you want to continue?')
-                        ->modalSubmitActionLabel('Yes, Send All Notifications'),
                 ]),
             ]);
     }
 
-    public static function sendSmsNotifications(Homework $homework)
+    /**
+     * Send SMS notifications to parents about new homework
+     */
+    public static function sendSmsNotifications(Homework $homework): void
     {
-        // Find all students in this grade
-        $students = Student::where('grade', $homework->grade)
+        // Get all students in the specified grade using grade_id
+        $students = Student::where('grade_id', $homework->grade_id)
             ->where('enrollment_status', 'active')
             ->with('parentGuardian')
             ->get();
 
-        $subject = $homework->subject->name ?? 'N/A';
         $successCount = 0;
-        $failedCount = 0;
+        $failCount = 0;
 
         foreach ($students as $student) {
-            if (!$student->parentGuardian || !$student->parentGuardian->phone) {
+            $parentGuardian = $student->parentGuardian;
+
+            if (!$parentGuardian || !$parentGuardian->phone) {
+                $failCount++;
                 continue;
             }
 
-            // Format message
-            $customMessage = $homework->sms_message;
-
-            if (empty($customMessage)) {
-                // Create a portal URL for parents to access the homework
-                $portalUrl = route('filament.parent.pages.view-homework', ['homeworkId' => $homework->id]);
-
-                $message = "Dear Parent/Guardian, new homework assigned for {$student->name} in {$subject}. Title: {$homework->title}. Due: " . $homework->due_date->format('d/m/Y') . ". Check the parent portal.";
-            } else {
-                $message = $customMessage;
-            }
-
             try {
-                // Send SMS
-                SmsService::send($message, $student->parentGuardian->phone);
+                // Construct the SMS message
+                $subjectName = $homework->subject->name ?? 'Unknown Subject';
+                $gradeName = $homework->grade->name ?? 'Unknown Grade';
+                $dueDate = $homework->due_date->format('d/m/Y');
 
-                // Log the SMS
-                SmsLog::create([
-                    'recipient' => $student->parentGuardian->phone,
-                    'message' => $message,
-                    'status' => 'sent',
-                    'message_type' => 'homework_notification',
-                    'reference_id' => $homework->id,
-                    'cost' => 0.5, // Assuming cost per SMS, adjust as needed
-                    'sent_by' => auth()->id(),
-                ]);
+                $message = "Hello {$parentGuardian->name}, your child {$student->name} has new homework.\n\n";
+                $message .= "Subject: {$subjectName}\n";
+                $message .= "Title: {$homework->title}\n";
+                $message .= "Grade: {$gradeName}\n";
+                $message .= "Due Date: {$dueDate}\n\n";
+                $message .= "Please check the parent portal to download the homework.";
 
-                $successCount++;
+                // Format and send SMS
+                $formattedPhone = self::formatPhoneNumber($parentGuardian->phone);
+                $success = self::sendMessage($message, $formattedPhone);
+
+                if ($success) {
+                    $successCount++;
+                    // Log successful SMS
+                    Log::info('Homework SMS sent', [
+                        'homework_id' => $homework->id,
+                        'student_id' => $student->id,
+                        'parent_guardian_id' => $parentGuardian->id
+                    ]);
+                } else {
+                    $failCount++;
+                }
+
             } catch (\Exception $e) {
-                // Log the error
-                Log::error('Failed to send homework notification SMS', [
-                    'student_id' => $student->id,
-                    'parent_phone' => $student->parentGuardian->phone,
+                $failCount++;
+                // Log error
+                Log::error('Failed to send homework SMS', [
                     'homework_id' => $homework->id,
+                    'student_id' => $student->id,
+                    'parent_guardian_id' => $parentGuardian->id,
                     'error' => $e->getMessage()
                 ]);
-
-                // Log the failed SMS
-                SmsLog::create([
-                    'recipient' => $student->parentGuardian->phone,
-                    'message' => $message,
-                    'status' => 'failed',
-                    'message_type' => 'homework_notification',
-                    'reference_id' => $homework->id,
-                    'error_message' => $e->getMessage(),
-                    'sent_by' => auth()->id(),
-                ]);
-
-                $failedCount++;
             }
         }
 
-        // Display notification with results
-        if ($successCount > 0 || $failedCount > 0) {
-            $message = "SMS Notifications: {$successCount} sent successfully";
-            if ($failedCount > 0) {
-                $message .= ", {$failedCount} failed";
-            }
-
-            Notification::make()
-                ->title($message)
-                ->success()
-                ->send();
-        } else {
-            Notification::make()
-                ->title('No eligible parents found')
-                ->body('No SMS notifications were sent because no eligible parents were found for this grade.')
-                ->warning()
-                ->send();
-        }
+        // Show notification with results
+        Notification::make()
+            ->title('SMS Notifications Sent')
+            ->body("Successfully sent: {$successCount}, Failed: {$failCount}")
+            ->success($successCount > 0)
+            ->warning($failCount > 0)
+            ->send();
     }
 
-    public static function getRelations(): array
+    public static function shouldRegisterNavigation(): bool
+        {
+            $user = Auth::user();
+
+            if (!$user) {
+                return false;
+            }
+
+            return $user->hasRole([ 'Student', 'Teacher']);
+        }
+
+
+    /**
+     * Format phone number to ensure it has the country code
+     */
+    public static function formatPhoneNumber(string $phoneNumber): string
     {
-        return [
-            // We'll define the Submissions relation manager
-            RelationManagers\SubmissionsRelationManager::class,
-            RelationManagers\SmsLogsRelationManager::class,
-        ];
+        // Remove any non-numeric characters
+        $phoneNumber = preg_replace('/[^0-9]/', '', $phoneNumber);
+
+        // Check if number already has country code (260 for Zambia)
+        if (substr($phoneNumber, 0, 3) === '260') {
+            return $phoneNumber;
+        }
+
+        // If starting with 0, replace with country code
+        if (substr($phoneNumber, 0, 1) === '0') {
+            return '260' . substr($phoneNumber, 1);
+        }
+
+        // If number doesn't have country code, add it
+        if (strlen($phoneNumber) === 9) {
+            return '260' . $phoneNumber;
+        }
+
+        return $phoneNumber;
+    }
+
+    /**
+     * Send a message via SMS
+     */
+    public static function sendMessage($message_string, $phone_number): bool
+    {
+        try {
+            // Log the sending attempt
+            Log::info('Sending homework SMS notification', [
+                'phone' => $phone_number,
+                'message' => substr($message_string, 0, 50) . '...'
+            ]);
+
+            // Replace @ with (at) for SMS compatibility
+            $sms_message = str_replace('@', '(at)', $message_string);
+            $url_encoded_message = urlencode($sms_message);
+
+            $sendSenderSMS = Http::withoutVerifying()
+                ->timeout(20)
+                ->retry(3, 2000)
+                ->post('https://www.cloudservicezm.com/smsservice/httpapi?username=Blessmore&password=Blessmore&msg=' . $url_encoded_message . '&shortcode=2343&sender_id=StFrancis&phone=' . $phone_number . '&api_key=121231313213123123');
+
+            // Log the response
+            Log::info('SMS API Response', [
+                'status' => $sendSenderSMS->status(),
+                'body' => $sendSenderSMS->body(),
+                'to' => substr($phone_number, 0, 6) . '****' . substr($phone_number, -3),
+            ]);
+
+            return $sendSenderSMS->successful();
+        } catch (\Exception $e) {
+            Log::error('SMS sending failed', [
+                'error' => $e->getMessage(),
+                'phone' => $phone_number,
+            ]);
+            return false;
+        }
     }
 
     public static function getPages(): array

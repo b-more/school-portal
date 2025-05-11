@@ -51,9 +51,9 @@ class Result extends Model
     }
 
     public function recordedBy(): BelongsTo
-    {
-        return $this->belongsTo(Employee::class, 'recorded_by');
-    }
+{
+    return $this->belongsTo(Teacher::class, 'recorded_by');
+}
 
     /**
      * Get the homework associated with this result (if applicable).

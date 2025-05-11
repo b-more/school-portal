@@ -8,6 +8,7 @@ use App\Models\SchoolClass;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+use App\Constants\RoleConstants; // Optional: if you're using role constants
 
 class TeacherAssignmentSeeder extends Seeder
 {
@@ -27,7 +28,8 @@ class TeacherAssignmentSeeder extends Seeder
         // Get remaining teachers and classes for random assignments
         $assignedTeacherIds = DB::table('class_teacher')->pluck('employee_id')->unique()->toArray();
 
-        $teachers = Employee::where('role', 'teacher')
+        // FIX: Change 'role' to 'role_id'
+        $teachers = Employee::where('role_id', 2) // 2 is Teacher role_id
                             ->where('status', 'active')
                             ->whereNotIn('id', $assignedTeacherIds)
                             ->get()

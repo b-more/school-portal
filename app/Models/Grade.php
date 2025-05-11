@@ -32,6 +32,16 @@ class Grade extends Model
         return $this->belongsTo(SchoolSection::class);
     }
 
+    public function studentsCount()
+    {
+        return $this->hasManyThrough(Student::class, ClassSection::class);
+    }
+
+    public function homework(): HasMany
+{
+    return $this->hasMany(Homework::class);
+}
+
     public function classSections(): HasMany
     {
         return $this->hasMany(ClassSection::class);

@@ -37,8 +37,8 @@ class TeacherSubjectSeeder extends Seeder
             // Add more mappings as needed
         ];
 
-        // Get all teachers
-        $teachers = Employee::where('role', 'teacher')->get();
+        // Get all teachers - FIXED: using role_id instead of role
+        $teachers = Employee::where('role_id', 2)->get(); // 2 is the Teacher role_id
         $this->command->info("Found {$teachers->count()} teachers to process");
 
         foreach ($teachers as $teacher) {

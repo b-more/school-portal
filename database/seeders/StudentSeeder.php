@@ -4,11 +4,13 @@ namespace Database\Seeders;
 
 use App\Models\Student;
 use App\Models\User;
+use App\Models\Role;
+use App\Models\Grade;
+use App\Models\ClassSection;
 use App\Models\SchoolClass;
 use App\Models\ParentGuardian;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\DB;
 
 class StudentSeeder extends Seeder
 {
@@ -17,16 +19,27 @@ class StudentSeeder extends Seeder
      */
     public function run(): void
     {
+        // Get student role
+        $studentRole = Role::where('name', 'Student')->first();
+        if (!$studentRole) {
+            $this->command->error('Student role not found. Please run RoleSeeder first.');
+            return;
+        }
+
         // Clear existing students
         Student::truncate();
 
         // Get student users who don't have student records yet
-        $studentUsers = User::where('email', 'like', '%.student@stfrancisofassisi.tech')
+        $studentUsers = User::where('role_id', $studentRole->id)
                             ->whereDoesntHave('student')
                             ->get();
 
-        // Get all classes
-        $classes = SchoolClass::all()->groupBy('department')->toArray();
+        // Get all grades with their IDs
+        $grades = Grade::where('is_active', true)->get();
+        if ($grades->isEmpty()) {
+            $this->command->error('No grades found. Please run GradeSeeder first.');
+            return;
+        }
 
         // Get all parents
         $parentGuardians = ParentGuardian::all();
@@ -35,7 +48,7 @@ class StudentSeeder extends Seeder
             return;
         }
 
-        // Create 200 students distributed across classes
+        // Create 200 students distributed across grades
         $studentCount = 200;
         $createdCount = 0;
 
@@ -52,74 +65,169 @@ class StudentSeeder extends Seeder
             'Solwezi', 'Mansa', 'Choma', 'Mazabuka', 'Kafue'
         ];
 
-        // For each class, create a reasonable number of students
-        foreach ($classes as $department => $depClasses) {
-            foreach ($depClasses as $class) {
-                // Different class sizes based on department
-                $classSize = match($department) {
-                    'ECL' => rand(15, 25),
-                    'Primary' => rand(25, 35),
-                    'Secondary' => rand(20, 30),
-                    default => rand(20, 30),
+        // For backward compatibility with existing data, get some SchoolClass records
+        $schoolClasses = SchoolClass::where('is_active', true)->get();
+
+        // Distribute students across grades
+        foreach ($grades as $grade) {
+            // Get all active class sections for this grade
+            $classSections = ClassSection::where('grade_id', $grade->id)
+                                        ->where('is_active', true)
+                                        ->get();
+
+            // If no class sections exist for this grade, create a default one
+            if ($classSections->isEmpty()) {
+                $this->command->warn("No class sections found for {$grade->name}. Creating default section...");
+
+                $defaultSection = ClassSection::create([
+                    'grade_id' => $grade->id,
+                    'academic_year_id' => \App\Models\AcademicYear::where('is_active', true)->first()?->id,
+                    'name' => 'A',
+                    'code' => "{$grade->code}-A",
+                    'capacity' => 40,
+                    'is_active' => true,
+                ]);
+
+                $classSections = collect([$defaultSection]);
+            }
+
+            // Different class sizes based on grade level
+            $classSize = match($grade->level) {
+                1,2,3 => rand(15, 25),         // ECL
+                4,5,6,7,8,9,10 => rand(25, 35), // Primary
+                11,12,13,14,15 => rand(25, 40), // Secondary
+                default => rand(20, 30),
+            };
+
+            for ($i = 1; $i <= $classSize && $createdCount < $studentCount; $i++) {
+                // Determine if we should use a student user (for older students)
+                $useStudentUser = $grade->level >= 11 && !$studentUsers->isEmpty() && rand(0, 3) === 0;
+                $user = null;
+
+                if ($useStudentUser) {
+                    $user = $studentUsers->shift(); // Get and remove first user
+                    $name = $user->name;
+                } else {
+                    $name = $this->getRandomName();
+                }
+
+                // Get a random parent/guardian
+                $parent = $parentGuardians->random();
+
+                // Select a class section - distribute evenly across available sections
+                $classSection = $classSections->sortBy(function($section) {
+                    return $section->students()->count();
+                })->first();
+
+                // Generate a birth date appropriate for the student's grade level
+                $baseAge = match($grade->level) {
+                    1 => 3,   // Baby Class
+                    2 => 4,   // Middle Class
+                    3 => 5,   // Reception
+                    4 => 6,   // Grade 1
+                    5 => 7,   // Grade 2
+                    6 => 8,   // Grade 3
+                    7 => 9,   // Grade 4
+                    8 => 10,  // Grade 5
+                    9 => 11,  // Grade 6
+                    10 => 12, // Grade 7
+                    11 => 13, // Grade 8
+                    12 => 14, // Grade 9
+                    13 => 15, // Grade 10
+                    14 => 16, // Grade 11
+                    15 => 17, // Grade 12
+                    default => 10,
                 };
 
-                for ($i = 1; $i <= $classSize && $createdCount < $studentCount; $i++) {
-                    // Determine if we should use a student user (for older students)
-                    $useStudentUser = $department === 'Secondary' && !$studentUsers->isEmpty() && rand(0, 3) === 0;
-                    $user = null;
+                $age = $baseAge + rand(0, 1); // Add 0-1 years variation
+                $birthDate = Carbon::now()->subYears($age)->subDays(rand(0, 365));
 
-                    if ($useStudentUser) {
-                        $user = $studentUsers->shift(); // Get and remove first user
-                        $name = $user->name;
-                    } else {
-                        $name = $this->getRandomName();
+                // Generate a unique student ID using the new format
+                $gradeName = strtoupper(str_replace(' ', '', $grade->name));
+                $prefix = substr($gradeName, 0, 3); // First 3 letters of grade name
+                $studentId = $prefix . str_pad($createdCount + 1, 4, '0', STR_PAD_LEFT);
+
+                // For backward compatibility, assign school_class_id if needed
+                $schoolClassId = null;
+                if ($schoolClasses->isNotEmpty()) {
+                    // Try to match by grade and section, fallback to random
+                    $schoolClass = $schoolClasses->where('grade', $grade->name)
+                                                ->where('section', $classSection->name)
+                                                ->first() ?? $schoolClasses->random();
+                    $schoolClassId = $schoolClass->id;
+                }
+
+                // Create the student
+                $student = Student::create([
+                    'name' => $name,
+                    'user_id' => $user?->id,
+                    'date_of_birth' => $birthDate,
+                    'place_of_birth' => $birthPlaces[array_rand($birthPlaces)],
+                    'religious_denomination' => $denominations[array_rand($denominations)],
+                    'standard_of_education' => $this->getStandardOfEducation($grade->level),
+                    'smallpox_vaccination' => ['Yes', 'No', 'Not Sure'][rand(0, 2)],
+                    'date_vaccinated' => rand(0, 1) ? $birthDate->copy()->addMonths(rand(1, 12)) : null,
+                    'gender' => ['male', 'female'][rand(0, 1)],
+                    'address' => $parent->address ?? $this->getRandomAddress(),
+                    'student_id_number' => $studentId,
+                    'parent_guardian_id' => $parent->id,
+                    'grade_id' => $grade->id,
+                    'class_section_id' => $classSection->id, // Assign to class section
+                    'school_class_id' => $schoolClassId, // For backward compatibility
+                    'admission_date' => Carbon::now()->subMonths(rand(1, 36)),
+                    'enrollment_status' => 'active',
+                    'previous_school' => rand(0, 5) > 0 ? $this->getRandomSchoolName() : null,
+                    'medical_information' => rand(0, 10) === 0 ? $this->getRandomMedicalInfo() : null,
+                    'notes' => rand(0, 10) === 0 ? $this->getRandomNotes() : null,
+                ]);
+
+                $createdCount++;
+
+                // Show progress
+                if ($createdCount % 50 === 0) {
+                    $this->command->info("Created {$createdCount} students...");
+                }
+
+                // If the current section is getting full, rotate to next section
+                if ($classSection->students()->count() >= $classSection->capacity) {
+                    $classSections = $classSections->reject(function($section) use ($classSection) {
+                        return $section->id === $classSection->id;
+                    });
+
+                    // If all sections are full, create a new one
+                    if ($classSections->isEmpty()) {
+                        $nextSectionName = $this->getNextSectionName($grade);
+                        $newSection = ClassSection::create([
+                            'grade_id' => $grade->id,
+                            'academic_year_id' => \App\Models\AcademicYear::where('is_active', true)->first()?->id,
+                            'name' => $nextSectionName,
+                            'code' => "{$grade->code}-{$nextSectionName}",
+                            'capacity' => 40,
+                            'is_active' => true,
+                        ]);
+
+                        $classSections = collect([$newSection]);
+                        $this->command->info("Created new section {$nextSectionName} for {$grade->name}");
                     }
-
-                    // Get a random parent/guardian
-                    $parent = $parentGuardians->random();
-
-                    // Generate a birth date appropriate for the student's grade
-                    $age = match($department) {
-                        'ECL' => rand(3, 6),
-                        'Primary' => rand(6, 13),
-                        'Secondary' => rand(13, 19),
-                        default => rand(6, 18),
-                    };
-                    $birthDate = Carbon::now()->subYears($age)->subDays(rand(0, 365));
-
-                    // Generate a unique student ID
-                    $studentId = strtoupper(substr($department, 0, 1)) . date('y') . str_pad($createdCount + 1, 4, '0', STR_PAD_LEFT);
-
-                    // Create the student
-                    $student = Student::create([
-                        'name' => $name,
-                        'user_id' => $user?->id,
-                        'date_of_birth' => $birthDate,
-                        'place_of_birth' => $birthPlaces[array_rand($birthPlaces)],
-                        'religious_denomination' => $denominations[array_rand($denominations)],
-                        'standard_of_education' => $class['grade'],
-                        'smallpox_vaccination' => ['Yes', 'No', 'Not Sure'][rand(0, 2)],
-                        'date_vaccinated' => rand(0, 1) ? $birthDate->copy()->addMonths(rand(1, 12)) : null,
-                        'gender' => ['male', 'female'][rand(0, 1)],
-                        'address' => $parent->address ?? 'Unknown',
-                        'student_id_number' => $studentId,
-                        'parent_guardian_id' => $parent->id,
-                        'grade' => $class['grade'],
-                        'admission_date' => Carbon::now()->subMonths(rand(1, 36)),
-                        'enrollment_status' => 'active',
-                        'previous_school' => rand(0, 5) > 0 ? $this->getRandomSchoolName() : null, // 5/6 chance to have previous school
-                        'medical_information' => rand(0, 10) === 0 ? $this->getRandomMedicalInfo() : null, // 1/10 chance to have medical info
-                        'notes' => rand(0, 10) === 0 ? $this->getRandomNotes() : null, // 1/10 chance to have notes
-                    ]);
-
-                    // Here you could add code to assign student to the class if you have a relationship table
-
-                    $createdCount++;
                 }
             }
         }
 
         $this->command->info('Successfully seeded ' . $createdCount . ' students!');
+    }
+
+    /**
+     * Determine standard of education based on grade level
+     */
+    private function getStandardOfEducation(int $level): string
+    {
+        return match($level) {
+            1,2,3 => 'Nursery',
+            4,5,6,7,8,9,10 => 'Primary',
+            11,12 => 'Junior Secondary',
+            13,14,15 => 'Senior Secondary',
+            default => 'Primary',
+        };
     }
 
     /**
@@ -220,5 +328,45 @@ class StudentSeeder extends Seeder
         ];
 
         return $notes[array_rand($notes)];
+    }
+
+    /**
+     * Generate random address
+     */
+    private function getRandomAddress(): string
+    {
+        $areas = [
+            'Kabwata', 'Garden', 'Lusaka South', 'Chilenje', 'Matero',
+            'Kaunda Square', 'Woodlands', 'Roma', 'Kamwala', 'Avondale',
+            'Rhodes Park', 'New Kasama', 'Bauleni', 'Mandevu', 'Libala'
+        ];
+
+        $streetTypes = ['Road', 'Avenue', 'Drive', 'Street', 'Lane', 'Crescent'];
+        $houseNumber = rand(1, 999);
+        $streetName = $this->getRandomName();
+        $area = $areas[array_rand($areas)];
+
+        return "{$houseNumber} {$streetName} {$streetTypes[array_rand($streetTypes)]}, {$area}, Lusaka";
+    }
+
+    /**
+     * Get next section name
+     */
+    private function getNextSectionName(Grade $grade): string
+    {
+        $existingSections = ClassSection::where('grade_id', $grade->id)
+                                      ->pluck('name')
+                                      ->toArray();
+
+        $alphabet = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
+
+        foreach ($alphabet as $letter) {
+            if (!in_array($letter, $existingSections)) {
+                return $letter;
+            }
+        }
+
+        // If we've used all letters, start with double letters
+        return 'AA';
     }
 }

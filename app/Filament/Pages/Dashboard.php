@@ -11,6 +11,8 @@ use App\Models\SmsLog;
 use App\Models\Student;
 use App\Models\StudentFee;
 use App\Models\FeeStructure;
+use App\Models\Grade;
+use App\Constants\RoleConstants; // Add this import for role constants
 use Carbon\Carbon;
 use Filament\Pages\Page;
 use Filament\Widgets\StatsOverviewWidget\Stat;
@@ -25,8 +27,24 @@ class Dashboard extends Page
     protected static string $view = 'filament.pages.dashboard';
     protected static ?int $navigationSort = 1;
 
+    // Add access control methods
+    public static function canAccess(): bool
+    {
+        return auth()->user()?->role_id === RoleConstants::ADMIN ?? false;
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return auth()->user()?->role_id === RoleConstants::ADMIN ?? false;
+    }
+
     public function mount()
     {
+        // Check access before loading the dashboard
+        if (!static::canAccess()) {
+            abort(403);
+        }
+
         // Log all fees and payments for debugging
         $this->logSystemData();
     }
@@ -40,9 +58,10 @@ class Dashboard extends Page
             'list' => $allFeeStructures->map(function($fs) {
                 return [
                     'id' => $fs->id,
-                    'grade' => $fs->grade,
-                    'term' => $fs->term,
-                    'year' => $fs->academic_year,
+                    'grade_id' => $fs->grade_id,
+                    'grade_name' => $fs->grade?->name,
+                    'term' => $fs->term?->name,
+                    'year' => $fs->academicYear?->name,
                     'is_active' => $fs->is_active,
                     'total_fee' => $fs->total_fee
                 ];
@@ -72,10 +91,10 @@ class Dashboard extends Page
         $activeStudents = Student::where('enrollment_status', 'active')->count();
         $inactiveStudents = Student::where('enrollment_status', 'inactive')->count();
 
-        // Get staff counts
+        // Get staff counts - CORRECTED TO USE ROLE_ID
         $totalStaff = Employee::count();
-        $teacherCount = Employee::where('role', 'teacher')->count();
-        $adminCount = Employee::where('role', 'admin')->count();
+        $teacherCount = Employee::where('role_id', RoleConstants::TEACHER)->count(); // Use role_id instead of role
+        $adminCount = Employee::where('role_id', RoleConstants::ADMIN)->count(); // Use role_id instead of role
 
         // Get fee collection statistics - COMPLETELY REVISED
         // First, get total amount paid from all student fees
@@ -156,7 +175,6 @@ class Dashboard extends Page
         ];
     }
 
-    // Rest of the Dashboard class remains unchanged
     public function getQuickActions(): array
     {
         $actions = [];
@@ -177,6 +195,16 @@ class Dashboard extends Page
                 'icon' => 'heroicon-o-banknotes',
                 'color' => 'success',
                 'url' => route('filament.admin.resources.student-fees.create'),
+            ];
+        }
+
+        // Add Fee Statements Quick Action
+        if ($this->routeExists('fee-statements.index')) {
+            $actions[] = [
+                'title' => 'Fee Statements',
+                'icon' => 'heroicon-o-document-chart-bar',
+                'color' => 'orange',
+                'url' => route('fee-statements.index'),
             ];
         }
 
@@ -233,32 +261,87 @@ class Dashboard extends Page
 
     public function getRecentActivity(): array
     {
-        // Get recent students
-        $recentStudents = Student::latest()->take(5)->get();
+        // Get recent students with proper formatting
+        $recentStudents = Student::with('grade')
+            ->latest()
+            ->take(5)
+            ->get()
+            ->map(function ($student) {
+                return [
+                    'id' => $student->id,
+                    'name' => $student->name,
+                    'grade' => $student->grade?->name ?? 'Unknown Grade',
+                    'type' => 'student',
+                    'time' => $student->created_at->diffForHumans(),
+                    'description' => "New student enrolled in {$student->grade?->name}"
+                ];
+            });
 
-        // Get recent fee payments
+        // Get recent fee payments with proper formatting
         $recentPayments = StudentFee::where('payment_status', '!=', 'unpaid')
-                        ->latest()
-                        ->take(5)
-                        ->with(['student', 'feeStructure'])
-                        ->get();
+            ->with(['student', 'feeStructure.grade'])
+            ->latest()
+            ->take(5)
+            ->get()
+            ->map(function ($payment) {
+                return [
+                    'id' => $payment->id,
+                    'name' => $payment->student->name,
+                    'grade' => $payment->feeStructure?->grade?->name ?? 'Unknown Grade',
+                    'type' => 'payment',
+                    'amount' => $payment->amount_paid,
+                    'time' => $payment->updated_at->diffForHumans(),
+                    'description' => "Payment of ZMW {$payment->amount_paid} for {$payment->feeStructure?->grade?->name}"
+                ];
+            });
 
-        // Get recent homework submissions
-        $recentSubmissions = HomeworkSubmission::latest()
-                            ->take(5)
-                            ->with(['student', 'homework'])
-                            ->get();
+        // Get recent homework submissions with proper formatting
+        $recentSubmissions = HomeworkSubmission::with(['student', 'homework.grade'])
+            ->latest()
+            ->take(5)
+            ->get()
+            ->map(function ($submission) {
+                return [
+                    'id' => $submission->id,
+                    'name' => $submission->student->name,
+                    'homework' => $submission->homework->title,
+                    'grade' => $submission->homework->grade?->name ?? 'Unknown Grade',
+                    'type' => 'submission',
+                    'time' => $submission->created_at->diffForHumans(),
+                    'description' => "Homework submission: {$submission->homework->title}"
+                ];
+            });
 
-        // Get recent SMS logs
+        // Get recent SMS logs with proper formatting
         $recentSms = SmsLog::latest()
-                    ->take(5)
-                    ->get();
+            ->take(5)
+            ->get()
+            ->map(function ($sms) {
+                return [
+                    'id' => $sms->id,
+                    'recipient' => $sms->recipient,
+                    'type' => 'sms',
+                    'status' => $sms->status,
+                    'time' => $sms->created_at->diffForHumans(),
+                    'description' => "SMS sent to {$sms->recipient}"
+                ];
+            });
+
+        // Combine all activities and sort by time
+        $allActivities = collect([])
+            ->merge($recentStudents)
+            ->merge($recentPayments)
+            ->merge($recentSubmissions)
+            ->merge($recentSms)
+            ->sortByDesc('time')
+            ->take(10);
 
         return [
             'students' => $recentStudents,
             'payments' => $recentPayments,
             'submissions' => $recentSubmissions,
             'sms' => $recentSms,
+            'all' => $allActivities
         ];
     }
 
@@ -274,28 +357,30 @@ class Dashboard extends Page
 
     public function getChartData(): array
     {
-        // Get enrollment by grade
-        $gradeData = Student::where('enrollment_status', 'active')
-                    ->select('grade', DB::raw('count(*) as count'))
-                    ->groupBy('grade')
-                    ->orderBy('grade')
+        // Get enrollment by grade - JOIN with grades table to get grade name
+        $gradeData = Student::join('grades', 'students.grade_id', '=', 'grades.id')
+                    ->where('students.enrollment_status', 'active')
+                    ->select('grades.name as grade', DB::raw('count(*) as count'))
+                    ->groupBy('grades.id', 'grades.name')
+                    ->orderBy('grades.level')
                     ->get()
                     ->toArray();
 
-        // Get fee collection by grade
+        // Get fee collection by grade - JOIN with grades table
         $feeData = StudentFee::join('students', 'student_fees.student_id', '=', 'students.id')
-                    ->select('students.grade',
+                    ->join('grades', 'students.grade_id', '=', 'grades.id')
+                    ->select('grades.name as grade',
                              DB::raw('sum(student_fees.amount_paid) as collected'),
                              DB::raw('sum(student_fees.balance) as balance'))
-                    ->groupBy('students.grade')
-                    ->orderBy('students.grade')
+                    ->groupBy('grades.id', 'grades.name')
+                    ->orderBy('grades.level')
                     ->get()
                     ->toArray();
 
         // Get subject performance
         $resultData = Result::join('subjects', 'results.subject_id', '=', 'subjects.id')
                     ->select('subjects.name', DB::raw('avg(results.marks) as average'))
-                    ->groupBy('subjects.name')
+                    ->groupBy('subjects.id', 'subjects.name')
                     ->orderBy('average', 'desc')
                     ->take(5)
                     ->get()

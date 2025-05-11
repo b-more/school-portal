@@ -13,15 +13,20 @@ class RecentHomework extends BaseWidget
     {
         return $table
             ->query(
-                Homework::query()->latest()->limit(5)
+                Homework::query()
+                    ->with(['subject', 'grade'])  // Eager load relationships
+                    ->latest()
+                    ->limit(5)
             )
             ->columns([
                 Tables\Columns\TextColumn::make('title')
                     ->searchable()
                     ->limit(50),
                 Tables\Columns\TextColumn::make('subject.name')
+                    ->label('Subject')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('grade')
+                Tables\Columns\TextColumn::make('grade.name')  // Changed from 'grade' to 'grade.name'
+                    ->label('Grade')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('due_date')
                     ->date()

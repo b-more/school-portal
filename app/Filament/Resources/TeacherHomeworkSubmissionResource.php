@@ -6,8 +6,9 @@ use App\Filament\Resources\TeacherHomeworkSubmissionResource\Pages;
 use App\Models\HomeworkSubmission;
 use App\Models\Homework;
 use App\Models\Student;
-use App\Models\Employee;
+use App\Models\Teacher;
 use App\Models\Result;
+use App\Constants\RoleConstants;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -30,104 +31,84 @@ class TeacherHomeworkSubmissionResource extends Resource
 
     protected static ?int $navigationSort = 3;
 
-    // Only display submissions for the current teacher's classes and subjects
+    // Display submissions based on user role
     public static function getEloquentQuery(): Builder
     {
         $query = parent::getEloquentQuery();
-
-        // Get the current user
         $user = Auth::user();
 
-        // If user is admin, show all records
-        if ($user->hasRole('admin')) {
+        // Admin can see all submissions
+        if ($user->role_id === RoleConstants::ADMIN) {
             return $query;
         }
 
-        // Get the employee (teacher) record
-        $teacher = Employee::where('user_id', $user->id)->first();
+        // Teachers can see submissions for their classes and homework
+        if ($user->role_id === RoleConstants::TEACHER) {
+            $teacher = Teacher::where('user_id', $user->id)->first();
 
-        if (!$teacher) {
-            return $query->where('id', 0); // Return empty result if not a teacher
+            if (!$teacher) {
+                return $query->where('id', 0); // Return empty result if not a teacher
+            }
+
+            // Get grades this teacher teaches
+            $gradeIds = $teacher->classSections()->pluck('grade_id')->unique()->toArray();
+
+            // Get subjects this teacher teaches
+            $subjectIds = $teacher->subjects()->pluck('subjects.id')->toArray();
+
+            // Get students in teacher's classes
+            $studentIds = Student::whereIn('class_section_id',
+                $teacher->classSections()->pluck('id')
+            )->pluck('id')->toArray();
+
+            // Get homework created by this teacher or for teacher's subjects/grades
+            $homeworkIds = Homework::where(function($query) use ($teacher, $gradeIds, $subjectIds) {
+                $query->where('assigned_by', $teacher->id)
+                      ->orWhere(function($q) use ($gradeIds, $subjectIds) {
+                          $q->whereIn('grade_id', $gradeIds)
+                            ->whereIn('subject_id', $subjectIds);
+                      });
+            })->pluck('id')->toArray();
+
+            // Return submissions from teacher's students for relevant homework
+            return $query->where(function($query) use ($studentIds, $homeworkIds, $teacher) {
+                $query->whereIn('student_id', $studentIds)
+                      ->whereIn('homework_id', $homeworkIds)
+                      ->orWhere('graded_by', $teacher->id);
+            });
         }
 
-        // Get classes assigned to this teacher
-        $teacherClassIds = $teacher->classes()->pluck('id')->toArray();
+        // Students can only see their own submissions
+        if ($user->role_id === RoleConstants::STUDENT) {
+            $student = Student::where('user_id', $user->id)->first();
+            return $student ? $query->where('student_id', $student->id) : $query->where('id', 0);
+        }
 
-        // Get subjects assigned to this teacher
-        $teacherSubjectIds = $teacher->subjects()->pluck('subjects.id')->toArray();
+        // Parents can see submissions for their children
+        if ($user->role_id === RoleConstants::PARENT) {
+            $parent = $user->parentGuardian;
+            $studentIds = $parent ? $parent->students()->pluck('id')->toArray() : [];
+            return $query->whereIn('student_id', $studentIds);
+        }
 
-        // Get students in teacher's classes
-        $studentIds = Student::whereIn('school_class_id', $teacherClassIds)
-            ->pluck('id')
-            ->toArray();
-
-        // Get homework created by this teacher
-        $teacherHomeworkIds = Homework::where('assigned_by', $teacher->id)
-            ->pluck('id')
-            ->toArray();
-
-        // Get homework for teacher's subjects and grades
-        $classGrades = $teacher->classes()->pluck('grade')->unique()->toArray();
-        $subjectHomeworkIds = Homework::whereIn('subject_id', $teacherSubjectIds)
-            ->whereIn('grade', $classGrades)
-            ->pluck('id')
-            ->toArray();
-
-        $relevantHomeworkIds = array_unique(array_merge($teacherHomeworkIds, $subjectHomeworkIds));
-
-        // Filter submissions by:
-        // 1. Submissions from students in teacher's classes AND for teacher's subjects
-        // 2. OR submissions for homework created by this teacher
-        return $query->where(function($query) use ($studentIds, $relevantHomeworkIds, $teacher) {
-            $query->whereIn('student_id', $studentIds)
-                  ->whereIn('homework_id', $relevantHomeworkIds)
-                  ->orWhereIn('homework_id', $relevantHomeworkIds)
-                  ->orWhere('graded_by', $teacher->id);
-        });
+        return $query->where('id', 0); // Default: no access
     }
 
     public static function form(Form $form): Form
     {
         $user = Auth::user();
-        $teacher = Employee::where('user_id', $user->id)->first();
+        $isTeacher = $user->role_id === RoleConstants::TEACHER;
+        $isAdmin = $user->role_id === RoleConstants::ADMIN;
 
-        // Get teacher's classes
-        $teacherClassIds = [];
-        if ($teacher) {
-            $teacherClassIds = $teacher->classes()->pluck('id')->toArray();
+        // Students and parents shouldn't create submissions through admin panel
+        if ($user->role_id === RoleConstants::STUDENT || $user->role_id === RoleConstants::PARENT) {
+            return $form->schema([
+                Forms\Components\Placeholder::make('notice')
+                    ->content('You can submit homework through the student portal.')
+            ]);
         }
 
-        // Get students in teacher's classes
-        $studentOptions = [];
-        if (!empty($teacherClassIds)) {
-            $studentOptions = Student::whereIn('school_class_id', $teacherClassIds)
-                ->pluck('name', 'id')
-                ->toArray();
-        } else if ($user->hasRole('admin')) {
-            $studentOptions = Student::pluck('name', 'id')->toArray();
-        }
-
-        // Get homework options
-        $homeworkOptions = [];
-        if ($teacher) {
-            // Get subjects assigned to this teacher
-            $teacherSubjectIds = $teacher->subjects()->pluck('subjects.id')->toArray();
-
-            // Get grades teacher is teaching
-            $classGrades = $teacher->classes()->pluck('grade')->unique()->toArray();
-
-            $homeworkOptions = Homework::where(function($query) use ($teacher, $teacherSubjectIds, $classGrades) {
-                    $query->where('assigned_by', $teacher->id)
-                          ->orWhere(function($q) use ($teacherSubjectIds, $classGrades) {
-                              $q->whereIn('subject_id', $teacherSubjectIds)
-                                ->whereIn('grade', $classGrades);
-                          });
-                })
-                ->pluck('title', 'id')
-                ->toArray();
-        } else if ($user->hasRole('admin')) {
-            $homeworkOptions = Homework::pluck('title', 'id')->toArray();
-        }
+        $teacher = $isTeacher ? Teacher::where('user_id', $user->id)->first() : null;
 
         return $form
             ->schema([
@@ -137,7 +118,6 @@ class TeacherHomeworkSubmissionResource extends Resource
                             ->relationship('homework', 'title')
                             ->searchable()
                             ->preload()
-                            ->options($homeworkOptions)
                             ->required()
                             ->reactive()
                             ->afterStateUpdated(fn (callable $set) => $set('marks', null)),
@@ -145,7 +125,6 @@ class TeacherHomeworkSubmissionResource extends Resource
                             ->relationship('student', 'name')
                             ->searchable()
                             ->preload()
-                            ->options($studentOptions)
                             ->required(),
                         Forms\Components\Textarea::make('content')
                             ->label('Student Comments')
@@ -174,7 +153,6 @@ class TeacherHomeworkSubmissionResource extends Resource
                             ->minValue(0)
                             ->reactive()
                             ->afterStateHydrated(function ($component, $state, $record, callable $set) {
-                                // If viewing an existing record and homework exists
                                 if ($record && $record->homework) {
                                     $component->maxValue($record->homework->max_score);
                                 }
@@ -188,7 +166,7 @@ class TeacherHomeworkSubmissionResource extends Resource
                                     }
 
                                     if (!$get('graded_by')) {
-                                        $set('graded_by', auth()->user()->employee->id ?? null);
+                                        $set('graded_by', auth()->user()->teacher->id ?? null);
                                     }
                                 }
                             }),
@@ -208,14 +186,16 @@ class TeacherHomeworkSubmissionResource extends Resource
                             ->label('Private Teacher Notes')
                             ->helperText('These notes are only visible to teachers, not to students')
                             ->maxLength(65535)
-                            ->columnSpanFull(),
+                            ->columnSpanFull()
+                            ->hidden(fn () => $user->role_id !== RoleConstants::TEACHER && $user->role_id !== RoleConstants::ADMIN),
                         Forms\Components\Hidden::make('graded_by')
                             ->default(function() use ($teacher) {
                                 return $teacher ? $teacher->id : null;
                             }),
                         Forms\Components\DateTimePicker::make('graded_at')
                             ->default(now()),
-                    ])->columns(2),
+                    ])->columns(2)
+                    ->hidden(fn () => $user->role_id === RoleConstants::STUDENT || $user->role_id === RoleConstants::PARENT),
 
                 Forms\Components\Section::make('Associated Result')
                     ->schema([
@@ -245,6 +225,11 @@ class TeacherHomeworkSubmissionResource extends Resource
 
     public static function table(Table $table): Table
     {
+        $user = Auth::user();
+        $canGrade = in_array($user->role_id, [RoleConstants::ADMIN, RoleConstants::TEACHER]);
+        $isStudent = $user->role_id === RoleConstants::STUDENT;
+        $isParent = $user->role_id === RoleConstants::PARENT;
+
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('homework.title')
@@ -255,8 +240,9 @@ class TeacherHomeworkSubmissionResource extends Resource
                 Tables\Columns\TextColumn::make('student.name')
                     ->label('Student')
                     ->searchable()
-                    ->sortable(),
-                Tables\Columns\TextColumn::make('student.grade')
+                    ->sortable()
+                    ->hidden($isStudent), // Hide for students since they only see their own
+                Tables\Columns\TextColumn::make('student.grade.name')
                     ->label('Grade')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('submitted_at')
@@ -283,15 +269,9 @@ class TeacherHomeworkSubmissionResource extends Resource
                     ->label('Files')
                     ->boolean()
                     ->getStateUsing(fn ($record) => !empty($record->file_attachment)),
-                Tables\Columns\IconColumn::make('has_result')
-                    ->label('Result Created')
-                    ->boolean()
-                    ->getStateUsing(function ($record) {
-                        return Result::where('student_id', $record->student_id)
-                            ->where('homework_id', $record->homework_id)
-                            ->where('exam_type', 'assignment')
-                            ->exists();
-                    }),
+                Tables\Columns\TextColumn::make('feedback')
+                    ->limit(50)
+                    ->hidden(!$isStudent && !$isParent),
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('homework')
@@ -317,7 +297,8 @@ class TeacherHomeworkSubmissionResource extends Resource
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),
+                Tables\Actions\EditAction::make()
+                    ->visible($canGrade),
                 Tables\Actions\Action::make('grade')
                     ->label('Grade Submission')
                     ->icon('heroicon-o-pencil-square')
@@ -336,7 +317,7 @@ class TeacherHomeworkSubmissionResource extends Resource
                             ->helperText('These notes won\'t be visible to students'),
                     ])
                     ->action(function ($record, array $data): void {
-                        $teacher = Employee::where('user_id', Auth::id())->first();
+                        $teacher = Teacher::where('user_id', Auth::id())->first();
 
                         $record->update([
                             'marks' => $data['marks'],
@@ -352,118 +333,7 @@ class TeacherHomeworkSubmissionResource extends Resource
                             ->success()
                             ->send();
                     })
-                    ->visible(fn ($record) => $record->status === 'submitted'),
-                Tables\Actions\Action::make('createResult')
-                    ->label('Create Result')
-                    ->icon('heroicon-o-clipboard-document-list')
-                    ->color('success')
-                    ->action(function ($record): void {
-                        // Only proceed if the submission has been graded
-                        if ($record->marks === null) {
-                            Notification::make()
-                                ->title('Cannot Create Result')
-                                ->body('The submission must be graded before creating a result record.')
-                                ->warning()
-                                ->send();
-                            return;
-                        }
-
-                        // Check if result already exists
-                        $existingResult = Result::where('student_id', $record->student_id)
-                            ->where('exam_type', 'assignment')
-                            ->where('homework_id', $record->homework_id)
-                            ->first();
-
-                        if ($existingResult) {
-                            Notification::make()
-                                ->title('Result Already Exists')
-                                ->body('A result record for this homework assignment already exists.')
-                                ->warning()
-                                ->send();
-                            return;
-                        }
-
-                        // Get homework and student details
-                        $homework = $record->homework;
-                        $student = $record->student;
-                        $teacher = Employee::where('user_id', Auth::id())->first();
-
-                        if (!$homework || !$student) {
-                            Notification::make()
-                                ->title('Missing Information')
-                                ->body('Cannot create result due to missing homework or student information.')
-                                ->danger()
-                                ->send();
-                            return;
-                        }
-
-                        // Determine letter grade from marks
-                        if ($record->marks >= 90) $grade = 'A+';
-                        elseif ($record->marks >= 80) $grade = 'A';
-                        elseif ($record->marks >= 70) $grade = 'B';
-                        elseif ($record->marks >= 60) $grade = 'C';
-                        elseif ($record->marks >= 50) $grade = 'D';
-                        else $grade = 'F';
-
-                        // Create corresponding result record
-                        $result = Result::create([
-                            'student_id' => $student->id,
-                            'subject_id' => $homework->subject_id,
-                            'exam_type' => 'assignment',
-                            'homework_id' => $homework->id,
-                            'marks' => $record->marks,
-                            'grade' => $grade,
-                            'term' => 'first', // Default - you may want to set this dynamically
-                            'year' => date('Y'),
-                            'comment' => $record->feedback,
-                            'recorded_by' => $teacher ? $teacher->id : ($record->graded_by ?? null),
-                            'notify_parent' => true,
-                        ]);
-
-                        // Show success notification
-                        Notification::make()
-                            ->title('Result Created')
-                            ->body('Result record has been created successfully.')
-                            ->success()
-                            ->send();
-
-                        // Redirect to the result edit page
-                        redirect()->route('filament.admin.resources.teacher-results.edit', ['record' => $result->id]);
-                    })
-                    ->visible(fn ($record) =>
-                        $record->marks !== null &&
-                        !Result::where('student_id', $record->student_id)
-                            ->where('exam_type', 'assignment')
-                            ->where('homework_id', $record->homework_id)
-                            ->exists()
-                    ),
-                Tables\Actions\Action::make('viewResult')
-                    ->label('View Result')
-                    ->icon('heroicon-o-clipboard-document-list')
-                    ->color('primary')
-                    ->action(function ($record): void {
-                        $result = Result::where('student_id', $record->student_id)
-                            ->where('exam_type', 'assignment')
-                            ->where('homework_id', $record->homework_id)
-                            ->first();
-
-                        if (!$result) {
-                            Notification::make()
-                                ->title('No Result Found')
-                                ->body('No result record exists for this submission.')
-                                ->warning()
-                                ->send();
-                            return;
-                        }
-
-                        redirect()->route('filament.admin.resources.teacher-results.view', ['record' => $result->id]);
-                    })
-                    ->visible(fn ($record) =>
-                        Result::where('student_id', $record->student_id)
-                            ->where('exam_type', 'assignment')
-                            ->where('homework_id', $record->homework_id)
-                            ->exists()
-                    ),
+                    ->visible(fn ($record) => $canGrade && $record->status === 'submitted'),
                 Tables\Actions\Action::make('download')
                     ->label('Download Files')
                     ->icon('heroicon-o-arrow-down-tray')
@@ -478,9 +348,8 @@ class TeacherHomeworkSubmissionResource extends Resource
                         ->label('Bulk Mark as Graded')
                         ->icon('heroicon-o-check')
                         ->action(function (Builder $query) {
-                            $teacher = Employee::where('user_id', Auth::id())->first();
+                            $teacher = Teacher::where('user_id', Auth::id())->first();
 
-                            // Update all selected records to graded status
                             $query->update([
                                 'status' => 'graded',
                                 'graded_by' => $teacher ? $teacher->id : null,
@@ -491,81 +360,10 @@ class TeacherHomeworkSubmissionResource extends Resource
                                 ->title('Submissions marked as graded')
                                 ->success()
                                 ->send();
-                        }),
-                    Tables\Actions\BulkAction::make('bulk_create_results')
-                        ->label('Create Results for Graded')
-                        ->icon('heroicon-o-clipboard-document-list')
-                        ->color('success')
-                        ->action(function (Builder $query) {
-                            $teacher = Employee::where('user_id', Auth::id())->first();
-
-                            // Get all graded submissions that don't have results yet
-                            $submissions = $query->whereNotNull('marks')
-                                ->where('status', 'graded')
-                                ->get();
-
-                            $createdCount = 0;
-                            $errorCount = 0;
-
-                            foreach ($submissions as $submission) {
-                                // Check if result already exists
-                                $existingResult = Result::where('student_id', $submission->student_id)
-                                    ->where('exam_type', 'assignment')
-                                    ->where('homework_id', $submission->homework_id)
-                                    ->first();
-
-                                if ($existingResult) {
-                                    $errorCount++;
-                                    continue; // Skip if result exists
-                                }
-
-                                // Get homework and student details
-                                $homework = $submission->homework;
-                                $student = $submission->student;
-
-                                if (!$homework || !$student) {
-                                    $errorCount++;
-                                    continue;
-                                }
-
-                                try {
-                                    // Determine letter grade from marks
-                                    if ($submission->marks >= 90) $grade = 'A+';
-                                    elseif ($submission->marks >= 80) $grade = 'A';
-                                    elseif ($submission->marks >= 70) $grade = 'B';
-                                    elseif ($submission->marks >= 60) $grade = 'C';
-                                    elseif ($submission->marks >= 50) $grade = 'D';
-                                    else $grade = 'F';
-
-                                    // Create corresponding result record
-                                    Result::create([
-                                        'student_id' => $student->id,
-                                        'subject_id' => $homework->subject_id,
-                                        'exam_type' => 'assignment',
-                                        'homework_id' => $homework->id,
-                                        'marks' => $submission->marks,
-                                        'grade' => $grade,
-                                        'term' => 'first', // Default
-                                        'year' => date('Y'),
-                                        'comment' => $submission->feedback,
-                                        'recorded_by' => $teacher ? $teacher->id : ($submission->graded_by ?? null),
-                                        'notify_parent' => true,
-                                    ]);
-
-                                    $createdCount++;
-                                } catch (\Exception $e) {
-                                    $errorCount++;
-                                }
-                            }
-
-                            Notification::make()
-                                ->title('Result Creation Complete')
-                                ->body("Created: {$createdCount}, Failed: {$errorCount}")
-                                ->success($createdCount > 0)
-                                ->warning($errorCount > 0)
-                                ->send();
-                        }),
-                ]),
+                        })
+                        ->visible($canGrade),
+                ])
+                ->visible($canGrade),
             ]);
     }
 
@@ -584,5 +382,33 @@ class TeacherHomeworkSubmissionResource extends Resource
             //'view' => Pages\ViewTeacherHomeworkSubmission::route('/{record}'),
             'edit' => Pages\EditTeacherHomeworkSubmission::route('/{record}/edit'),
         ];
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return in_array(auth()->user()?->role_id, [
+            RoleConstants::ADMIN,
+            RoleConstants::TEACHER,
+            RoleConstants::STUDENT,
+            RoleConstants::PARENT
+        ]) ?? false;
+    }
+
+    public static function canCreate(): bool
+    {
+        // Only teachers and admins can create submissions through admin panel
+        return in_array(auth()->user()?->role_id, [RoleConstants::ADMIN, RoleConstants::TEACHER]) ?? false;
+    }
+
+    public static function canEditAny(): bool
+    {
+        // Only teachers and admins can edit submissions
+        return in_array(auth()->user()?->role_id, [RoleConstants::ADMIN, RoleConstants::TEACHER]) ?? false;
+    }
+
+    public static function canDeleteAny(): bool
+    {
+        // Only admins can delete submissions
+        return auth()->user()?->role_id === RoleConstants::ADMIN ?? false;
     }
 }

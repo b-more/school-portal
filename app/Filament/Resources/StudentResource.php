@@ -8,6 +8,9 @@ use App\Models\Student;
 use App\Models\User;
 use App\Models\ParentGuardian;
 use App\Models\UserCredential;
+use App\Models\Grade;
+use App\Models\Teacher;
+use App\Constants\RoleConstants;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -20,6 +23,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
 
 class StudentResource extends Resource
 {
@@ -28,6 +32,47 @@ class StudentResource extends Resource
     protected static ?string $navigationIcon = 'heroicon-o-academic-cap';
 
     protected static ?string $navigationGroup = 'Student Management';
+
+    public static function getEloquentQuery(): Builder
+    {
+        $query = parent::getEloquentQuery()
+            ->withCount('results')
+            ->withCount('fees');
+
+        $user = Auth::user();
+
+        // Admin can see all students
+        if ($user->role_id === RoleConstants::ADMIN) {
+            return $query;
+        }
+
+        // Teachers can only see students in their classes
+        if ($user->role_id === RoleConstants::TEACHER) {
+            $teacher = Teacher::where('user_id', $user->id)->first();
+
+            if ($teacher) {
+                // Get students from classes where this teacher teaches
+                $classSectionIds = $teacher->classSections()->pluck('id')->toArray();
+                return $query->whereIn('class_section_id', $classSectionIds);
+            }
+
+            return $query->where('id', 0); // Return empty if teacher not found
+        }
+
+        // Parents can only see their own children
+        if ($user->role_id === RoleConstants::PARENT) {
+            $parent = $user->parentGuardian;
+
+            if ($parent) {
+                return $query->where('parent_guardian_id', $parent->id);
+            }
+
+            return $query->where('id', 0); // Return empty if parent not found
+        }
+
+        // All other roles have no access
+        return $query->where('id', 0);
+    }
 
     public static function form(Form $form): Form
     {
@@ -132,13 +177,19 @@ class StudentResource extends Resource
                                                 Forms\Components\Placeholder::make('student_id_preview')
                                                     ->label('Student ID')
                                                     ->content(function (callable $get, ?string $state) {
-                                                        $grade = $get('grade');
-                                                        if (!$grade) {
+                                                        $gradeId = $get('grade_id');
+                                                        if (!$gradeId) {
                                                             return 'Select a grade to generate Student ID';
                                                         }
 
+                                                        // Get the grade model to access the name
+                                                        $grade = Grade::find($gradeId);
+                                                        if (!$grade) {
+                                                            return 'Invalid grade selected';
+                                                        }
+
                                                         // Generate the ID if not already set
-                                                        return self::generateStudentId($grade);
+                                                        return self::generateStudentId($grade->name);
                                                     }),
                                             ]),
 
@@ -287,6 +338,11 @@ class StudentResource extends Resource
 
     public static function table(Table $table): Table
     {
+        $user = Auth::user();
+        $isAdmin = $user->role_id === RoleConstants::ADMIN;
+        $isTeacher = $user->role_id === RoleConstants::TEACHER;
+        $isParent = $user->role_id === RoleConstants::PARENT;
+
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('student_id_number')
@@ -296,12 +352,14 @@ class StudentResource extends Resource
                 Tables\Columns\TextColumn::make('name')
                     ->searchable()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('grade')
+                Tables\Columns\TextColumn::make('grade.name')
+                    ->label('Grade')
                     ->searchable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('parentGuardian.name')
                     ->sortable()
-                    ->label('Parent/Guardian'),
+                    ->label('Parent/Guardian')
+                    ->visible($isTeacher || $isAdmin), // Hide from parents
                 Tables\Columns\TextColumn::make('gender')
                     ->searchable(),
                 Tables\Columns\TextColumn::make('date_of_birth')
@@ -333,28 +391,15 @@ class StudentResource extends Resource
                         'graduated' => 'Graduated',
                         'transferred' => 'Transferred',
                     ]),
-                Tables\Filters\SelectFilter::make('grade')
-                    ->options([
-                        'Baby Class' => 'Baby Class',
-                        'Middle Class' => 'Middle Class',
-                        'Reception' => 'Reception',
-                        'Grade 1' => 'Grade 1',
-                        'Grade 2' => 'Grade 2',
-                        'Grade 3' => 'Grade 3',
-                        'Grade 4' => 'Grade 4',
-                        'Grade 5' => 'Grade 5',
-                        'Grade 6' => 'Grade 6',
-                        'Grade 7' => 'Grade 7',
-                        'Grade 8' => 'Grade 8',
-                        'Grade 9' => 'Grade 9',
-                        'Grade 10' => 'Grade 10',
-                        'Grade 11' => 'Grade 11',
-                        'Grade 12' => 'Grade 12',
-                    ]),
+                Tables\Filters\SelectFilter::make('grade_id')
+                    ->label('Grade')
+                    ->relationship('grade', 'name')
+                    ->visible($isTeacher || $isAdmin), // Parents don't need this filter
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),
+                Tables\Actions\EditAction::make()
+                    ->visible($isAdmin), // Only admin can edit
                 Tables\Actions\Action::make('sendNotification')
                     ->label('Send SMS')
                     ->icon('heroicon-o-chat-bubble-left')
@@ -382,7 +427,7 @@ class StudentResource extends Resource
                             // Personalize message
                             $message = str_replace(
                                 ['{parent_name}', '{student_name}', '{grade}'],
-                                [$parentGuardian->name, $record->name, $record->grade],
+                                [$parentGuardian->name, $record->name, $record->grade?->name ?? 'Unknown'],
                                 $data['message']
                             );
 
@@ -419,11 +464,13 @@ class StudentResource extends Resource
                                 ->danger()
                                 ->send();
                         }
-                    }),
+                    })
+                    ->visible($isAdmin || $isTeacher), // Only admin and teachers can send SMS
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->visible($isAdmin),
                     Tables\Actions\BulkAction::make('updateStatus')
                         ->label('Update Status')
                         ->icon('heroicon-o-pencil-square')
@@ -440,7 +487,8 @@ class StudentResource extends Resource
                         ->action(function (Builder $query, array $data): void {
                             $query->update(['enrollment_status' => $data['enrollment_status']]);
                         })
-                        ->deselectRecordsAfterCompletion(),
+                        ->deselectRecordsAfterCompletion()
+                        ->visible($isAdmin), // Only admin can update status
                     Tables\Actions\BulkAction::make('bulkSms')
                         ->label('Send Bulk SMS')
                         ->icon('heroicon-o-chat-bubble-left-ellipsis')
@@ -455,7 +503,7 @@ class StudentResource extends Resource
                         ])
                         ->action(function (Builder $query, array $data): void {
                             // Get all students and their parent/guardian info
-                            $students = $query->with('parentGuardian')->get();
+                            $students = $query->with('parentGuardian', 'grade')->get();
 
                             $successCount = 0;
                             $failedCount = 0;
@@ -470,7 +518,7 @@ class StudentResource extends Resource
                                     // Personalize message with parent and student names
                                     $personalizedMessage = str_replace(
                                         ['{parent_name}', '{student_name}', '{grade}'],
-                                        [$student->parentGuardian->name, $student->name, $student->grade],
+                                        [$student->parentGuardian->name, $student->name, $student->grade?->name ?? 'Unknown'],
                                         $data['message']
                                     );
 
@@ -505,8 +553,10 @@ class StudentResource extends Resource
                                 ->warning($failedCount > 0)
                                 ->send();
                         })
-                        ->deselectRecordsAfterCompletion(),
-                ]),
+                        ->deselectRecordsAfterCompletion()
+                        ->visible($isAdmin || $isTeacher), // Only admin and teachers can send bulk SMS
+                ])
+                ->visible($isAdmin || $isTeacher),
             ]);
     }
 
@@ -528,13 +578,6 @@ class StudentResource extends Resource
             //'view' => Pages\ViewStudent::route('/{record}'),
             'edit' => Pages\EditStudent::route('/{record}/edit'),
         ];
-    }
-
-    public static function getEloquentQuery(): Builder
-    {
-        return parent::getEloquentQuery()
-            ->withCount('results')
-            ->withCount('fees');
     }
 
     /**
@@ -565,7 +608,9 @@ class StudentResource extends Resource
         $prefix = $gradeMap[$grade] ?? 'SF';
 
         // Get the latest student number for this grade
-        $lastStudent = Student::where('grade', $grade)
+        $lastStudent = Student::whereHas('grade', function($query) use ($grade) {
+                $query->where('name', $grade);
+            })
             ->where('student_id_number', 'like', $prefix . '%')
             ->orderBy('student_id_number', 'desc')
             ->first();
@@ -607,6 +652,45 @@ class StudentResource extends Resource
         }
 
         return $phoneNumber;
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        $user = Auth::user();
+
+        if (!$user) {
+            return false;
+        }
+
+        // Admin, Teachers, Nurses, and Parents can access
+        if (in_array($user->role_id, [
+            RoleConstants::ADMIN,
+            RoleConstants::TEACHER,
+            RoleConstants::NURSE,
+            RoleConstants::PARENT
+        ])) {
+            return true;
+        }
+
+        return false;
+    }
+
+    public static function canCreate(): bool
+    {
+        // Only admin can create students
+        return Auth::user()?->role_id === RoleConstants::ADMIN ?? false;
+    }
+
+    public static function canEditAny(): bool
+    {
+        // Only admin can edit students
+        return Auth::user()?->role_id === RoleConstants::ADMIN ?? false;
+    }
+
+    public static function canDeleteAny(): bool
+    {
+        // Only admin can delete students
+        return Auth::user()?->role_id === RoleConstants::ADMIN ?? false;
     }
 
     /**

@@ -87,7 +87,7 @@ class FeeStructureSeeder extends Seeder
             }
 
             // Define additional charges (higher for secondary grades)
-            $isSecondary = $grade->schoolSection?->name === 'Secondary School';
+            $isSecondary = $grade->schoolSection?->name === 'Secondary';
             $additionalCharges = [
                 ['description' => 'Books and Stationery', 'amount' => $isSecondary ? 500 : 300],
                 ['description' => 'Sports Fee', 'amount' => 150],
@@ -110,18 +110,10 @@ class FeeStructureSeeder extends Seeder
                 ]);
 
                 // Create student fees for this fee structure
-                // First, get students in this grade
+                // Get students in this grade using grade_id only
                 $students = Student::where('grade_id', $grade->id)
                             ->where('enrollment_status', 'active')
                             ->get();
-
-                // If your students table still uses string 'grade' instead of grade_id,
-                // use this query instead:
-                if ($students->isEmpty()) {
-                    $students = Student::where('grade', $grade->name)
-                                ->where('enrollment_status', 'active')
-                                ->get();
-                }
 
                 // Only create student fees if we have the model
                 if ($studentFeeModelExists && count($students) > 0) {
@@ -183,9 +175,9 @@ class FeeStructureSeeder extends Seeder
                             'updated_at' => now(),
                         ]);
                     }
-                } else {
-                    $this->command->info('Skipping student fee creation - either the StudentFee model/table is missing or no students were found.');
                 }
+
+                $this->command->info("Created fee structure for {$grade->name} - {$termName} (Found {$students->count()} students)");
             }
         }
 

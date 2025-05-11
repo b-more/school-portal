@@ -26,6 +26,8 @@ use Filament\Infolists;
 use Filament\Infolists\Infolist;
 use Filament\Support\Enums\FontWeight;
 use Filament\Notifications\Notification;
+use App\Constants\RoleConstants;
+use Illuminate\Support\Facades\Auth;
 
 class GetInTouchResource extends Resource
 {
@@ -34,6 +36,11 @@ class GetInTouchResource extends Resource
     protected static ?string $navigationGroup = 'Communication';
     protected static ?int $navigationSort = 2;
     protected static ?string $recordTitleAttribute = 'name';
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return auth()->user()?->role_id === RoleConstants::ADMIN ?? false;
+    }
 
     public static function form(Form $form): Form
     {

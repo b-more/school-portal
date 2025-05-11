@@ -6,6 +6,7 @@ use App\Filament\Resources\TeacherAssignmentResource\Pages;
 use App\Models\Employee;
 use App\Models\SchoolClass;
 use App\Models\Subject;
+use App\Models\Teacher;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -14,26 +15,36 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Constants\RoleConstants;
+use Illuminate\Support\Facades\Auth;
 
 class TeacherAssignmentResource extends Resource
 {
-    protected static ?string $model = Employee::class;
+    protected static ?string $model = Teacher::class;
     protected static ?string $navigationIcon = 'heroicon-o-academic-cap';
     protected static ?string $navigationGroup = 'Academic Management';
     protected static ?string $navigationLabel = 'Teacher Assignments';
     protected static ?string $slug = 'teacher-assignments';
     protected static ?int $navigationSort = 8;
 
+    public static function shouldRegisterNavigation(): bool
+    {
+        return auth()->user()?->role_id === RoleConstants::ADMIN ?? false;
+    }
+
     public static function form(Form $form): Form
     {
         return $form->schema([
-            Forms\Components\Select::make('employee_id')
+            Forms\Components\Select::make('id')
                 ->label('Teacher')
-                ->options(
-                    Employee::where('role', 'teacher')
-                        ->orderBy('name')
-                        ->pluck('name', 'id')
-                )
+                ->options(function () {
+                    // Use Teacher model with proper role_id check
+                    return Teacher::whereHas('user', function($query) {
+                        $query->where('role_id', RoleConstants::TEACHER);
+                    })
+                    ->orderBy('name')
+                    ->pluck('name', 'id');
+                })
                 ->searchable()
                 ->required()
                 ->reactive()
@@ -41,9 +52,10 @@ class TeacherAssignmentResource extends Resource
                     // Log for debugging
                     Log::info('Teacher selected', ['id' => $state]);
 
-                    // Get the employee and set the department
+                    // Get the teacher and set info
                     if ($state) {
-                        $employee = Employee::find($state);
+                        $teacher = Teacher::find($state);
+                        $employee = $teacher?->employee;
                         if ($employee) {
                             $set('department', $employee->department);
                             Log::info('Setting department', ['department' => $employee->department]);
@@ -63,11 +75,11 @@ class TeacherAssignmentResource extends Resource
                 ->schema([
                     Forms\Components\Select::make('class_assignments')
                         ->label('Assign to Classes')
-                        ->options(
-                            SchoolClass::whereIn('department', ['ECL', 'Primary'])
+                        ->options(function () {
+                            return SchoolClass::whereIn('department', ['ECL', 'Primary'])
                                 ->orderBy('name')
-                                ->pluck('name', 'id')
-                        )
+                                ->pluck('name', 'id');
+                        })
                         ->multiple()
                         ->searchable()
                         ->saveRelationshipsUsing(function ($record, $state) {
@@ -83,26 +95,32 @@ class TeacherAssignmentResource extends Resource
 
                             // Clear existing and set new assignments
                             DB::table('class_teacher')
-                                ->where('employee_id', $record->id)
+                                ->where('employee_id', $record->employee_id)
                                 ->delete();
 
                             if (!empty($classData)) {
-                                $record->classes()->attach($classData);
+                                // Use employee_id for the pivot table
+                                $employee = $record->employee;
+                                if ($employee) {
+                                    $employee->classes()->attach($classData);
+                                }
                             }
                         })
                         ->visible(function (callable $get) {
-                            $employeeId = $get('employee_id');
-                            if (!$employeeId) return false;
+                            $teacherId = $get('id');
+                            if (!$teacherId) return false;
 
-                            $employee = Employee::find($employeeId);
+                            $teacher = Teacher::find($teacherId);
+                            $employee = $teacher?->employee;
                             return $employee && in_array($employee->department, ['ECL', 'Primary']);
                         }),
                 ])
                 ->visible(function (callable $get) {
-                    $employeeId = $get('employee_id');
-                    if (!$employeeId) return false;
+                    $teacherId = $get('id');
+                    if (!$teacherId) return false;
 
-                    $employee = Employee::find($employeeId);
+                    $teacher = Teacher::find($teacherId);
+                    $employee = $teacher?->employee;
                     return $employee && in_array($employee->department, ['ECL', 'Primary']);
                 }),
 
@@ -111,11 +129,11 @@ class TeacherAssignmentResource extends Resource
                 ->schema([
                     Forms\Components\Select::make('subject_assignments')
                         ->label('Assign Subjects')
-                        ->options(
-                            Subject::orderBy('name')
+                        ->options(function () {
+                            return Subject::orderBy('name')
                                 ->pluck('name', 'id')
-                                ->toArray()
-                        )
+                                ->toArray();
+                        })
                         ->multiple()
                         ->searchable()
                         ->reactive()
@@ -136,8 +154,7 @@ class TeacherAssignmentResource extends Resource
                             Forms\Components\Select::make('subject_id')
                                 ->label('Subject')
                                 ->options(function (callable $get) {
-                                    // The path might be different depending on how the form state is structured
-                                    // Try different paths if this one doesn't work
+                                    // Try to get subject assignments from the form
                                     $subjectIds = $get('../subject_assignments');
 
                                     // Log for debugging
@@ -173,12 +190,12 @@ class TeacherAssignmentResource extends Resource
 
                             Forms\Components\Select::make('school_class_ids')
                                 ->label('Classes')
-                                ->options(
-                                    SchoolClass::where('department', 'Secondary')
+                                ->options(function () {
+                                    return SchoolClass::where('department', 'Secondary')
                                         ->orderBy('name')
                                         ->pluck('name', 'id')
-                                        ->toArray()
-                                )
+                                        ->toArray();
+                                })
                                 ->multiple()
                                 ->searchable()
                                 ->required(),
@@ -195,10 +212,11 @@ class TeacherAssignmentResource extends Resource
                         })
                 ])
                 ->visible(function (callable $get) {
-                    $employeeId = $get('employee_id');
-                    if (!$employeeId) return false;
+                    $teacherId = $get('id');
+                    if (!$teacherId) return false;
 
-                    $employee = Employee::find($employeeId);
+                    $teacher = Teacher::find($teacherId);
+                    $employee = $teacher?->employee;
                     return $employee && $employee->department === 'Secondary';
                 }),
         ]);
@@ -213,12 +231,13 @@ class TeacherAssignmentResource extends Resource
                     ->searchable()
                     ->sortable(),
 
-                Tables\Columns\TextColumn::make('department')
+                Tables\Columns\TextColumn::make('employee.department')
+                    ->label('Department')
                     ->searchable()
                     ->sortable(),
 
-                Tables\Columns\TextColumn::make('classes_count')
-                    ->counts('classes')
+                Tables\Columns\TextColumn::make('class_sections_count')
+                    ->counts('classSections')
                     ->label('Classes')
                     ->sortable(),
 
@@ -226,9 +245,23 @@ class TeacherAssignmentResource extends Resource
                     ->counts('subjects')
                     ->label('Subjects')
                     ->sortable(),
+
+                Tables\Columns\TextColumn::make('is_class_teacher')
+                    ->label('Class Teacher')
+                    ->badge()
+                    ->formatStateUsing(fn ($state) => $state ? 'Yes' : 'No')
+                    ->color(fn ($state) => $state ? 'success' : 'gray'),
+
+                Tables\Columns\TextColumn::make('is_grade_teacher')
+                    ->label('Grade Teacher')
+                    ->badge()
+                    ->formatStateUsing(fn ($state) => $state ? 'Yes' : 'No')
+                    ->color(fn ($state) => $state ? 'success' : 'gray'),
             ])
             ->filters([
-                Tables\Filters\SelectFilter::make('department')
+                Tables\Filters\SelectFilter::make('employee.department')
+                    ->label('Department')
+                    ->relationship('employee', 'department')
                     ->options([
                         'ECL' => 'ECL',
                         'Primary' => 'Primary',
@@ -237,21 +270,83 @@ class TeacherAssignmentResource extends Resource
 
                 Tables\Filters\Filter::make('has_assignments')
                     ->query(function (Builder $query) {
-                        return $query->whereHas('classes')->orWhereHas('subjects');
+                        return $query->whereHas('classSections')->orWhereHas('subjects');
                     })
                     ->label('Has Assignments')
+                    ->toggle(),
+
+                Tables\Filters\Filter::make('class_teachers')
+                    ->query(function (Builder $query) {
+                        return $query->where('is_class_teacher', true);
+                    })
+                    ->label('Class Teachers Only')
+                    ->toggle(),
+
+                Tables\Filters\Filter::make('grade_teachers')
+                    ->query(function (Builder $query) {
+                        return $query->where('is_grade_teacher', true);
+                    })
+                    ->label('Grade Teachers Only')
                     ->toggle(),
             ])
             ->actions([
                 Tables\Actions\EditAction::make()
-                    ->url(fn (Employee $record) => route('filament.admin.resources.teacher-assignments.edit', $record)),
+                    ->url(fn (Teacher $record) => route('filament.admin.resources.teacher-assignments.edit', $record)),
 
                 Tables\Actions\ViewAction::make()
                     ->label('View Assignments')
-                    ->url(fn (Employee $record) => route('filament.admin.resources.teacher-assignments.view', $record)),
+                    ->url(fn (Teacher $record) => route('filament.admin.resources.teacher-assignments.view', $record)),
+
+                Tables\Actions\Action::make('set_class_teacher')
+                    ->label('Set as Class Teacher')
+                    ->icon('heroicon-o-academic-cap')
+                    ->color('success')
+                    ->action(function (Teacher $record) {
+                        $record->update(['is_class_teacher' => !$record->is_class_teacher]);
+
+                        Notification::make()
+                            ->title('Class Teacher Status Updated')
+                            ->body("{$record->name} is now " . ($record->is_class_teacher ? 'a' : 'not a') . " class teacher.")
+                            ->success()
+                            ->send();
+                    })
+                    ->requiresConfirmation(),
+
+                Tables\Actions\Action::make('set_grade_teacher')
+                    ->label('Set as Grade Teacher')
+                    ->icon('heroicon-o-academic-cap')
+                    ->color('warning')
+                    ->action(function (Teacher $record) {
+                        $record->update(['is_grade_teacher' => !$record->is_grade_teacher]);
+
+                        Notification::make()
+                            ->title('Grade Teacher Status Updated')
+                            ->body("{$record->name} is now " . ($record->is_grade_teacher ? 'a' : 'not a') . " grade teacher.")
+                            ->success()
+                            ->send();
+                    })
+                    ->requiresConfirmation(),
             ])
             ->bulkActions([
-                // No bulk actions needed here
+                Tables\Actions\BulkActionGroup::make([
+                    Tables\Actions\BulkAction::make('set_class_teachers')
+                        ->label('Set as Class Teachers')
+                        ->icon('heroicon-o-academic-cap')
+                        ->action(function (Collection $records) {
+                            $count = 0;
+                            foreach ($records as $record) {
+                                $record->update(['is_class_teacher' => true]);
+                                $count++;
+                            }
+
+                            Notification::make()
+                                ->title('Updated Class Teachers')
+                                ->body("Set {$count} teachers as class teachers.")
+                                ->success()
+                                ->send();
+                        })
+                        ->requiresConfirmation(),
+                ]),
             ]);
     }
 
@@ -268,6 +363,9 @@ class TeacherAssignmentResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()
-            ->where('role', 'teacher');
+            ->with(['employee', 'user'])
+            ->whereHas('user', function($query) {
+                $query->where('role_id', RoleConstants::TEACHER);
+            });
     }
 }

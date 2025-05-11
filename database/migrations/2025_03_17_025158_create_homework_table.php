@@ -18,7 +18,7 @@ return new class extends Migration
             $table->json('file_attachment')->nullable();
             $table->string('homework_file')->nullable(); // Removed 'after'
             $table->unsignedBigInteger('assigned_by')->nullable();
-            $table->string('grade')->nullable();
+            $table->unsignedBigInteger('grade_id')->nullable();
             $table->unsignedBigInteger('subject_id')->nullable();
             $table->date('due_date')->nullable();
             $table->dateTime('submission_start')->nullable(); // Removed 'after'

@@ -6,16 +6,14 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
-//use Spatie\Permission\Traits\HasRoles;
 use Illuminate\Notifications\Notifiable;
 
 class User extends Authenticatable
 {
-    use SoftDeletes, HasFactory, Notifiable; //HasRoles; //HasApiTokens,  spatie/laravel-permission trait
+    use SoftDeletes, HasFactory, Notifiable;
 
     protected $fillable = [
         'role_id',
-        'role',
         'name',
         'email',
         'phone',
@@ -43,22 +41,32 @@ class User extends Authenticatable
         'settings' => 'array',
     ];
 
-    public function role(){
+    /**
+     * Get the role that owns the user
+     */
+    public function role()
+    {
         return $this->belongsTo(Role::class);
     }
 
-    public function activities()
+    /**
+     * Get the teacher record associated with the user
+     */
+    public function teacher()
     {
-        return $this->hasMany(UserActivity::class);
+        return $this->hasOne(Teacher::class);
     }
 
+    /**
+     * Get the employee record associated with the user
+     */
     public function employee()
     {
         return $this->hasOne(Employee::class);
     }
 
     /**
-     * Get the student record associated with the user.
+     * Get the student record associated with the user
      */
     public function student()
     {
@@ -66,36 +74,96 @@ class User extends Authenticatable
     }
 
     /**
-     * Get the parent/guardian record associated with the user.
+     * Get the parent/guardian record associated with the user
      */
     public function parentGuardian()
     {
         return $this->hasOne(ParentGuardian::class);
     }
 
-    // public function hasRole($role)
-    // {
-    //     if (is_numeric($role)) {
-    //         return $this->role_id === (int)$role;
-    //     }
+    /**
+     * Get all activity logs for this user
+     */
+    public function activities()
+    {
+        return $this->hasMany(UserActivity::class);
+    }
 
-    //     if (!$this->role) {
-    //         return false;
-    //     }
-
-    //     return $this->role->name === $role || $this->role->slug === $role;
-    // }
-
+    /**
+     * Check if user has a specific role
+     */
     public function hasRole($role)
     {
-        // Get the employee record for this user
-        $employee = $this->employee;
-
-        if (!$employee) {
+        // If role is passed as array, check if user has any of those roles
+        if (is_array($role)) {
+            foreach ($role as $r) {
+                if ($this->hasRole($r)) {
+                    return true;
+                }
+            }
             return false;
         }
 
-        // Check if the employee's role matches the requested role
-        return $employee->role === $role;
+        // If role is numeric, check role_id
+        if (is_numeric($role)) {
+            return $this->role_id === (int)$role;
+        }
+
+        // If no role relationship, return false
+        if (!$this->role) {
+            return false;
+        }
+
+        // Check role name
+        return $this->role->name === $role;
+    }
+
+    /**
+     * Check if user is an admin
+     */
+    public function isAdmin(): bool
+    {
+        return $this->hasRole('Admin');
+    }
+
+    /**
+     * Check if user is a teacher
+     */
+    public function isTeacher(): bool
+    {
+        return $this->hasRole('Teacher');
+    }
+
+    /**
+     * Check if user is a student
+     */
+    public function isStudent(): bool
+    {
+        return $this->hasRole('Student');
+    }
+
+    /**
+     * Check if user is a parent
+     */
+    public function isParent(): bool
+    {
+        return $this->hasRole('Parent');
+    }
+
+    /**
+     * Get the primary relationship record based on user's role
+     */
+    public function primaryRecord()
+    {
+        switch ($this->role?->name) {
+            case 'Teacher':
+                return $this->teacher;
+            case 'Student':
+                return $this->student;
+            case 'Parent':
+                return $this->parentGuardian;
+            default:
+                return $this->employee;
+        }
     }
 }

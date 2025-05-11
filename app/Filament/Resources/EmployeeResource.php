@@ -9,6 +9,8 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use App\Constants\RoleConstants;
+use Illuminate\Support\Facades\Auth;
 
 class EmployeeResource extends Resource
 {
@@ -17,6 +19,11 @@ class EmployeeResource extends Resource
     protected static ?string $navigationIcon = 'heroicon-o-academic-cap';
 
     protected static ?string $navigationGroup = 'Staff Management';
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return auth()->user()?->role_id === RoleConstants::ADMIN ?? false;
+    }
 
     public static function form(Form $form): Form
     {
@@ -197,12 +204,5 @@ class EmployeeResource extends Resource
         ];
     }
 
-    public static function shouldRegisterNavigation(): bool
-    {
-        // Get the authenticated user
-        $user = auth()->user();
 
-        // Return true only if the user has the admin role
-        return $user && $user->hasRole('teacher');
-    }
 }

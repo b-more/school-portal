@@ -23,7 +23,7 @@ return new class extends Migration
             $table->string('occupation')->nullable();
             $table->string('address')->nullable();
             $table->UnsignedBigInteger('user_id')->nullable();
-            $table->string('role')->default('parent');
+            $table->unsignedBigInteger('role_id')->default(4); // role_id 4 is for parent/guardian
             $table->timestamps();
         });
     }

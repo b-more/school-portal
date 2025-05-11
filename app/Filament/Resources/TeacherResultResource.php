@@ -6,10 +6,11 @@ use App\Filament\Resources\TeacherResultResource\Pages;
 use App\Models\Result;
 use App\Models\Student;
 use App\Models\Subject;
-use App\Models\Employee;
+use App\Models\Teacher;
 use App\Models\Homework;
 use App\Models\SmsLog;
 use App\Services\SmsService;
+use App\Constants\RoleConstants;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -32,75 +33,113 @@ class TeacherResultResource extends Resource
 
     protected static ?int $navigationSort = 4;
 
-    // Only display results for the current teacher's classes and subjects
+    // Display results based on user role
     public static function getEloquentQuery(): Builder
     {
         $query = parent::getEloquentQuery();
-
-        // Get the current user
         $user = Auth::user();
 
-        // If user is admin, show all records
-        if ($user->hasRole('admin')) {
+        // Admin can see all results
+        if ($user->role_id === RoleConstants::ADMIN) {
             return $query;
         }
 
-        // Get the employee (teacher) record
-        $teacher = Employee::where('user_id', $user->id)->first();
+        // Teachers can see results for their students and subjects
+        if ($user->role_id === RoleConstants::TEACHER) {
+            $teacher = Teacher::where('user_id', $user->id)->first();
 
-        if (!$teacher) {
-            return $query->where('id', 0); // Return empty result if not a teacher
+            if (!$teacher) {
+                return $query->where('id', 0); // Return empty result if not a teacher
+            }
+
+            // Get class sections assigned to this teacher
+            $classSectionIds = $teacher->classSections()->pluck('id')->toArray();
+
+            // Get subjects assigned to this teacher
+            $subjectIds = $teacher->subjects()->pluck('subjects.id')->toArray();
+
+            // Get students in teacher's classes
+            $studentIds = Student::whereIn('class_section_id', $classSectionIds)
+                ->pluck('id')
+                ->toArray();
+
+            // Filter results by:
+            // 1. Results recorded by this teacher OR
+            // 2. Results for students in teacher's classes AND for subjects taught by this teacher
+            return $query->where(function($query) use ($teacher, $studentIds, $subjectIds) {
+                $query->where('recorded_by', $teacher->id)
+                      ->orWhere(function($q) use ($studentIds, $subjectIds) {
+                          $q->whereIn('student_id', $studentIds)
+                            ->whereIn('subject_id', $subjectIds);
+                      });
+            });
         }
 
-        // Get classes assigned to this teacher
-        $teacherClassIds = $teacher->classes()->pluck('id')->toArray();
+        // Students can only see their own results
+        if ($user->role_id === RoleConstants::STUDENT) {
+            $student = Student::where('user_id', $user->id)->first();
+            return $student ? $query->where('student_id', $student->id) : $query->where('id', 0);
+        }
 
-        // Get subjects assigned to this teacher
-        $teacherSubjectIds = $teacher->subjects()->pluck('subjects.id')->toArray();
+        // Parents can see results for their children
+        if ($user->role_id === RoleConstants::PARENT) {
+            $parent = $user->parentGuardian;
+            $studentIds = $parent ? $parent->students()->pluck('id')->toArray() : [];
+            return $query->whereIn('student_id', $studentIds);
+        }
 
-        // Get students in teacher's classes
-        $studentIds = Student::whereIn('class_id', $teacherClassIds)
-            ->pluck('id')
-            ->toArray();
-
-        // Filter results by:
-        // 1. Results recorded by this teacher OR
-        // 2. Results for students in teacher's classes AND for subjects taught by this teacher
-        return $query->where(function($query) use ($teacher, $studentIds, $teacherSubjectIds) {
-            $query->where('recorded_by', $teacher->id)
-                  ->orWhere(function($q) use ($studentIds, $teacherSubjectIds) {
-                      $q->whereIn('student_id', $studentIds)
-                        ->whereIn('subject_id', $teacherSubjectIds);
-                  });
-        });
+        return $query->where('id', 0); // Default: no access
     }
 
     public static function form(Form $form): Form
     {
         $user = Auth::user();
-        $teacher = Employee::where('user_id', $user->id)->first();
+        $isTeacher = $user->role_id === RoleConstants::TEACHER;
+        $isAdmin = $user->role_id === RoleConstants::ADMIN;
+        $isStudent = $user->role_id === RoleConstants::STUDENT;
+        $isParent = $user->role_id === RoleConstants::PARENT;
 
-        // Get teacher's classes
-        $teacherClassIds = [];
+        $teacher = $isTeacher ? Teacher::where('user_id', $user->id)->first() : null;
+
+        // Students and parents shouldn't create results through admin panel
+        if ($isStudent || $isParent) {
+            return $form->schema([
+                Forms\Components\Placeholder::make('notice')
+                    ->content('Results can only be created by teachers.')
+            ]);
+        }
+
+        // Get teacher's class sections
+        $classSectionIds = [];
         if ($teacher) {
-            $teacherClassIds = $teacher->classes()->pluck('id')->toArray();
+            $classSectionIds = $teacher->classSections()->pluck('id')->toArray();
         }
 
         // Get students in teacher's classes
         $studentOptions = [];
-        if (!empty($teacherClassIds)) {
-            $studentOptions = Student::whereIn('class_id', $teacherClassIds)
-                ->pluck('name', 'id')
+        if (!empty($classSectionIds)) {
+            $studentOptions = Student::whereIn('class_section_id', $classSectionIds)
+                ->get()
+                ->mapWithKeys(function ($student) {
+                    $grade = $student->grade ? $student->grade->name : 'Unknown';
+                    return [$student->id => "{$student->name} ({$grade})"];
+                })
                 ->toArray();
-        } else if ($user->hasRole('admin')) {
-            $studentOptions = Student::pluck('name', 'id')->toArray();
+        } else if ($isAdmin) {
+            $studentOptions = Student::with('grade')
+                ->get()
+                ->mapWithKeys(function ($student) {
+                    $grade = $student->grade ? $student->grade->name : 'Unknown';
+                    return [$student->id => "{$student->name} ({$grade})"];
+                })
+                ->toArray();
         }
 
         // Get subject options
         $subjectOptions = [];
         if ($teacher) {
             $subjectOptions = $teacher->subjects()->pluck('name', 'id')->toArray();
-        } else if ($user->hasRole('admin')) {
+        } else if ($isAdmin) {
             $subjectOptions = Subject::pluck('name', 'id')->toArray();
         }
 
@@ -148,13 +187,13 @@ class TeacherResultResource extends Resource
 
                                 // Get student grade
                                 $student = Student::find($studentId);
-                                if (!$student) {
+                                if (!$student || !$student->grade_id) {
                                     return [];
                                 }
 
                                 // If teacher is set, filter to their homework
                                 $homeworkQuery = Homework::where('subject_id', $subjectId)
-                                    ->where('grade', $student->grade);
+                                    ->where('grade_id', $student->grade_id);
 
                                 if ($teacher) {
                                     $homeworkQuery->where(function($query) use ($teacher) {
@@ -226,10 +265,19 @@ class TeacherResultResource extends Resource
 
     public static function table(Table $table): Table
     {
+        $user = Auth::user();
+        $canEdit = in_array($user->role_id, [RoleConstants::ADMIN, RoleConstants::TEACHER]);
+        $isStudent = $user->role_id === RoleConstants::STUDENT;
+        $isParent = $user->role_id === RoleConstants::PARENT;
+
         return $table
             ->columns([
                 Tables\Columns\TextColumn::make('student.name')
                     ->searchable()
+                    ->sortable()
+                    ->hidden($isStudent), // Hide for students since they only see their own
+                Tables\Columns\TextColumn::make('student.grade.name')
+                    ->label('Grade')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('subject.name')
                     ->searchable()
@@ -253,6 +301,9 @@ class TeacherResultResource extends Resource
                 Tables\Columns\TextColumn::make('year')
                     ->numeric()
                     ->sortable(),
+                Tables\Columns\TextColumn::make('comment')
+                    ->limit(50)
+                    ->visible($isStudent || $isParent),
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
@@ -288,7 +339,8 @@ class TeacherResultResource extends Resource
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),
+                Tables\Actions\EditAction::make()
+                    ->visible($canEdit),
                 Tables\Actions\Action::make('viewHomework')
                     ->label('View Homework')
                     ->icon('heroicon-o-document-text')
@@ -303,12 +355,13 @@ class TeacherResultResource extends Resource
                     ->icon('heroicon-o-paper-airplane')
                     ->color('warning')
                     ->action(function (Result $record) {
-                        ResultResource::sendResultNotification($record);
+                        self::sendResultNotification($record);
                     })
                     ->requiresConfirmation()
                     ->modalHeading('Send SMS Notification')
                     ->modalDescription('This will send an SMS notification to the student\'s parent/guardian about this result. Are you sure you want to continue?')
-                    ->modalSubmitActionLabel('Yes, Send Notification'),
+                    ->modalSubmitActionLabel('Yes, Send Notification')
+                    ->visible($canEdit),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
@@ -323,10 +376,14 @@ class TeacherResultResource extends Resource
 
                             foreach ($results as $result) {
                                 try {
-                                    ResultResource::sendResultNotification($result);
+                                    self::sendResultNotification($result);
                                     $successCount++;
                                 } catch (\Exception $e) {
                                     $failCount++;
+                                    Log::error('Failed to send result notification', [
+                                        'result_id' => $result->id,
+                                        'error' => $e->getMessage()
+                                    ]);
                                 }
                             }
 
@@ -341,7 +398,8 @@ class TeacherResultResource extends Resource
                         ->modalHeading('Send Bulk SMS Notifications')
                         ->modalDescription('This will send SMS notifications for all selected results. Are you sure you want to continue?')
                         ->modalSubmitActionLabel('Yes, Send All Notifications'),
-                ]),
+                ])
+                ->visible($canEdit),
             ]);
     }
 
@@ -360,5 +418,90 @@ class TeacherResultResource extends Resource
             //'view' => Pages\ViewTeacherResult::route('/{record}'),
             'edit' => Pages\EditTeacherResult::route('/{record}/edit'),
         ];
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return in_array(auth()->user()?->role_id, [
+            RoleConstants::ADMIN,
+            RoleConstants::TEACHER,
+            RoleConstants::STUDENT,
+            RoleConstants::PARENT
+        ]) ?? false;
+    }
+
+    public static function canCreate(): bool
+    {
+        // Only teachers and admins can create results
+        return in_array(auth()->user()?->role_id, [RoleConstants::ADMIN, RoleConstants::TEACHER]) ?? false;
+    }
+
+    public static function canEditAny(): bool
+    {
+        // Only teachers and admins can edit results
+        return in_array(auth()->user()?->role_id, [RoleConstants::ADMIN, RoleConstants::TEACHER]) ?? false;
+    }
+
+    public static function canDeleteAny(): bool
+    {
+        // Only admins can delete results
+        return auth()->user()?->role_id === RoleConstants::ADMIN ?? false;
+    }
+
+    /**
+     * Send SMS notification for a result
+     */
+    public static function sendResultNotification(Result $result): bool
+    {
+        try {
+            // Get student and parent information
+            $student = $result->student;
+            if (!$student) {
+                throw new \Exception('Student not found');
+            }
+
+            $parent = $student->parentGuardian;
+            if (!$parent || !$parent->phone) {
+                throw new \Exception('Parent or phone number not found');
+            }
+
+            // Prepare message
+            $message = $result->sms_message ?? "Your child {$student->name} scored {$result->marks}% ({$result->grade}) in {$result->subject->name} ({$result->exam_type}). Great work!";
+
+            // Send SMS (you'll need to implement this based on your SMS service)
+            // $smsService = app(SmsService::class);
+            // $smsService->send($parent->phone, $message);
+
+            // Log SMS
+            SmsLog::create([
+                'recipient' => $parent->phone,
+                'message' => $message,
+                'status' => 'sent',
+                'cost' => 0.50, // Adjust based on your SMS pricing
+                'reference_id' => $result->id,
+                'message_type' => 'result_notification',
+            ]);
+
+            Notification::make()
+                ->title('SMS Sent Successfully')
+                ->body("Notification sent to {$parent->phone}")
+                ->success()
+                ->send();
+
+            return true;
+        } catch (\Exception $e) {
+            Notification::make()
+                ->title('SMS Failed')
+                ->body($e->getMessage())
+                ->danger()
+                ->send();
+
+            Log::error('Failed to send result SMS', [
+                'result_id' => $result->id,
+                'error' => $e->getMessage()
+            ]);
+
+            return false;
+        }
     }
 }

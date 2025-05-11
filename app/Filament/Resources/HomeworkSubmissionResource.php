@@ -16,6 +16,8 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Filament\Notifications\Notification;
 use Carbon\Carbon;
+use App\Constants\RoleConstants;
+use Illuminate\Support\Facades\Auth;
 
 class HomeworkSubmissionResource extends Resource
 {
@@ -26,6 +28,11 @@ class HomeworkSubmissionResource extends Resource
     protected static ?string $navigationGroup = 'Academic Management';
 
     protected static ?int $navigationSort = 3;
+
+    public static function shouldRegisterNavigation(): bool
+{
+    return false;
+}
 
     public static function form(Form $form): Form
     {

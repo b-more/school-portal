@@ -15,6 +15,7 @@ return new class extends Migration
             $table->id();
             $table->string('name')->nullable();
             $table->unsignedBigInteger('user_id')->nullable();
+            $table->unsignedBigInteger('class_section_id')->nullable();
             $table->date('date_of_birth')->nullable();
             $table->string('place_of_birth')->nullable();
             $table->string('religious_denomination')->nullable();
@@ -25,14 +26,14 @@ return new class extends Migration
             $table->string('address')->nullable();
             $table->string('student_id_number')->unique()->nullable();
             $table->UnsignedBigInteger('parent_guardian_id')->nullable();
-            $table->string('grade')->nullable();
+            $table->UnsignedBigInteger('grade_id')->nullable();
             $table->unsignedBigInteger('school_class_id')->nullable();
             $table->date('admission_date')->nullable();
             $table->enum('enrollment_status', ['active', 'inactive', 'graduated', 'transferred'])->default('active')->nullable();
             $table->string('previous_school')->nullable();
             $table->string('profile_photo')->nullable();
             $table->text('medical_information')->nullable();
-            $table->string('role')->default('student');
+            $table->unsignedBigInteger('role_id')->default(3);
             $table->text('notes')->nullable();
             $table->timestamps();
         });

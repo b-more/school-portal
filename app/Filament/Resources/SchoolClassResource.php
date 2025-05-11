@@ -11,6 +11,8 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use App\Constants\RoleConstants;
+use Illuminate\Support\Facades\Auth;
 
 class SchoolClassResource extends Resource
 {
@@ -19,6 +21,11 @@ class SchoolClassResource extends Resource
     protected static ?string $navigationGroup = 'Academic Management';
     protected static ?string $navigationLabel = 'Classes';
     protected static ?int $navigationSort = 7;
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return auth()->user()?->role_id === RoleConstants::ADMIN ?? false;
+    }
 
     public static function form(Form $form): Form
     {

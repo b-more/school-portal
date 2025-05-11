@@ -22,7 +22,7 @@ class ParentGuardian extends Model
         'occupation',
         'address',
         'user_id',
-        'role',
+        'role_id',
     ];
 
     public function user(): BelongsTo
@@ -33,5 +33,18 @@ class ParentGuardian extends Model
     public function students(): HasMany
     {
         return $this->hasMany(Student::class);
+    }
+
+    public function role(): BelongsTo
+    {
+        return $this->belongsTo(Role::class);
+    }
+    public function getFullNameAttribute(): string
+    {
+        return $this->name;
+    }
+    public function getFullPhoneAttribute(): string
+    {
+        return $this->phone;
     }
 }

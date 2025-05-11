@@ -20,6 +20,8 @@ use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
 use Carbon\Carbon;
+use App\Constants\RoleConstants;
+use Illuminate\Support\Facades\Auth;
 
 class StudentFeeResource extends Resource
 {
@@ -30,6 +32,11 @@ class StudentFeeResource extends Resource
     protected static ?string $navigationGroup = 'Finance Management';
 
     protected static ?int $navigationSort = 2;
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return auth()->user()?->role_id === RoleConstants::ADMIN ?? false;
+    }
 
     /**
      * Check if there is an existing fee record for the student and fee structure

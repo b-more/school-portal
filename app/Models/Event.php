@@ -58,7 +58,11 @@ class Event extends Model
         // When a new event is created, send SMS notifications if enabled
         static::created(function ($event) {
             if ($event->notify_parents) {
-                app(\App\Filament\Resources\EventResource::class)->sendEventNotifications($event);
+                // This won't work - need to inject the service properly
+                // app(\App\Filament\Resources\EventResource::class)->sendEventNotifications($event);
+
+                // Better approach: use a listener or job
+                event(new \App\Events\EventNotificationRequested($event));
             }
         });
     }

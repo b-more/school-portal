@@ -13,9 +13,19 @@ return new class extends Migration
     {
         Schema::create('roles', function (Blueprint $table) {
             $table->id();
-            $table->string('name')->nullable();
+            $table->string('name', 50)->unique()->nullable();
+            $table->string('description')->nullable();
+            $table->boolean('is_active')->default(true);
+            $table->json('custom_permissions')->nullable();
             $table->timestamps();
         });
+
+        // Update users table to reference roles
+        if (!Schema::hasColumn('users', 'role_id')) {
+            Schema::table('users', function (Blueprint $table) {
+                $table->foreignId('role_id')->constrained()->onDelete('cascade');
+            });
+        }
     }
 
     /**
@@ -23,6 +33,12 @@ return new class extends Migration
      */
     public function down(): void
     {
+        // Remove foreign key from users table
+        Schema::table('users', function (Blueprint $table) {
+            $table->dropForeign(['role_id']);
+            $table->dropColumn('role_id');
+        });
+
         Schema::dropIfExists('roles');
     }
 };

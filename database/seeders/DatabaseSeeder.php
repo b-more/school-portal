@@ -14,15 +14,18 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
+            RoleSeeder::class,
+            GradeSeeder::class,
             UserSeeder::class,
             SchoolSectionSeeder::class,
             AcademicYearAndTermSeeder::class,
             GradeSeeder::class,
             ParentGuardianSeeder::class,
             StudentSeeder::class,
+            //TeacherSeeder::class,
 
             // 2. Create employees (teachers and staff)
-            EmployeeSeeder::class,
+            //EmployeeSeeder::class,
 
             // 3. Create parent/guardian records
             //ParentGuardianSeeder::class,

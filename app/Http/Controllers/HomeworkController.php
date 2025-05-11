@@ -3,172 +3,112 @@
 namespace App\Http\Controllers;
 
 use App\Models\Homework;
-use App\Models\HomeworkSubmission;
+use App\Models\Student;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
-use ZipArchive;
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Auth;
+use Symfony\Component\HttpFoundation\Response;
 
 class HomeworkController extends Controller
 {
     /**
-     * Display the homework file for download
+     * Download homework file
      */
-    public function downloadHomeworkFile(Homework $homework)
+    public function download(Homework $homework)
     {
+        $user = Auth::user();
+
+        // Check if user has permission to download this homework
+        if ($user->hasRole('parent')) {
+            // For parents, check if any of their children are in the homework's grade
+            $parent = $user->parentGuardian;
+            if (!$parent) {
+                abort(403, 'Access denied');
+            }
+
+            $studentInGrade = $parent->students()
+                ->where('grade', $homework->grade)
+                ->where('enrollment_status', 'active')
+                ->exists();
+
+            if (!$studentInGrade) {
+                abort(403, 'None of your children are in this grade');
+            }
+        } elseif ($user->hasRole('student')) {
+            // For students, check if they are in the homework's grade
+            $student = $user->student;
+            if (!$student || $student->grade !== $homework->grade) {
+                abort(403, 'This homework is not for your grade');
+            }
+        } elseif (!$user->hasRole(['admin', 'teacher'])) {
+            abort(403, 'Access denied');
+        }
+
+        // Check if homework has a file
         if (empty($homework->homework_file)) {
-            return back()->with('error', 'No homework file available for download.');
+            abort(404, 'No file attached to this homework');
         }
 
-        $path = $homework->homework_file;
-
-        if (!Storage::disk('public')->exists($path)) {
-            return back()->with('error', 'Homework file not found in storage.');
+        // Check if file exists
+        if (!Storage::disk('public')->exists($homework->homework_file)) {
+            abort(404, 'Homework file not found');
         }
 
-        $fileName = basename($path);
-        $displayName = $homework->title . ' - ' . $fileName;
+        // Get file path and name
+        $filePath = Storage::disk('public')->path($homework->homework_file);
+        $fileName = basename($homework->homework_file);
 
-        return Storage::disk('public')->download($path, $displayName);
+        // Create a friendly filename
+        $friendlyName = $homework->title . ' - ' . $homework->subject->name . ' - ' . $homework->grade;
+        $friendlyName = preg_replace('/[^A-Za-z0-9\-_. ]/', '', $friendlyName);
+        $extension = pathinfo($fileName, PATHINFO_EXTENSION);
+        $downloadName = $friendlyName . '.' . $extension;
+
+        // Return file download response
+        return response()->download($filePath, $downloadName, [
+            'Content-Type' => Storage::disk('public')->mimeType($homework->homework_file),
+        ]);
     }
 
     /**
-     * Download additional resources files for homework
+     * View homework details (API endpoint for parent/student portal)
      */
-    public function downloadResources(Homework $homework)
+    public function show(Homework $homework)
     {
-        if (empty($homework->file_attachment)) {
-            return back()->with('error', 'No resources available for download.');
-        }
+        $user = Auth::user();
+        $canDownload = false;
 
-        // If there's only one file, download it directly
-        if (count($homework->file_attachment) === 1) {
-            $path = $homework->file_attachment[0];
-            $fileName = basename($path);
-            $displayName = $homework->title . ' - Resource - ' . $fileName;
-
-            return Storage::disk('public')->download($path, $displayName);
-        }
-
-        // Create a zip file for multiple files
-        $zipFileName = Str::slug($homework->title) . '-resources.zip';
-        $zipPath = storage_path('app/public/temp/' . $zipFileName);
-
-        // Ensure temp directory exists
-        if (!Storage::disk('public')->exists('temp')) {
-            Storage::disk('public')->makeDirectory('temp');
-        }
-
-        $zip = new ZipArchive();
-        if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) === true) {
-            foreach ($homework->file_attachment as $file) {
-                $filePath = Storage::disk('public')->path($file);
-                if (file_exists($filePath)) {
-                    $zip->addFile($filePath, basename($file));
-                }
+        // Check permissions
+        if ($user->hasRole('parent')) {
+            $parent = $user->parentGuardian;
+            if ($parent) {
+                $studentInGrade = $parent->students()
+                    ->where('grade', $homework->grade)
+                    ->where('enrollment_status', 'active')
+                    ->exists();
+                $canDownload = $studentInGrade;
             }
-
-            $zip->close();
-
-            return response()->download($zipPath, $zipFileName)->deleteFileAfterSend(true);
+        } elseif ($user->hasRole('student')) {
+            $student = $user->student;
+            $canDownload = $student && $student->grade === $homework->grade;
+        } elseif ($user->hasRole(['admin', 'teacher'])) {
+            $canDownload = true;
         }
 
-        return back()->with('error', 'Could not create zip file for download.');
-    }
-
-    /**
-     * Download submission files
-     */
-    public function downloadSubmission(HomeworkSubmission $submission)
-    {
-        if (empty($submission->file_attachment)) {
-            return back()->with('error', 'No submission files available for download.');
-        }
-
-        // If there's only one file, download it directly
-        if (count($submission->file_attachment) === 1) {
-            $path = $submission->file_attachment[0];
-            $fileName = basename($path);
-            $student = $submission->student;
-            $displayName = ($student ? $student->name . ' - ' : '') . $fileName;
-
-            return Storage::disk('public')->download($path, $displayName);
-        }
-
-        // Create a zip file for multiple files
-        $student = $submission->student;
-        $studentName = $student ? Str::slug($student->name) : 'student';
-        $zipFileName = $studentName . '-submission.zip';
-        $zipPath = storage_path('app/public/temp/' . $zipFileName);
-
-        // Ensure temp directory exists
-        if (!Storage::disk('public')->exists('temp')) {
-            Storage::disk('public')->makeDirectory('temp');
-        }
-
-        $zip = new ZipArchive();
-        if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) === true) {
-            foreach ($submission->file_attachment as $file) {
-                $filePath = Storage::disk('public')->path($file);
-                if (file_exists($filePath)) {
-                    $zip->addFile($filePath, basename($file));
-                }
-            }
-
-            $zip->close();
-
-            return response()->download($zipPath, $zipFileName)->deleteFileAfterSend(true);
-        }
-
-        return back()->with('error', 'Could not create zip file for download.');
-    }
-
-    /**
-     * Download all submissions for a homework assignment as a zip file
-     */
-    public function downloadAllSubmissions(Homework $homework)
-    {
-        $submissions = $homework->submissions()->with('student')->get();
-
-        if ($submissions->isEmpty()) {
-            return back()->with('error', 'No submissions available for download.');
-        }
-
-        // Create a zip file name
-        $zipFileName = Str::slug($homework->title) . '-all-submissions.zip';
-        $zipPath = storage_path('app/public/temp/' . $zipFileName);
-
-        // Ensure temp directory exists
-        if (!Storage::disk('public')->exists('temp')) {
-            Storage::disk('public')->makeDirectory('temp');
-        }
-
-        $zip = new ZipArchive();
-        if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) === true) {
-            foreach ($submissions as $submission) {
-                if (empty($submission->file_attachment)) {
-                    continue;
-                }
-
-                $student = $submission->student;
-                $studentName = $student ? Str::slug($student->name) : 'unknown-student';
-
-                // Create a directory for each student
-                $dirName = $studentName . '/';
-
-                foreach ($submission->file_attachment as $file) {
-                    $filePath = Storage::disk('public')->path($file);
-                    if (file_exists($filePath)) {
-                        $zip->addFile($filePath, $dirName . basename($file));
-                    }
-                }
-            }
-
-            $zip->close();
-
-            return response()->download($zipPath, $zipFileName)->deleteFileAfterSend(true);
-        }
-
-        return back()->with('error', 'Could not create zip file for download.');
+        return response()->json([
+            'homework' => [
+                'id' => $homework->id,
+                'title' => $homework->title,
+                'subject' => $homework->subject->name,
+                'grade' => $homework->grade,
+                'description' => $homework->description,
+                'due_date' => $homework->due_date->format('Y-m-d'),
+                'teacher' => $homework->assignedBy->name ?? 'Unknown',
+                'status' => $homework->status,
+                'has_file' => !empty($homework->homework_file),
+                'can_download' => $canDownload,
+                'download_url' => $canDownload ? route('homework.download', $homework) : null,
+            ]
+        ]);
     }
 }

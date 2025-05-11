@@ -13,7 +13,17 @@ class EditTeacherHomework extends EditRecord
     protected function getHeaderActions(): array
     {
         return [
-            Actions\DeleteAction::make(),
+            Actions\ViewAction::make(),
+            Actions\DeleteAction::make()
+                ->visible(fn() => !$this->record->submissions()->exists())
+                ->requiresConfirmation()
+                ->modalHeading('Delete Homework?')
+                ->modalDescription('This will permanently delete the homework assignment.'),
         ];
+    }
+
+    protected function getRedirectUrl(): string
+    {
+        return route('filament.admin.resources.teacher-homework.index');
     }
 }

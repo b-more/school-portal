@@ -13,6 +13,8 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Log;
 use Filament\Notifications\Notification;
+use Illuminate\Support\Facades\Auth;
+use App\Constants\RoleConstants;
 
 class UserCredentialResource extends Resource
 {
@@ -240,6 +242,12 @@ class UserCredentialResource extends Resource
         return [
             //
         ];
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        //return Auth::user()?->hasRole('Admin') ?? false;
+        return in_array(auth()->user()?->role_id, [RoleConstants::ADMIN, RoleConstants::NURSE]) ?? false;
     }
 
     public static function getPages(): array

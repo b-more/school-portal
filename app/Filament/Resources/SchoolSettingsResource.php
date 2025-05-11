@@ -13,6 +13,8 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
+use App\Constants\RoleConstants;
+use Illuminate\Support\Facades\Auth;
 
 class SchoolSettingsResource extends Resource
 {
@@ -21,6 +23,11 @@ class SchoolSettingsResource extends Resource
     protected static ?string $navigationGroup = 'System Configuration';
     protected static ?string $navigationLabel = 'School Settings';
     protected static ?int $navigationSort = 1;
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return auth()->user()?->role_id === RoleConstants::ADMIN ?? false;
+    }
 
     public static function form(Form $form): Form
     {

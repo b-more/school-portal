@@ -3,33 +3,41 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\RoleResource\Pages;
-use App\Filament\Resources\RoleResource\RelationManagers;
 use App\Models\Role;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletingScope;
-use Spatie\Permission\Models\Role as ModelsRole;
+use Illuminate\Support\Facades\Auth;
 
 class RoleResource extends Resource
 {
-    protected static ?string $model = ModelsRole::class;
+    protected static ?string $model = Role::class;
+    protected static ?string $navigationIcon = 'heroicon-o-shield-check';
+    protected static ?string $navigationGroup = 'User Management';
+    protected static ?int $navigationSort = 2;
 
-    protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';
-
+    // Only Admins can see this resource
     public static function shouldRegisterNavigation(): bool
     {
-        return false;
+        return Auth::user()?->hasRole('Admin') ?? false;
     }
 
     public static function form(Form $form): Form
     {
         return $form
             ->schema([
-                //
+                Forms\Components\TextInput::make('name')
+                    ->required()
+                    ->maxLength(50)
+                    ->unique(ignoreRecord: true),
+
+                Forms\Components\Textarea::make('description')
+                    ->maxLength(255),
+
+                Forms\Components\Toggle::make('is_active')
+                    ->default(true),
             ]);
     }
 
@@ -37,26 +45,22 @@ class RoleResource extends Resource
     {
         return $table
             ->columns([
-                //
-            ])
-            ->filters([
-                //
+                Tables\Columns\TextColumn::make('name'),
+                Tables\Columns\TextColumn::make('description'),
+                Tables\Columns\TextColumn::make('users_count')
+                    ->counts('users')
+                    ->label('Users'),
+                Tables\Columns\IconColumn::make('is_active')
+                    ->boolean(),
             ])
             ->actions([
                 Tables\Actions\EditAction::make(),
-            ])
-            ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                ]),
+                Tables\Actions\DeleteAction::make()
+                    ->before(function (Role $record) {
+                        // Prevent deleting if role has users
+                        return $record->users()->count() === 0;
+                    }),
             ]);
-    }
-
-    public static function getRelations(): array
-    {
-        return [
-            //
-        ];
     }
 
     public static function getPages(): array

@@ -17,7 +17,7 @@ class Employee extends Model
         'email',
         'phone',
         'role_id',
-        'role',
+        'employee_number',
         'department',
         'position',
         'joining_date',
@@ -83,29 +83,10 @@ class Employee extends Model
                     ->withTimestamps();
     }
 
-    /**
-     * Alias for school_classes() relationship
-     * This resolves the "Call to undefined method App\Models\Employee::classes()" error
-     */
     public function classes(): BelongsToMany
     {
         return $this->school_classes();
     }
-
-    /**
-     * Alias for school_classes() relationship
-     * This resolves the "Call to undefined method App\Models\Employee::classes()" error
-     */
-    // public function classes(): BelongsToMany
-    // {
-    //     return $this->school_classes();
-    // }
-
-    // public function subjects(): BelongsToMany
-    // {
-    //     return $this->belongsToMany(Subject::class, 'employee_subject')
-    //                 ->withTimestamps();
-    // }
 
     public function subjects(): BelongsToMany
     {
@@ -115,14 +96,15 @@ class Employee extends Model
     }
 
 
-
-    /**
-     * Get the subject-class assignments for this employee (teacher)
-     */
     public function classSubjectAssignments(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
     {
         return $this->belongsToMany(SchoolClass::class, 'class_subject_teacher', 'employee_id', 'class_id')
                     ->withPivot('subject_id')
                     ->withTimestamps();
+    }
+
+    public function headOfSections()
+    {
+        return $this->hasMany(SchoolSection::class, 'head_of_section_id');
     }
 }

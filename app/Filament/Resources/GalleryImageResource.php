@@ -10,6 +10,9 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use App\Constants\RoleConstants;
+use Illuminate\Support\Facades\Auth;
+
 
 class GalleryImageResource extends Resource
 {
@@ -18,6 +21,11 @@ class GalleryImageResource extends Resource
     protected static ?string $navigationIcon = 'heroicon-o-photo';
 
     protected static ?string $navigationGroup = 'Website Management';
+
+     public static function shouldRegisterNavigation(): bool
+    {
+        return auth()->user()?->role_id === RoleConstants::ADMIN ?? false;
+    }
 
     public static function form(Form $form): Form
     {

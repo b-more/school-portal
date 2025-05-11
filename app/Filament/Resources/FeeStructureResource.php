@@ -17,6 +17,8 @@ use Illuminate\Database\Eloquent\Builder;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Storage;
 use Filament\Notifications\Notification;
+use App\Constants\RoleConstants;
+use Illuminate\Support\Facades\Auth;
 
 class FeeStructureResource extends Resource
 {
@@ -25,6 +27,11 @@ class FeeStructureResource extends Resource
     protected static ?string $navigationIcon = 'heroicon-o-currency-dollar';
 
     protected static ?string $navigationGroup = 'Finance Management';
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return auth()->user()?->role_id === RoleConstants::ADMIN ?? false;
+    }
 
     public static function form(Form $form): Form
     {
@@ -440,4 +447,8 @@ class FeeStructureResource extends Resource
             'edit' => Pages\EditFeeStructure::route('/{record}/edit'),
         ];
     }
+
+
+
+
 }

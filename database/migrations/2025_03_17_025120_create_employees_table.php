@@ -15,8 +15,9 @@ return new class extends Migration
             $table->id();
             $table->string('name')->nullable();
             $table->string('email')->unique()->nullable();
+            $table->string('employee_number')->unique()->nullable();
             $table->string('phone')->nullable();
-            $table->enum('role', ['teacher', 'admin', 'support', 'other'])->nullable(); //
+            $table->unsignedBigInteger('role_id')->nullable();
             $table->string('department')->nullable();
             $table->string('position')->nullable();
             $table->date('joining_date')->nullable();

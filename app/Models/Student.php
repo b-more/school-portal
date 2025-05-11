@@ -13,6 +13,7 @@ class Student extends Model
 
     protected $fillable = [
         'name',
+        'class_section_id',
         'date_of_birth',
         'place_of_birth',
         'religious_denomination',
@@ -24,7 +25,7 @@ class Student extends Model
         'address',
         'student_id_number',
         'parent_guardian_id',
-        'grade',
+        'grade_id',
         'admission_date',
         'enrollment_status',
         'user_id',
@@ -39,6 +40,31 @@ class Student extends Model
         'date_of_birth' => 'date',
         'admission_date' => 'date',
     ];
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function role(): BelongsTo
+    {
+        return $this->belongsTo(Role::class);
+    }
+
+    public function classSection(): BelongsTo
+    {
+        return $this->belongsTo(ClassSection::class);
+    }
+
+    public function schoolClass(): BelongsTo
+    {
+        return $this->belongsTo(SchoolClass::class);
+    }
+
+    public function grade(): BelongsTo
+    {
+        return $this->belongsTo(Grade::class);
+    }
 
     public function parentGuardian(): BelongsTo
     {

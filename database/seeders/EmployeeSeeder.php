@@ -5,6 +5,7 @@ namespace Database\Seeders;
 use App\Models\Employee;
 use App\Models\User;
 use App\Models\SchoolClass;
+use App\Models\Role;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -143,8 +144,10 @@ class EmployeeSeeder extends Seeder
                     SchoolClass::create([
                         'name' => $className,
                         'department' => $department,
-                        'capacity' => 40,
-                        //'status' => 'active',
+                        'grade' => $className, // Add grade as well
+                        'section' => null, // Add section if needed
+                        'is_active' => true,
+                        'status' => 'active',
                     ]);
                 }
             }
@@ -249,6 +252,15 @@ class EmployeeSeeder extends Seeder
         $joiningDate = now()->subMonths(rand(1, 60)); // Random joining date in the past 5 years
         $employeeId = strtoupper(substr($department, 0, 1) . substr($position, 0, 1) . '-' . str_pad(rand(1, 999), 3, '0', STR_PAD_LEFT));
 
+        // Get the role_id from the role name
+        $roleMap = [
+            'admin' => 1,      // Admin role_id
+            'teacher' => 2,    // Teacher role_id
+            'support' => 9,    // Support role_id
+        ];
+
+        $roleId = $roleMap[$role] ?? 2; // Default to teacher role_id if not found
+
         // Salary based on role and position (realistic ranges in ZMW)
         $baseSalary = match($role) {
             'admin' => rand(15000, 35000),
@@ -267,7 +279,7 @@ class EmployeeSeeder extends Seeder
             'name' => $user->name,
             'email' => $user->email,
             'phone' => $user->phone ?? ('+26097' . rand(1000000, 9999999)),
-            'role' => $role,
+            'role_id' => $roleId,  // FIXED: using 'role_id' instead of 'role'
             'department' => $department,
             'position' => $position,
             'joining_date' => $joiningDate,

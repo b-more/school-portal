@@ -31,9 +31,6 @@ return new class extends Migration
             $table->timestamps();
             $table->softDeletes();
 
-            //$table->unsignedBigInteger('branch_id')->nullable();
-            //$table->unsignedBigInteger('member_id')->nullable();
-
             $table->index(['email', 'phone', 'username']);
             $table->index('status');
         });

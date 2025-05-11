@@ -13,6 +13,9 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Filament\Notifications\Notification;
+use App\Constants\RoleConstants;
+use Illuminate\Support\Facades\Auth;
+
 
 class SubjectResource extends Resource
 {
@@ -20,6 +23,11 @@ class SubjectResource extends Resource
     protected static ?string $navigationIcon = 'heroicon-o-book-open';
     protected static ?string $navigationGroup = 'Academic Configuration';
     protected static ?int $navigationSort = 5;
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return auth()->user()?->role_id === RoleConstants::ADMIN ?? false;
+    }
 
     public static function form(Form $form): Form
     {

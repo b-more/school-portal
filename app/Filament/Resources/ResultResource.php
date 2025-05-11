@@ -334,6 +334,11 @@ class ResultResource extends Resource
         }
     }
 
+    public static function shouldRegisterNavigation(): bool
+{
+    return false;
+}
+
     /**
      * Format phone number to ensure it has the country code
      */
