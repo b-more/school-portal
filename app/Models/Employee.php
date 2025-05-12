@@ -7,6 +7,9 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\HasManyThrough;
+use Illuminate\Support\Facades\DB;
 
 class Employee extends Model
 {
@@ -53,8 +56,6 @@ class Employee extends Model
         return $this->hasMany(Homework::class, 'assigned_by');
     }
 
-
-
     public function news(): HasMany
     {
         return $this->hasMany(News::class, 'author_id');
@@ -70,17 +71,10 @@ class Employee extends Model
         return $this->hasMany(Result::class, 'recorded_by');
     }
 
-    // public function school_classes(): BelongsToMany
-    // {
-    //     return $this->belongsToMany(SchoolClass::class, 'class_teacher', 'employee_id', 'class_id')
-    //                 ->withPivot('role', 'is_primary')
-    //                 ->withTimestamps();
-    // }
-
     public function school_classes(): BelongsToMany
     {
         return $this->belongsToMany(SchoolClass::class, 'class_teacher', 'employee_id', 'class_id')
-                    ->select(['classes.*']) // This fixes the ambiguous 'id' column issue
+                    ->select(['school_classes.*']) // Make sure this matches your actual table name
                     ->withPivot('role', 'is_primary')
                     ->withTimestamps();
     }
@@ -97,15 +91,14 @@ class Employee extends Model
                     ->select(['subjects.*']); // This fixes the ambiguous 'id' column issue
     }
 
-
-    public function classSubjectAssignments(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    public function classSubjectAssignments(): BelongsToMany
     {
         return $this->belongsToMany(SchoolClass::class, 'class_subject_teacher', 'employee_id', 'class_id')
                     ->withPivot('subject_id')
                     ->withTimestamps();
     }
 
-    public function headOfSections()
+    public function headOfSections(): HasMany
     {
         return $this->hasMany(SchoolSection::class, 'head_of_section_id');
     }
@@ -124,5 +117,29 @@ class Employee extends Model
     {
         return $this->role_id === \App\Constants\RoleConstants::ADMIN;
     }
-}
 
+    /**
+     * This is for compatibility with Filament - DO NOT USE for regular relationships
+     */
+    public function classSections()
+    {
+        return $this->belongsToMany(ClassSection::class, 'teacher_class_section', 'teacher_id', 'class_section_id')
+                    ->using(TeacherClassSection::class)
+                    ->withTimestamps();
+    }
+
+    /**
+     * Relation to class sections through teacher - this is the proper relationship
+     */
+    public function schoolClasses(): HasManyThrough
+    {
+        return $this->hasManyThrough(
+            ClassSection::class,
+            Teacher::class,
+            'employee_id',
+            'class_teacher_id',
+            'id',
+            'id'
+        );
+    }
+}

@@ -60,7 +60,7 @@ class EmployeeResource extends Resource
                         Forms\Components\Select::make('role_id')  // Changed from 'role' to 'role_id'
                             ->relationship('role', 'name')  // Use relationship to get role names
                             ->required()
-                            ->searchable()
+                            //->searchable()
                             ->preload(),
                         Forms\Components\Select::make('department')
                             ->options([
@@ -85,7 +85,7 @@ class EmployeeResource extends Resource
                             ->required(),
                         Forms\Components\TextInput::make('basic_salary')
                             ->numeric()
-                            ->prefix('ZMW')
+                            ->prefix('ZMW'),
                             //->required(),
                     ])->columns(2),
             ]);

@@ -124,9 +124,9 @@ class AcademicYearResource extends Resource
                     ->boolean()
                     ->label('Active'),
 
-                Tables\Columns\TextColumn::make('terms_count')
-                    ->counts('terms')
-                    ->label('Terms'),
+                // Tables\Columns\TextColumn::make('terms_count')
+                //     ->counts('terms')
+                //     ->label('Terms'),
 
                 Tables\Columns\TextColumn::make('created_at')
                     ->dateTime()
