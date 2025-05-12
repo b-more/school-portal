@@ -20,6 +20,7 @@ class FeeStructure extends Model
         'total_fee',
         'description',
         'is_active',
+        'name',
     ];
 
     protected $casts = [

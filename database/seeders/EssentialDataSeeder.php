@@ -292,174 +292,189 @@ class EssentialDataSeeder extends Seeder
      * Seed subjects
      */
     private function seedSubjects(): void
-    {
-        $this->command->info('Creating subjects...');
+{
+    $this->command->info('Creating subjects...');
 
-        $hasIsActiveField = Schema::hasColumn('subjects', 'is_active');
+    $hasIsActiveField = Schema::hasColumn('subjects', 'is_active');
 
-        $primarySubjects = [
-            'English', 'Mathematics', 'Science', 'Social Studies', 'Religious Education',
-            'Creative & Technology Studies', 'Expressive Arts', 'Zambian Languages'
+    $primarySubjects = [
+        'English' => 'ENGP',
+        'Mathematics' => 'MATP',
+        'Science' => 'SCIP',
+        'Social Studies' => 'SOCP',
+        'Religious Education' => 'RELP',
+        'Creative & Technology Studies' => 'CTSP',
+        'Expressive Arts' => 'EXAP',
+        'Zambian Languages' => 'ZAMP'
+    ];
+
+    $secondarySubjects = [
+        'English' => 'ENGS',
+        'Mathematics' => 'MATS',
+        'Biology' => 'BIOS',
+        'Chemistry' => 'CHMS',
+        'Physics' => 'PHYS',
+        'History' => 'HISS',
+        'Geography' => 'GEOS',
+        'Religious Education' => 'RELS',
+        'Civic Education' => 'CIVS',
+        'Computer Studies' => 'COMS',
+        'Commerce' => 'CMMS',
+        'Principles of Accounts' => 'ACCS',
+        'Business Studies' => 'BUSS',
+        'Agricultural Science' => 'AGRS',
+        'French' => 'FRNS',
+        'Art' => 'ARTS',
+        'Home Economics' => 'HOMS',
+        'Physical Education' => 'PHES'
+    ];
+
+    // Create primary subjects (Grade 1-7)
+    $primaryGrades = Grade::whereIn('level', [4, 5, 6, 7, 8, 9, 10])->get();
+
+    foreach ($primarySubjects as $subjectName => $subjectCode) {
+        $data = [
+            'name' => $subjectName . ' (Primary)',
+            'code' => $subjectCode,
+            'description' => "Primary school {$subjectName}",
         ];
 
-        $secondarySubjects = [
-            'English', 'Mathematics', 'Biology', 'Chemistry', 'Physics', 'History',
-            'Geography', 'Religious Education', 'Civic Education', 'Computer Studies',
-            'Commerce', 'Principles of Accounts', 'Business Studies', 'Agricultural Science',
-            'French', 'Art', 'Home Economics', 'Physical Education'
-        ];
-
-        // Create primary subjects (Grade 1-7)
-        $primaryGrades = Grade::whereIn('level', [4, 5, 6, 7, 8, 9, 10])->get();
-
-        foreach ($primarySubjects as $subjectName) {
-            $data = [
-                'name' => $subjectName,
-                'code' => strtoupper(substr(str_replace(' ', '', $subjectName), 0, 3)),
-                'description' => "Primary school {$subjectName}",
-            ];
-
-            // Add optional fields if they exist
-            if ($hasIsActiveField) {
-                $data['is_active'] = true;
-            }
-
-            $subject = Subject::updateOrCreate(
-                ['name' => $subjectName, 'description' => $data['description']],
-                $data
-            );
-
-            // Check if the relationship method exists before trying to sync
-            if (method_exists($subject, 'grades')) {
-                $subject->grades()->sync($primaryGrades->pluck('id')->toArray());
-            }
+        // Add optional fields if they exist
+        if ($hasIsActiveField) {
+            $data['is_active'] = true;
         }
 
-        // Create secondary subjects (Grade 8-12)
-        $secondaryGrades = Grade::whereIn('level', [11, 12, 13, 14, 15])->get();
+        $subject = Subject::updateOrCreate(
+            ['code' => $subjectCode],
+            $data
+        );
 
-        foreach ($secondarySubjects as $subjectName) {
-            $data = [
-                'name' => $subjectName,
-                'code' => strtoupper(substr(str_replace(' ', '', $subjectName), 0, 3)),
-                'description' => "Secondary school {$subjectName}",
-            ];
-
-            // Add optional fields if they exist
-            if ($hasIsActiveField) {
-                $data['is_active'] = true;
-            }
-
-            $subject = Subject::updateOrCreate(
-                ['name' => $subjectName, 'description' => $data['description']],
-                $data
-            );
-
-            // Check if the relationship method exists before trying to sync
-            if (method_exists($subject, 'grades')) {
-                $subject->grades()->sync($secondaryGrades->pluck('id')->toArray());
-            }
+        // Check if the relationship method exists before trying to sync
+        if (method_exists($subject, 'grades')) {
+            $subject->grades()->sync($primaryGrades->pluck('id')->toArray());
         }
     }
+
+    // Create secondary subjects (Grade 8-12)
+    $secondaryGrades = Grade::whereIn('level', [11, 12, 13, 14, 15])->get();
+
+    foreach ($secondarySubjects as $subjectName => $subjectCode) {
+        $data = [
+            'name' => $subjectName . ' (Secondary)',
+            'code' => $subjectCode,
+            'description' => "Secondary school {$subjectName}",
+        ];
+
+        // Add optional fields if they exist
+        if ($hasIsActiveField) {
+            $data['is_active'] = true;
+        }
+
+        $subject = Subject::updateOrCreate(
+            ['code' => $subjectCode],
+            $data
+        );
+
+        // Check if the relationship method exists before trying to sync
+        if (method_exists($subject, 'grades')) {
+            $subject->grades()->sync($secondaryGrades->pluck('id')->toArray());
+        }
+    }
+}
 
     /**
      * Seed fee structures
      */
     private function seedFeeStructures(): void
-    {
-        $this->command->info('Creating fee structures...');
+{
+    $this->command->info('Creating fee structures...');
 
-        $academicYear = AcademicYear::where('name', '2024-2025')->first();
-        $terms = Term::where('academic_year_id', $academicYear->id)->get();
-        $grades = Grade::all();
+    $academicYear = AcademicYear::where('name', '2024-2025')->first();
+    $terms = Term::where('academic_year_id', $academicYear->id)->get();
+    $grades = Grade::all();
 
-        if (!$academicYear || $terms->isEmpty()) {
-            $this->command->error('Academic years or terms not found.');
-            return;
-        }
+    if (!$academicYear || $terms->isEmpty()) {
+        $this->command->error('Academic years or terms not found.');
+        return;
+    }
 
-        $hasIsActiveField = Schema::hasColumn('fee_structures', 'is_active');
-        $hasIsRequiredField = Schema::hasColumn('fee_components', 'is_required');
+    $hasIsActiveField = Schema::hasColumn('fee_structures', 'is_active');
+    $hasNameField = Schema::hasColumn('fee_structures', 'name');
+    $hasAdditionalChargesField = Schema::hasColumn('fee_structures', 'additional_charges');
+    $hasDescriptionField = Schema::hasColumn('fee_structures', 'description');
 
-        // Fee structure by grade level
-        $feeStructureAmounts = [
-            // ECL
-            1 => 2500, // Baby Class
-            2 => 2500, // Middle Class
-            3 => 2500, // Reception
+    // Fee structure by grade level
+    $feeStructureAmounts = [
+        // ECL
+        1 => 2500, // Baby Class
+        2 => 2500, // Middle Class
+        3 => 2500, // Reception
 
-            // Primary
-            4 => 3000, // Grade 1
-            5 => 3000, // Grade 2
-            6 => 3000, // Grade 3
-            7 => 3000, // Grade 4
-            8 => 3000, // Grade 5
-            9 => 3000, // Grade 6
-            10 => 3500, // Grade 7
+        // Primary
+        4 => 3000, // Grade 1
+        5 => 3000, // Grade 2
+        6 => 3000, // Grade 3
+        7 => 3000, // Grade 4
+        8 => 3000, // Grade 5
+        9 => 3000, // Grade 6
+        10 => 3500, // Grade 7
 
-            // Secondary
-            11 => 4000, // Grade 8
-            12 => 4000, // Grade 9
-            13 => 4500, // Grade 10
-            14 => 4500, // Grade 11
-            15 => 5000, // Grade 12
-        ];
+        // Secondary
+        11 => 4000, // Grade 8
+        12 => 4000, // Grade 9
+        13 => 4500, // Grade 10
+        14 => 4500, // Grade 11
+        15 => 5000, // Grade 12
+    ];
 
-        // Common fee components
-        $feeComponents = [
-            'Tuition' => 0.7, // 70% of total
-            'Examination' => 0.1, // 10% of total
-            'Development' => 0.1, // 10% of total
-            'Learning Materials' => 0.1, // 10% of total
-        ];
+    foreach ($terms as $term) {
+        foreach ($grades as $grade) {
+            $totalFee = $feeStructureAmounts[$grade->level] ?? 3000;
+            $basicFee = $totalFee * 0.7; // Basic fee is 70% of total fee (tuition)
 
-        foreach ($terms as $term) {
-            foreach ($grades as $grade) {
-                $totalFee = $feeStructureAmounts[$grade->level] ?? 3000;
+            $data = [
+                'total_fee' => $totalFee,
+                'basic_fee' => $basicFee,
+            ];
 
-                $data = [
-                    'name' => "{$grade->name} - {$term->name} ({$academicYear->name})",
-                    'total_fee' => $totalFee,
+            // Add name field if it exists
+            if ($hasNameField) {
+                $data['name'] = "{$grade->name} - {$term->name} ({$academicYear->name})";
+            }
+
+            // Add description field if it exists
+            if ($hasDescriptionField) {
+                $data['description'] = "Fee structure for {$grade->name} during {$term->name} ({$academicYear->name})";
+            }
+
+            // Add additional_charges field if it exists
+            if ($hasAdditionalChargesField) {
+                $additionalCharges = [
+                    'Computer Fee' => 200,
+                    'Sports Fee' => 150,
+                    'Library Fee' => 100,
                 ];
 
-                // Add is_active field only if it exists
-                if ($hasIsActiveField) {
-                    $data['is_active'] = $term->is_current;
-                }
-
-                // Create fee structure
-                $feeStructure = FeeStructure::updateOrCreate(
-                    [
-                        'grade_id' => $grade->id,
-                        'term_id' => $term->id,
-                        'academic_year_id' => $academicYear->id,
-                    ],
-                    $data
-                );
-
-                // Add fee components
-                foreach ($feeComponents as $componentName => $percentage) {
-                    $amount = round($totalFee * $percentage, 2);
-
-                    $componentData = [
-                        'amount' => $amount,
-                        'description' => "{$componentName} fee for {$grade->name}",
-                    ];
-
-                    // Add is_required field only if it exists
-                    if ($hasIsRequiredField) {
-                        $componentData['is_required'] = true;
-                    }
-
-                    FeeComponent::updateOrCreate(
-                        [
-                            'fee_structure_id' => $feeStructure->id,
-                            'name' => $componentName,
-                        ],
-                        $componentData
-                    );
-                }
+                $data['additional_charges'] = json_encode($additionalCharges);
             }
+
+            // Add is_active field if it exists
+            if ($hasIsActiveField) {
+                $data['is_active'] = $term->is_current;
+            }
+
+            // Create fee structure
+            FeeStructure::updateOrCreate(
+                [
+                    'grade_id' => $grade->id,
+                    'term_id' => $term->id,
+                    'academic_year_id' => $academicYear->id,
+                ],
+                $data
+            );
         }
     }
+
+    $this->command->info("Fee structures created successfully!");
+}
 }
