@@ -404,7 +404,7 @@ class StudentResource extends Resource
                     ->label('Send SMS')
                     ->icon('heroicon-o-chat-bubble-left')
                     ->form([
-                        Forms\Components\TextArea::make('message')
+                        Forms\Components\Textarea::make('message')
                             ->required()
                             ->default('Important message regarding your child')
                             ->placeholder('Enter the message to send to parent/guardian')
