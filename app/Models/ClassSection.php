@@ -15,6 +15,7 @@ class ClassSection extends Model
     protected $fillable = [
         'grade_id',
         'academic_year_id',
+        'description',
         'name',
         'code',
         'capacity',

@@ -162,10 +162,12 @@ class GradeResource extends Resource
                         Forms\Components\Select::make('class_teacher_id')
                             ->label('Class Teacher')
                             ->options(function () {
-                                return \App\Models\Employee::where('role', 'teacher')
-                                    ->where('status', 'active')
-                                    ->pluck('name', 'id');
-                            })
+                                    $teacherRoleId = \App\Models\Role::where('name', 'teacher')->value('id');
+
+                                    return \App\Models\Employee::where('role_id', $teacherRoleId)
+                                        ->where('status', 'active')
+                                        ->pluck('name', 'id');
+                                })
                             ->searchable(),
                     ])
                     ->action(function (Grade $record, array $data) {

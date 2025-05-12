@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\EmployeeResource\Pages;
 use App\Models\Employee;
+use App\Models\Role;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -56,14 +57,11 @@ class EmployeeResource extends Resource
                             ->required()
                             ->unique(ignoreRecord: true)
                             ->maxLength(255),
-                        Forms\Components\Select::make('role')
-                            ->options([
-                                'teacher' => 'Teacher',
-                                'admin' => 'Admin',
-                                'support' => 'Support Staff',
-                                'other' => 'Other',
-                            ])
-                            ->required(),
+                        Forms\Components\Select::make('role_id')  // Changed from 'role' to 'role_id'
+                            ->relationship('role', 'name')  // Use relationship to get role names
+                            ->required()
+                            ->searchable()
+                            ->preload(),
                         Forms\Components\Select::make('department')
                             ->options([
                                 'ecl' => 'ECL',
@@ -89,29 +87,6 @@ class EmployeeResource extends Resource
                             ->numeric()
                             ->prefix('ZMW')
                             //->required(),
-                        // Forms\Components\Select::make('user_id')
-                        //     ->relationship('user', 'name')
-                        //     ->searchable()
-                        //     ->preload()
-                        //     ->createOptionForm([
-                        //         Forms\Components\TextInput::make('name')
-                        //             ->required()
-                        //             ->maxLength(255),
-                        //         Forms\Components\TextInput::make('email')
-                        //             ->email()
-                        //             ->required()
-                        //             ->maxLength(255),
-                        //         Forms\Components\TextInput::make('password')
-                        //             ->password()
-                        //             ->required()
-                        //             ->confirmed()
-                        //             ->maxLength(255),
-                        //         Forms\Components\TextInput::make('password_confirmation')
-                        //             ->password()
-                        //             ->required()
-                        //             ->maxLength(255),
-                        //     ])
-                        //     ->helperText('Link to a user account for system access'),
                     ])->columns(2),
             ]);
     }
@@ -130,12 +105,13 @@ class EmployeeResource extends Resource
                     ->searchable(),
                 Tables\Columns\TextColumn::make('department')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('role')
+                Tables\Columns\TextColumn::make('role.name')  // Changed to use relationship
+                    ->label('Role')
                     ->badge()
-                    ->color(fn (string $state): string => match ($state) {
-                        'teacher' => 'success',
-                        'admin' => 'danger',
-                        'support' => 'warning',
+                    ->color(fn ($record): string => match ($record->role_id) {
+                        RoleConstants::TEACHER => 'success',
+                        RoleConstants::ADMIN => 'danger',
+                        RoleConstants::SUPPORT => 'warning',
                         default => 'gray',
                     }),
                 Tables\Columns\TextColumn::make('status')
@@ -159,20 +135,23 @@ class EmployeeResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
-                Tables\Filters\SelectFilter::make('role')
-                    ->options([
-                        'teacher' => 'Teacher',
-                        'admin' => 'Admin',
-                        'support' => 'Support Staff',
-                        'other' => 'Other',
-                    ]),
+                Tables\Filters\SelectFilter::make('role_id')  // Changed from 'role' to 'role_id'
+                    ->label('Role')
+                    ->relationship('role', 'name')
+                    ->multiple(),
                 Tables\Filters\SelectFilter::make('status')
                     ->options([
                         'active' => 'Active',
                         'inactive' => 'Inactive',
                     ]),
                 Tables\Filters\SelectFilter::make('department')
-                    ->relationship('payrolls', 'department'),
+                    ->options([
+                        'ecl' => 'ECL',
+                        'primary' => 'Primary School',
+                        'secondary' => 'Secondary School',
+                        'administration' => 'Administration',
+                        'support' => 'Support Staff',
+                    ]),
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
@@ -203,6 +182,4 @@ class EmployeeResource extends Resource
             'edit' => Pages\EditEmployee::route('/{record}/edit'),
         ];
     }
-
-
 }

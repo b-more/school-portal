@@ -18,6 +18,7 @@ return new class extends Migration
             $table->date('end_date');
             $table->text('description')->nullable();
             $table->boolean('is_active')->default(false);
+            $table->boolean('is_current')->default(false);
             $table->integer('number_of_terms')->default(3);
             $table->timestamps();
         });

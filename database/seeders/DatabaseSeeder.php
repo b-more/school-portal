@@ -14,14 +14,9 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
-            RoleSeeder::class,
-            GradeSeeder::class,
-            UserSeeder::class,
-            SchoolSectionSeeder::class,
-            AcademicYearAndTermSeeder::class,
-            GradeSeeder::class,
-            ParentGuardianSeeder::class,
-            StudentSeeder::class,
+            EssentialDataSeeder::class,
+            //ParentGuardianSeeder::class,
+            //StudentSeeder::class,
             //TeacherSeeder::class,
 
             // 2. Create employees (teachers and staff)
@@ -31,19 +26,19 @@ class DatabaseSeeder extends Seeder
             //ParentGuardianSeeder::class,
 
             // 4. Create classes for all departments
-            ClassSeeder::class,
+            //ClassSeeder::class,
 
             // 5. Create subjects for all grades
-            SubjectSeeder::class,
-            TeacherSubjectSeeder::class,
+            //SubjectSeeder::class,
+            //TeacherSubjectSeeder::class,
 
             // 6. Create students
-            StudentSeeder::class,
+            //StudentSeeder::class,
 
             // 7. Create teacher assignments (must come after teachers, classes and subjects)
-            TeacherAssignmentSeeder::class,
+           // TeacherAssignmentSeeder::class,
 
-            FeeStructureSeeder::class,
+            //FeeStructureSeeder::class,
 
         ]);
     }

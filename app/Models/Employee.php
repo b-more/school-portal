@@ -53,6 +53,8 @@ class Employee extends Model
         return $this->hasMany(Homework::class, 'assigned_by');
     }
 
+
+
     public function news(): HasMany
     {
         return $this->hasMany(News::class, 'author_id');
@@ -107,4 +109,20 @@ class Employee extends Model
     {
         return $this->hasMany(SchoolSection::class, 'head_of_section_id');
     }
+
+    public function teacher(): HasOne
+    {
+        return $this->hasOne(Teacher::class);
+    }
+
+    public function isTeacher(): bool
+    {
+        return $this->role_id === \App\Constants\RoleConstants::TEACHER;
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->role_id === \App\Constants\RoleConstants::ADMIN;
+    }
 }
+

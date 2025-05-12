@@ -16,6 +16,7 @@ return new class extends Migration
             $table->UnsignedBigInteger('grade_id');
             $table->UnsignedBigInteger('academic_year_id')->nullable();
             $table->string('name')->nullable();
+            $table->string('description')->nullable();
             $table->string('code')->nullable();
             $table->integer('capacity')->default(40);
             $table->UnsignedBigInteger('class_teacher_id')->nullable();
