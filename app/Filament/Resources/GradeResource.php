@@ -15,6 +15,7 @@ use Filament\Tables\Table;
 use Filament\Notifications\Notification;
 use App\Constants\RoleConstants;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Database\Eloquent\Builder;
 
 
 class GradeResource extends Resource
@@ -109,7 +110,10 @@ class GradeResource extends Resource
                 Tables\Columns\TextColumn::make('total_students')
                     ->label('Students')
                     ->getStateUsing(fn (Grade $record) => $record->getTotalStudentsAttribute())
-                    ->sortable(),
+                    ->sortable(query: function (Builder $query, string $direction): Builder {
+                        return $query->withCount('students')
+                            ->orderBy('students_count', $direction);
+                    }),
 
                 Tables\Columns\TextColumn::make('classSections_count')
                     ->counts('classSections')
@@ -235,6 +239,12 @@ class GradeResource extends Resource
             // RelationManagers\SubjectsRelationManager::class,
         ];
     }
+
+    public static function getEloquentQuery(): Builder
+{
+    return parent::getEloquentQuery()->withCount('students');
+}
+
 
     public static function getPages(): array
     {

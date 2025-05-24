@@ -182,6 +182,8 @@ class FeeStructureResource extends Resource
                                         'Development Fund' => 'Development Fund',
                                         'Sports Fee' => 'Sports Fee',
                                         'Library Fee' => 'Library Fee',
+                                        'Books and Stationery' => 'Books and Stationery',
+                                        'Technology Fee' => 'Technology Fee',
                                         'Other' => 'Other (Specify in Description)'
                                     ])
                                     ->required(),
@@ -320,49 +322,67 @@ class FeeStructureResource extends Resource
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\DeleteAction::make(),
                 Tables\Actions\Action::make('generatePdf')
-                    ->label('Generate PDF')
-                    ->icon('heroicon-o-document-text')
-                    ->color('success')
-                    ->action(function (FeeStructure $record) {
-                        // Get related data safely with fallbacks
-                        $academicYearName = $record->academicYear->name ?? 'Unknown Academic Year';
-                        $termName = $record->term->name ?? 'Unknown Term';
-                        $gradeName = $record->grade->name ?? 'Unknown Grade';
+    ->label('Generate PDF')
+    ->icon('heroicon-o-document-text')
+    ->color('success')
+    ->action(function (FeeStructure $record) {
+        try {
+            // Check if required relationships exist
+            if (!$record->academicYear || !$record->term || !$record->grade) {
+                Notification::make()
+                    ->title('Error Generating PDF')
+                    ->body('This fee structure is missing required relationship data (Academic Year, Term, or Grade).')
+                    ->danger()
+                    ->send();
+                return;
+            }
 
-                        // Generate PDF
-                        $pdf = Pdf::loadView('pdf.fee-structure', [
-                            'feeStructure' => $record,
-                            'academicYear' => $academicYearName,
-                            'term' => $termName,
-                            'grade' => $gradeName,
-                            'schoolName' => 'St. Francis Of Assisi Private School',
-                            'schoolLogo' => public_path('images/logo.png'),
-                            'schoolAddress' => 'Plot No 1310/4 East Kamenza, Chililabombwe, Zambia',
-                            'schoolContact' => 'Phone: +260 972 266 217, Email: info@stfrancisofassisi.tech'
-                        ]);
+            // Get related data safely with fallbacks
+            $academicYearName = $record->academicYear->name ?? 'Unknown Academic Year';
+            $termName = $record->term->name ?? 'Unknown Term';
+            $gradeName = $record->grade->name ?? 'Unknown Grade';
 
-                        // Save PDF to storage
-                        $filename = 'fee-structure-' . $gradeName . '-' . $termName . '-' . $academicYearName . '.pdf';
-                        Storage::disk('public')->put('pdfs/fee-structures/' . $filename, $pdf->output());
+            // Generate PDF with the record itself
+            $pdf = Pdf::loadView('pdf.fee-structure', [
+                'feeStructure' => $record,
+                'academicYear' => $academicYearName,
+                'term' => $termName,
+                'grade' => $gradeName,
+                'schoolName' => 'St. Francis Of Assisi Private School',
+                'schoolLogo' => public_path('images/logo.png'),
+                'schoolAddress' => 'Plot No 1310/4 East Kamenza, Chililabombwe, Zambia',
+                'schoolContact' => 'Phone: +260 972 266 217, Email: info@stfrancisofassisi.tech'
+            ]);
 
-                        $url = Storage::disk('public')->url('pdfs/fee-structures/' . $filename);
+            // Save PDF to storage
+            $filename = 'fee-structure-' . $gradeName . '-' . $termName . '-' . $academicYearName . '.pdf';
+            Storage::disk('public')->put('pdfs/fee-structures/' . $filename, $pdf->output());
 
-                        // Notify the user
-                        Notification::make()
-                            ->title('PDF Generated Successfully')
-                            ->body('The fee structure PDF has been generated and is ready for download.')
-                            ->success()
-                            ->send();
+            $url = Storage::disk('public')->url('pdfs/fee-structures/' . $filename);
 
-                        // Return the PDF for download
-                        return response()->streamDownload(
-                            fn () => print($pdf->output()),
-                            $filename,
-                            [
-                                'Content-Type' => 'application/pdf',
-                            ]
-                        );
-                    }),
+            // Notify the user
+            Notification::make()
+                ->title('PDF Generated Successfully')
+                ->body('The fee structure PDF has been generated and is ready for download.')
+                ->success()
+                ->send();
+
+            // Return the PDF for download
+            return response()->streamDownload(
+                fn () => print($pdf->output()),
+                $filename,
+                [
+                    'Content-Type' => 'application/pdf',
+                ]
+            );
+        } catch (\Exception $e) {
+            Notification::make()
+                ->title('Error Generating PDF')
+                ->body('An error occurred: ' . $e->getMessage())
+                ->danger()
+                ->send();
+        }
+    }),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
@@ -384,49 +404,93 @@ class FeeStructureResource extends Resource
                         ->color('danger')
                         ->requiresConfirmation(),
                     Tables\Actions\BulkAction::make('generateBulkPdf')
-                        ->label('Generate PDFs')
-                        ->icon('heroicon-o-document-duplicate')
-                        ->color('success')
-                        ->action(function (Builder $query) {
-                            $feeStructures = $query->get();
+    ->label('Generate PDFs')
+    ->icon('heroicon-o-document-duplicate')
+    ->color('success')
+    ->action(function ($records) {
+        try {
+            // The $records parameter might be a Collection or a query builder, let's handle both
+            if ($records instanceof Builder) {
+                // If it's a query builder, get the models
+                $selectedRecords = $records->get();
+            } else {
+                // Otherwise, assume it's already a collection
+                $selectedRecords = $records;
+            }
 
-                            $count = 0;
-                            foreach ($feeStructures as $feeStructure) {
-                                // Get related data safely with fallbacks
-                                $academicYearName = $feeStructure->academicYear->name ?? 'Unknown Academic Year';
-                                $termName = $feeStructure->term->name ?? 'Unknown Term';
-                                $gradeName = $feeStructure->grade->name ?? 'Unknown Grade';
+            // Make sure storage directory exists
+            $storagePath = 'pdfs/fee-structures';
+            if (!Storage::disk('public')->exists($storagePath)) {
+                Storage::disk('public')->makeDirectory($storagePath);
+            }
 
-                                // Generate PDF for each fee structure
-                                $pdf = Pdf::loadView('pdf.fee-structure', [
-                                    'feeStructure' => $feeStructure,
-                                    'academicYear' => $academicYearName,
-                                    'term' => $termName,
-                                    'grade' => $gradeName,
-                                    'schoolName' => 'St. Francis Of Assisi Private School',
-                                    'schoolLogo' => public_path('images/logo.png'),
-                                    'schoolAddress' => 'Plot No 1310/4 East Kamenza, Chililabombwe, Zambia',
-                                    'schoolContact' => 'Phone: +260 972 266 217, Email: info@stfrancisofassisi.tech'
-                                ]);
+            $count = 0;
+            $errors = 0;
 
-                                // Save PDF to storage
-                                $filename = 'fee-structure-' . $gradeName . '-' . $termName . '-' . $academicYearName . '.pdf';
-                                Storage::disk('public')->put('pdfs/fee-structures/' . $filename, $pdf->output());
-                                $count++;
-                            }
+            foreach ($selectedRecords as $feeStructure) {
+                try {
+                    // Manually fetch related models if needed
+                    $grade = $feeStructure->grade_id ? Grade::find($feeStructure->grade_id) : null;
+                    $term = $feeStructure->term_id ? Term::find($feeStructure->term_id) : null;
+                    $academicYear = $feeStructure->academic_year_id ? AcademicYear::find($feeStructure->academic_year_id) : null;
 
-                            // Notify the user
-                            Notification::make()
-                                ->title('PDFs Generated Successfully')
-                                ->body("$count fee structure PDFs have been generated and are available in the storage.")
-                                ->success()
-                                ->send();
-                        })
-                        ->deselectRecordsAfterCompletion()
-                        ->requiresConfirmation()
-                        ->modalHeading('Generate Fee Structure PDFs')
-                        ->modalSubheading('Are you sure you want to generate PDFs for the selected fee structures?')
-                        ->modalButton('Generate'),
+                    // Extract names for display
+                    $gradeName = $grade ? $grade->name : 'Unknown Grade';
+                    $termName = $term ? $term->name : 'Unknown Term';
+                    $academicYearName = $academicYear ? $academicYear->name : 'Unknown Academic Year';
+
+                    // Generate PDF
+                    $pdf = Pdf::loadView('pdf.fee-structure', [
+                        'feeStructure' => $feeStructure,
+                        'academicYear' => $academicYearName,
+                        'term' => $termName,
+                        'grade' => $gradeName,
+                        'schoolName' => 'St. Francis Of Assisi Private School',
+                        'schoolLogo' => public_path('images/logo.png'),
+                        'schoolAddress' => 'Plot No 1310/4 East Kamenza, Chililabombwe, Zambia',
+                        'schoolContact' => 'Phone: +260 972 266 217, Email: info@stfrancisofassisi.tech'
+                    ]);
+
+                    // Create a sanitized filename
+                    $filename = 'fee-structure-' . $feeStructure->getKey() . '.pdf';
+
+                    // Save the PDF
+                    Storage::disk('public')->put($storagePath . '/' . $filename, $pdf->output());
+
+                    $count++;
+                } catch (\Exception $e) {
+                    // Log the error for this record
+                    \Illuminate\Support\Facades\Log::error('Error processing fee structure: ' . $e->getMessage());
+                    $errors++;
+                }
+            }
+
+            // Notify the user
+            $successMessage = "$count fee structure PDFs have been generated successfully.";
+            if ($errors > 0) {
+                $successMessage .= " ($errors records could not be processed due to errors)";
+            }
+
+            Notification::make()
+                ->title('PDFs Generated')
+                ->body($successMessage)
+                ->success()
+                ->send();
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Error in bulk PDF generation: ' . $e->getMessage());
+
+            Notification::make()
+                ->title('Error')
+                ->body('An error occurred during PDF generation: ' . $e->getMessage())
+                ->danger()
+                ->send();
+        }
+    })
+    ->deselectRecordsAfterCompletion()
+    ->requiresConfirmation()
+    ->modalHeading('Generate Fee Structure PDFs')
+    ->modalSubheading('Are you sure you want to generate PDFs for the selected fee structures?')
+    ->modalButton('Generate'),
                 ]),
             ]);
     }
@@ -447,8 +511,4 @@ class FeeStructureResource extends Resource
             'edit' => Pages\EditFeeStructure::route('/{record}/edit'),
         ];
     }
-
-
-
-
 }

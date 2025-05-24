@@ -61,10 +61,19 @@ class FeeStructureSeeder extends Seeder
                 [
                     'start_date' => $termDates[$index][0],
                     'end_date' => $termDates[$index][1],
-                    'is_active' => $index === 0, // First term is active
+                    'is_active' => $index === 1, // Set Term 2 as active instead of Term 1
                 ]
             );
         }
+
+        // Update term active status to ensure only Term 2 is active
+        Term::where('academic_year_id', $academicYear->id)
+            ->where('name', '!=', 'Term 2')
+            ->update(['is_active' => false]);
+
+        Term::where('academic_year_id', $academicYear->id)
+            ->where('name', '=', 'Term 2')
+            ->update(['is_active' => true]);
 
         // Get grades
         $gradeNames = ['Grade 1', 'Grade 2', 'Grade 3', 'Grade 8', 'Grade 9'];

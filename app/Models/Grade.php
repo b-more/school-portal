@@ -27,32 +27,50 @@ class Grade extends Model
         'is_active' => 'boolean',
     ];
 
+    /**
+     * Get the school section that this grade belongs to
+     */
     public function schoolSection(): BelongsTo
     {
         return $this->belongsTo(SchoolSection::class);
     }
 
+    /**
+     * Get students count through class sections
+     */
     public function studentsCount()
     {
         return $this->hasManyThrough(Student::class, ClassSection::class);
     }
 
+    /**
+     * Get homework for this grade
+     */
     public function homework(): HasMany
-{
-    return $this->hasMany(Homework::class);
-}
+    {
+        return $this->hasMany(Homework::class);
+    }
 
+    /**
+     * Get class sections for this grade
+     */
     public function classSections(): HasMany
     {
         return $this->hasMany(ClassSection::class);
     }
 
+    /**
+     * Get subjects associated with this grade
+     */
     public function subjects(): BelongsToMany
     {
         return $this->belongsToMany(Subject::class, 'grade_subject')
                     ->withTimestamps();
     }
 
+    /**
+     * Get students through class sections
+     */
     public function students()
     {
         return $this->hasManyThrough(Student::class, ClassSection::class);
@@ -66,19 +84,25 @@ class Grade extends Model
         return $this->hasMany(FeeStructure::class);
     }
 
-    // Calculate total students in this grade across all sections
+    /**
+     * Calculate total students in this grade across all sections - more efficiently
+     */
     public function getTotalStudentsAttribute()
     {
-        return $this->classSections()->withCount('students')->get()->sum('students_count');
+        return $this->students()->count();
     }
 
-    // Check if grade is at capacity
+    /**
+     * Check if grade is at capacity
+     */
     public function isAtCapacity()
     {
         return $this->getTotalStudentsAttribute() >= $this->capacity;
     }
 
-    // Check if grade needs a new section
+    /**
+     * Check if grade needs a new section
+     */
     public function needsNewSection()
     {
         if ($this->classSections()->count() === 0) {

@@ -18,137 +18,137 @@ class TeacherSeeder extends Seeder
     public function run(): void
     {
         // Ensure Teacher role exists
-        $teacherRole = Role::where('name', 'Teacher')->firstOrCreate([
-            'name' => 'Teacher',
-        ], [
-            'description' => 'School Teacher',
-            'is_active' => true,
-        ]);
+        $teacherRole = Role::firstOrCreate(
+            ['name' => 'Teacher'],
+            [
+                'description' => 'School Teacher',
+                'is_active' => true,
+            ]
+        );
 
-        // Define teacher data
+        // Teacher data extracted from the image
         $teachersData = [
             [
-                'name' => 'AGNES MWABA',
+                'name' => 'Agnes Mwaba',
                 'phone' => '0978186032',
-                'email' => 'Agnesmwaba@gmail.com',
+                'email' => 'agnesmwaba@gmail.com',
                 'employee_id' => '04',
                 'joining_date' => '2024-01-01',
             ],
             [
-                'name' => 'MASEKAPANA MITALE',
+                'name' => 'Masekapana Mitale',
                 'phone' => '0977515873',
                 'email' => 'mitale.maseka@gmail.com',
-                'employee_id' => null,
+                'employee_id' => '09',
                 'joining_date' => '2024-01-02',
             ],
             [
-                'name' => 'LUBINDA CONNIE',
+                'name' => 'Lubinda Connie',
                 'phone' => '0962907946',
                 'email' => 'connie.lubinda@gmail.com',
-                'employee_id' => null,
+                'employee_id' => '10',
                 'joining_date' => '2024-01-10',
             ],
             [
-                'name' => 'MUNYIKA VANSA',
+                'name' => 'Munyika Vansa',
                 'phone' => '0955205873',
                 'email' => 'vansa.munyika@gmail.com',
-                'employee_id' => null,
+                'employee_id' => '11',
                 'joining_date' => '2024-01-12',
             ],
             [
-                'name' => 'MAYELE ORCHARDS',
+                'name' => 'Mayele Orchards',
                 'phone' => '0966401260',
                 'email' => 'orchards.mayele@gmail.com',
-                'employee_id' => null,
+                'employee_id' => '12',
                 'joining_date' => '2024-01-15',
             ],
             [
-                'name' => 'MWANSA RICHARD',
+                'name' => 'Mwansa Richard',
                 'phone' => '0974004620',
                 'email' => 'richardmwansa82@gmail.com',
                 'employee_id' => '08',
                 'joining_date' => '2024-01-25',
             ],
             [
-                'name' => 'CHOMBA MEMORY',
+                'name' => 'Chomba Memory',
                 'phone' => '0762605525',
                 'email' => 'memorychomba142@gmail.com',
-                'employee_id' => null,
+                'employee_id' => '13',
                 'joining_date' => '2024-01-08',
             ],
             [
-                'name' => 'GIFT KAKOMA',
+                'name' => 'Gift Kakoma',
                 'phone' => '0967445018',
                 'email' => 'kakomagift24@gmail.com',
                 'employee_id' => '07',
                 'joining_date' => '2024-01-01',
             ],
             [
-                'name' => 'AILISH MBEWE',
+                'name' => 'Ailish Mbewe',
                 'phone' => '0977450616',
                 'email' => 'mbeweailish@gmail.com',
-                'employee_id' => null,
+                'employee_id' => '14',
                 'joining_date' => '2024-01-02',
             ],
             [
-                'name' => 'CHIMBA MEMORY',
+                'name' => 'Chimba Memory',
                 'phone' => '0776608066',
                 'email' => 'memorychimba07@gmail.com',
                 'employee_id' => '02',
                 'joining_date' => '2024-01-02',
             ],
             [
-                'name' => 'CHIEF KAKOSHI',
+                'name' => 'Chief Kakoshi',
                 'phone' => '0967291127',
                 'email' => 'chiefkakoshi@gmail.com',
                 'employee_id' => '05',
                 'joining_date' => '2024-01-01',
             ],
             [
-                'name' => 'KALEBAH MUMBA',
+                'name' => 'Kalebah Mumba',
                 'phone' => '0968206620',
                 'email' => 'kalebah3720@gmail.com',
-                'employee_id' => null,
+                'employee_id' => '15',
                 'joining_date' => '2024-01-12',
             ],
             [
-                'name' => 'BRIANNE MWABA',
+                'name' => 'Brianne Mwaba',
                 'phone' => '0974004620',
                 'email' => 'brianne.mwaba@gmail.com',
-                'employee_id' => null,
+                'employee_id' => '16',
                 'joining_date' => '2024-01-08',
             ],
             [
-                'name' => 'FRED SIMAPATA',
+                'name' => 'Fred Simapata',
                 'phone' => '0972133568',
                 'email' => 'fredsimapata@gmail.com',
-                'employee_id' => null,
+                'employee_id' => '17',
                 'joining_date' => '2024-01-15',
             ],
             [
-                'name' => 'VINCENT PHIRI',
+                'name' => 'Vincent Phiri',
                 'phone' => '0988233358',
                 'email' => 'vincentphiri87@gmail.com',
-                'employee_id' => null,
+                'employee_id' => '18',
                 'joining_date' => '2024-02-02',
             ],
             [
-                'name' => 'NANCY PONGA',
+                'name' => 'Nancy Ponga',
                 'phone' => '0975003288',
                 'email' => 'nancyponga187@gmail.com',
                 'employee_id' => '01',
                 'joining_date' => '2024-01-01',
             ],
             [
-                'name' => 'MULEMENA EUDANCE',
+                'name' => 'Mulemema Eudance',
                 'phone' => '0969483533',
                 'email' => 'eudance.mulemema@gmail.com',
-                'employee_id' => null,
+                'employee_id' => '03',
                 'joining_date' => '2024-01-01',
             ],
         ];
 
-        // Create each teacher
         foreach ($teachersData as $teacherData) {
             // Create or find user
             $user = User::updateOrCreate(
@@ -157,16 +157,15 @@ class TeacherSeeder extends Seeder
                     'name' => $teacherData['name'],
                     'email' => $teacherData['email'],
                     'phone' => $teacherData['phone'],
-                    'password' => Hash::make('password123'), // Default password
+                    'password' => Hash::make('password123'),
                     'role_id' => $teacherRole->id,
                     'status' => 'active',
                 ]
             );
 
-            // Generate employee number if not provided
             $employeeNumber = $teacherData['employee_id'] ?? 'T' . str_pad($user->id, 3, '0', STR_PAD_LEFT);
 
-            // Create or update employee record
+            // Create or update employee
             $employee = Employee::updateOrCreate(
                 ['user_id' => $user->id],
                 [
@@ -175,37 +174,37 @@ class TeacherSeeder extends Seeder
                     'phone' => $teacherData['phone'],
                     'role_id' => $teacherRole->id,
                     'employee_number' => $employeeNumber,
-                    'department' => 'Teaching', // Default department
+                    'department' => 'Teaching',
                     'position' => 'Teacher',
                     'joining_date' => Carbon::parse($teacherData['joining_date']),
                     'status' => 'active',
-                    'basic_salary' => 10000, // Default salary
+                    'basic_salary' => 10000,
                     'employee_id' => $employeeNumber,
                 ]
             );
 
-            // Create or update teacher record
-            $teacher = Teacher::updateOrCreate(
+            // Create or update teacher
+            Teacher::updateOrCreate(
                 ['user_id' => $user->id],
                 [
                     'name' => $teacherData['name'],
                     'role_id' => $teacherRole->id,
                     'employee_id' => $employee->id,
-                    'qualification' => 'Bachelor\'s Degree', // Default qualification
-                    'specialization' => 'General Education', // Default specialization
+                    'qualification' => 'Bachelor\'s Degree',
+                    'specialization' => 'General Education',
                     'join_date' => Carbon::parse($teacherData['joining_date']),
                     'phone' => $teacherData['phone'],
                     'email' => $teacherData['email'],
-                    'address' => 'Lusaka, Zambia', // Default address
+                    'address' => 'Lusaka, Zambia',
                     'is_active' => true,
                     'is_grade_teacher' => false,
                 ]
             );
 
-            $this->command->info("Created teacher: {$teacherData['name']} (Employee ID: {$employeeNumber})");
+            $this->command->info("✅ Seeded: {$teacherData['name']} (Emp#: {$employeeNumber})");
         }
 
-        $this->command->info('✅ All teachers have been seeded successfully!');
-        $this->command->info('Total teachers created: ' . count($teachersData));
+        $this->command->info('🎉 All teachers have been seeded successfully.');
+        $this->command->info('📦 Total teachers: ' . count($teachersData));
     }
 }

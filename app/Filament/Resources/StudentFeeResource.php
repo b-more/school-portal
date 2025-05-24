@@ -235,21 +235,22 @@ class StudentFeeResource extends Resource
                                             return [];
                                         }
 
-                                        // Get students with this grade_id
+                                        // FIXED: Get students using the grade_id foreign key relationship
                                         $students = Student::where('grade_id', $gradeId)
                                             ->where('enrollment_status', 'active')
                                             ->orderBy('name')
                                             ->get();
 
-                                        // If no students found, try to get students using the grade name
+                                        // If no students found with grade_id, also try class_section approach
                                         if ($students->isEmpty()) {
-                                            $grade = Grade::find($gradeId);
-                                            if ($grade) {
-                                                $students = Student::where('grade', $grade->name)
-                                                    ->where('enrollment_status', 'active')
-                                                    ->orderBy('name')
-                                                    ->get();
-                                            }
+                                            // Get class sections for this grade
+                                            $classSectionIds = \App\Models\ClassSection::where('grade_id', $gradeId)
+                                                ->pluck('id');
+
+                                            $students = Student::whereIn('class_section_id', $classSectionIds)
+                                                ->where('enrollment_status', 'active')
+                                                ->orderBy('name')
+                                                ->get();
                                         }
 
                                         return $students->pluck('name', 'id');
@@ -429,7 +430,7 @@ class StudentFeeResource extends Resource
                                             return 'No student selected';
                                         }
 
-                                        $student = Student::with('parentGuardian')->find($studentId);
+                                        $student = Student::with(['parentGuardian', 'grade'])->find($studentId);
 
                                         if (!$student) {
                                             return 'Student not found';
@@ -437,19 +438,19 @@ class StudentFeeResource extends Resource
 
                                         $details = "<strong>Name:</strong> {$student->name}<br>";
 
-                                        // Try to get grade name from both fields
+                                        // Get grade name from relationship or fallback
                                         $gradeName = '';
-                                        if ($student->grade_id) {
+                                        if ($student->grade) {
+                                            $gradeName = $student->grade->name;
+                                        } elseif ($student->grade_id) {
                                             $grade = Grade::find($student->grade_id);
-                                            if ($grade) {
-                                                $gradeName = $grade->name;
-                                            }
+                                            $gradeName = $grade ? $grade->name : 'Unknown';
                                         } else {
-                                            $gradeName = $student->grade ?? 'Unknown';
+                                            $gradeName = 'Not assigned';
                                         }
 
                                         $details .= "<strong>Grade:</strong> {$gradeName}<br>";
-                                        //$details .= "<strong>ID Number:</strong> {$student->student_id_number ?? 'Not assigned'}<br>";
+                                        $details .= "<strong>ID Number:</strong> " . ($student->student_id_number ?? 'Not assigned') . "<br>";
 
                                         if ($student->parentGuardian) {
                                             $details .= "<br><strong>Parent/Guardian:</strong> {$student->parentGuardian->name}<br>";

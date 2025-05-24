@@ -10,6 +10,7 @@ use App\Models\ParentGuardian;
 use App\Models\UserCredential;
 use App\Models\Grade;
 use App\Models\Teacher;
+use App\Models\SmsLog;
 use App\Constants\RoleConstants;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -406,7 +407,7 @@ class StudentResource extends Resource
                     ->form([
                         Forms\Components\Textarea::make('message')
                             ->required()
-                            ->default('Important message regarding your child')
+                            ->default('Dear parent, this is an important message regarding your child.')
                             ->placeholder('Enter the message to send to parent/guardian')
                             ->rows(3),
                     ])
@@ -433,14 +434,14 @@ class StudentResource extends Resource
 
                             // Format phone and send message
                             $formattedPhone = self::formatPhoneNumber($parentGuardian->phone);
-                            self::sendMessage($message, $formattedPhone);
 
-                            // Log the successful SMS
-                            Log::info('Notification sent to parent via SMS', [
-                                'student_id' => $record->id,
-                                'parent_guardian_id' => $parentGuardian->id,
-                                'phone' => substr($formattedPhone, 0, 6) . '****' . substr($formattedPhone, -3)
-                            ]);
+                            // Send the SMS with specific message type and reference
+                            $sent = self::sendMessage(
+                                $message,
+                                $formattedPhone,
+                                'student_notification',
+                                $record->id
+                            );
 
                             // Show success notification
                             Notification::make()
@@ -490,73 +491,90 @@ class StudentResource extends Resource
                         ->deselectRecordsAfterCompletion()
                         ->visible($isAdmin), // Only admin can update status
                     Tables\Actions\BulkAction::make('bulkSms')
-                        ->label('Send Bulk SMS')
-                        ->icon('heroicon-o-chat-bubble-left-ellipsis')
-                        ->form([
-                            Forms\Components\Textarea::make('message')
-                                ->label('SMS Message')
-                                ->required()
-                                ->default('Dear {parent_name}, this is an important message about your child {student_name} in {grade}.')
-                                ->helperText('You can use placeholders: {parent_name}, {student_name}, and {grade}')
-                                ->placeholder('Enter message to send to parents/guardians')
-                                ->rows(3),
-                        ])
-                        ->action(function (Builder $query, array $data): void {
-                            // Get all students and their parent/guardian info
-                            $students = $query->with('parentGuardian', 'grade')->get();
+    ->label('Send Bulk SMS')
+    ->icon('heroicon-o-chat-bubble-left-ellipsis')
+    ->form([
+        Forms\Components\Textarea::make('message')
+            ->label('SMS Message')
+            ->required()
+            ->default('Dear {parent_name}, this is an important message about your child {student_name} in {grade}.')
+            ->helperText('You can use placeholders: {parent_name}, {student_name}, and {grade}')
+            ->placeholder('Enter message to send to parents/guardians')
+            ->rows(3),
+    ])
+    ->action(function ($records, array $data): void {
+        // Instead of using Builder query, work directly with the selected records
+        // $records is a Collection of Student models
 
-                            $successCount = 0;
-                            $failedCount = 0;
+        $successCount = 0;
+        $failedCount = 0;
 
-                            foreach ($students as $student) {
-                                if (!$student->parentGuardian || !$student->parentGuardian->phone) {
-                                    $failedCount++;
-                                    continue;
-                                }
+        foreach ($records as $student) {
+            // Ensure we have the necessary relationships loaded
+            if (!$student->relationLoaded('parentGuardian')) {
+                $student->load('parentGuardian');
+            }
+            if (!$student->relationLoaded('grade')) {
+                $student->load('grade');
+            }
 
-                                try {
-                                    // Personalize message with parent and student names
-                                    $personalizedMessage = str_replace(
-                                        ['{parent_name}', '{student_name}', '{grade}'],
-                                        [$student->parentGuardian->name, $student->name, $student->grade?->name ?? 'Unknown'],
-                                        $data['message']
-                                    );
+            // Check if parent guardian exists and has phone
+            if (!$student->parentGuardian || !$student->parentGuardian->phone) {
+                $failedCount++;
+                continue;
+            }
 
-                                    // Format phone and send
-                                    $formattedPhone = self::formatPhoneNumber($student->parentGuardian->phone);
-                                    self::sendMessage($personalizedMessage, $formattedPhone);
+            try {
+                // Personalize message with parent and student names
+                $personalizedMessage = str_replace(
+                    ['{parent_name}', '{student_name}', '{grade}'],
+                    [
+                        $student->parentGuardian->name,
+                        $student->name,
+                        $student->grade?->name ?? 'Unknown'
+                    ],
+                    $data['message']
+                );
 
-                                    $successCount++;
+                // Format phone and send
+                $formattedPhone = self::formatPhoneNumber($student->parentGuardian->phone);
 
-                                    // Log success
-                                    Log::info('Bulk SMS sent', [
-                                        'student_id' => $student->id,
-                                        'parent_guardian_id' => $student->parentGuardian->id
-                                    ]);
-                                } catch (\Exception $e) {
-                                    $failedCount++;
+                // Send the SMS with specific message type and reference
+                $sent = self::sendMessage(
+                    $personalizedMessage,
+                    $formattedPhone,
+                    'student_bulk_notification',
+                    $student->id
+                );
 
-                                    // Log error
-                                    Log::error('Failed to send bulk SMS', [
-                                        'student_id' => $student->id,
-                                        'parent_guardian_id' => $student->parentGuardian->id,
-                                        'error' => $e->getMessage()
-                                    ]);
-                                }
-                            }
+                if ($sent) {
+                    $successCount++;
+                } else {
+                    $failedCount++;
+                }
+            } catch (\Exception $e) {
+                $failedCount++;
 
-                            // Show notification with results
-                            Notification::make()
-                                ->title('Bulk SMS Results')
-                                ->body("Successfully sent: {$successCount}, Failed: {$failedCount}")
-                                ->success($successCount > 0)
-                                ->warning($failedCount > 0)
-                                ->send();
-                        })
-                        ->deselectRecordsAfterCompletion()
-                        ->visible($isAdmin || $isTeacher), // Only admin and teachers can send bulk SMS
-                ])
-                ->visible($isAdmin || $isTeacher),
+                // Log error
+                Log::error('Failed to send bulk SMS', [
+                    'student_id' => $student->id,
+                    'parent_guardian_id' => $student->parentGuardian?->id,
+                    'error' => $e->getMessage()
+                ]);
+            }
+        }
+
+        // Show notification with results
+        Notification::make()
+            ->title('Bulk SMS Results')
+            ->body("Successfully sent: {$successCount}, Failed: {$failedCount}")
+            ->success($successCount > 0)
+            ->warning($failedCount > 0)
+            ->send();
+    })
+    ->deselectRecordsAfterCompletion()
+    ->visible($isAdmin || $isTeacher), // Only admin and teachers can send bulk SMS
+]),
             ]);
     }
 
@@ -654,6 +672,191 @@ class StudentResource extends Resource
         return $phoneNumber;
     }
 
+    /**
+     * Calculate the cost of an SMS based on message length
+     */
+    private static function calculateMessageCost(string $message): float
+    {
+        $length = strlen($message);
+
+        // Standard GSM 03.38 character set: 160 chars per SMS
+        // Unicode messages: 70 chars per SMS
+        $hasUnicode = preg_match('/[^\x20-\x7E]/', $message);
+
+        $parts = $hasUnicode ? ceil($length / 70) : ceil($length / 160);
+        return 0.50 * $parts; // 0.50 per message part
+    }
+
+    /**
+     * Send a message via SMS and log it to the SMS log
+     *
+     * @param string $message_string The message content
+     * @param string $phone_number The recipient's phone number
+     * @param string $message_type The type of message (general, student_notification, etc.)
+     * @param int|null $reference_id The ID of the related record (e.g., student ID)
+     * @return bool Whether the message was sent successfully
+     */
+    // public static function sendMessage($message_string, $phone_number, $message_type = 'general', $reference_id = null)
+    // {
+    //     try {
+    //         // Log the sending attempt
+    //         Log::info('Sending SMS notification', [
+    //             'phone' => $phone_number,
+    //             'message' => substr($message_string, 0, 30) . '...' // Only log beginning of message for privacy
+    //         ]);
+
+    //         // Create an SMS log entry before sending
+    //         $smsLog = SmsLog::create([
+    //             'recipient' => $phone_number,
+    //             'message' => $message_string,
+    //             'status' => 'pending',
+    //             'message_type' => $message_type,
+    //             'reference_id' => $reference_id,
+    //             'cost' => self::calculateMessageCost($message_string),
+    //             'sent_by' => Auth::id(),
+    //         ]);
+
+    //         // Send the SMS
+    //         $url_encoded_message = urlencode($message_string);
+    //         $sendSenderSMS = Http::withoutVerifying()
+    //             ->post('https://www.cloudservicezm.com/smsservice/httpapi?username=Blessmore&password=Blessmore&msg=' . $url_encoded_message . '&shortcode=2343&sender_id=StFrancis&phone=' . $phone_number . '&api_key=121231313213123123');
+
+    //         // Update the SMS log with the result
+    //         $smsLog->update([
+    //             'status' => $sendSenderSMS->successful() ? 'sent' : 'failed',
+    //             'provider_reference' => $sendSenderSMS->json('message_id') ?? null,
+    //             'error_message' => $sendSenderSMS->successful() ? null : $sendSenderSMS->body(),
+    //         ]);
+
+    //         // Log the response
+    //         Log::info('SMS API Response', [
+    //             'status' => $sendSenderSMS->status(),
+    //             'body' => $sendSenderSMS->body(),
+    //             'to' => substr($phone_number, 0, 6) . '****' . substr($phone_number, -3),
+    //             'sms_log_id' => $smsLog->id
+    //         ]);
+
+    //         return $sendSenderSMS->successful();
+    //     } catch (\Exception $e) {
+    //         // Update the SMS log with the error if it exists
+    //         if (isset($smsLog)) {
+    //             $smsLog->update([
+    //                 'status' => 'failed',
+    //                 'error_message' => $e->getMessage(),
+    //             ]);
+    //         }
+
+    //         Log::error('SMS sending failed', [
+    //             'error' => $e->getMessage(),
+    //             'phone' => $phone_number,
+    //             'sms_log_id' => $smsLog->id ?? null
+    //         ]);
+    //         throw $e; // Re-throw to be caught by the calling method
+    //     }
+    // }
+
+    /**
+ * Send a message via SMS and log it to the SMS log
+ *
+ * @param string $message_string The message content
+ * @param string $phone_number The recipient's phone number
+ * @param string $message_type The type of message (general, student_notification, etc.)
+ * @param int|null $reference_id The ID of the related record (e.g., student ID)
+ * @return bool Whether the message was sent successfully
+ */
+    /**
+ * Send a message via SMS and log it
+ *
+ * @param string $message_string The message content
+ * @param string $phone_number The recipient's phone number
+ * @param string $message_type The type of message (general, student_notification, etc.)
+ * @param int|null $reference_id The ID of the related record (e.g., student ID)
+ * @return bool Whether the message was sent successfully
+ */
+public static function sendMessage($message_string, $phone_number, $message_type = 'general', $reference_id = null)
+{
+    try {
+        // Send the SMS
+        $url_encoded_message = urlencode($message_string);
+        $sendSenderSMS = Http::withoutVerifying()
+            ->post('https://www.cloudservicezm.com/smsservice/httpapi?username=Blessmore&password=Blessmore&msg=' . $url_encoded_message . '&shortcode=2343&sender_id=StFrancis&phone=' . $phone_number . '&api_key=121231313213123123');
+
+        // Map custom message types to allowed enum values
+        $allowedMessageTypes = [
+            'homework_notification',
+            'result_notification',
+            'fee_reminder',
+            'event_notification',
+            'general',
+            'other'
+        ];
+
+        // Map your custom types to valid enum values
+        $mappedMessageType = 'general'; // Default
+
+        if ($message_type === 'student_notification' || $message_type === 'student_bulk_notification') {
+            $mappedMessageType = 'general';
+        } else if (in_array($message_type, $allowedMessageTypes)) {
+            $mappedMessageType = $message_type;
+        }
+
+        // Calculate message cost
+        $messageParts = ceil(strlen($message_string) / 160);
+        $cost = 0.50 * $messageParts;
+
+        // Create log entry
+        DB::table('sms_logs')->insert([
+            'recipient' => $phone_number,
+            'message' => $message_string,
+            'status' => $sendSenderSMS->successful() ? 'sent' : 'failed',
+            'message_type' => $mappedMessageType,
+            'reference_id' => $reference_id,
+            'cost' => $cost,
+            'provider_reference' => $sendSenderSMS->json('message_id') ?? null,
+            'error_message' => $sendSenderSMS->successful() ? null : $sendSenderSMS->body(),
+            'sent_by' => Auth::id(),
+            'created_at' => now(),
+            'updated_at' => now()
+        ]);
+
+        // Log the response
+        Log::info('SMS API Response', [
+            'status' => $sendSenderSMS->status(),
+            'body' => $sendSenderSMS->body(),
+            'to' => substr($phone_number, 0, 6) . '****' . substr($phone_number, -3),
+            'successful' => $sendSenderSMS->successful()
+        ]);
+
+        return $sendSenderSMS->successful();
+    } catch (\Exception $e) {
+        // Log the error
+        Log::error('SMS sending failed', [
+            'error' => $e->getMessage(),
+            'phone' => $phone_number
+        ]);
+
+        // Try to log the failure
+        try {
+            DB::table('sms_logs')->insert([
+                'recipient' => $phone_number,
+                'message' => $message_string,
+                'status' => 'failed',
+                'message_type' => 'general', // Safe fallback
+                'reference_id' => $reference_id,
+                'cost' => ceil(strlen($message_string) / 160) * 0.50,
+                'error_message' => $e->getMessage(),
+                'sent_by' => Auth::id(),
+                'created_at' => now(),
+                'updated_at' => now()
+            ]);
+        } catch (\Exception $logException) {
+            Log::critical('Could not log SMS failure: ' . $logException->getMessage());
+        }
+
+        throw $e; // Re-throw to be caught by the calling method
+    }
+}
+
     public static function shouldRegisterNavigation(): bool
     {
         $user = Auth::user();
@@ -691,39 +894,5 @@ class StudentResource extends Resource
     {
         // Only admin can delete students
         return Auth::user()?->role_id === RoleConstants::ADMIN ?? false;
-    }
-
-    /**
-     * Send a message via SMS
-     */
-    public static function sendMessage($message_string, $phone_number)
-    {
-        try {
-            // Log the sending attempt
-            Log::info('Sending SMS notification', [
-                'phone' => $phone_number,
-                'message' => substr($message_string, 0, 30) . '...' // Only log beginning of message for privacy
-            ]);
-
-            $url_encoded_message = urlencode($message_string);
-
-            $sendSenderSMS = Http::withoutVerifying()
-                ->post('https://www.cloudservicezm.com/smsservice/httpapi?username=Blessmore&password=Blessmore&msg=' . $url_encoded_message . '&shortcode=2343&sender_id=StFrancis&phone=' . $phone_number . '&api_key=121231313213123123');
-
-            // Log the response
-            Log::info('SMS API Response', [
-                'status' => $sendSenderSMS->status(),
-                'body' => $sendSenderSMS->body(),
-                'to' => substr($phone_number, 0, 6) . '****' . substr($phone_number, -3),
-            ]);
-
-            return $sendSenderSMS->successful();
-        } catch (\Exception $e) {
-            Log::error('SMS sending failed', [
-                'error' => $e->getMessage(),
-                'phone' => $phone_number,
-            ]);
-            throw $e; // Re-throw to be caught by the calling method
-        }
     }
 }

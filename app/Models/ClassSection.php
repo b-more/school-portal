@@ -20,6 +20,7 @@ class ClassSection extends Model
         'capacity',
         'description',
         'is_active',
+        'code',
     ];
 
     /**
@@ -71,5 +72,21 @@ class ClassSection extends Model
         return $this->belongsToMany(Employee::class, 'teacher_class_section', 'class_section_id', 'teacher_id')
                    ->using(TeacherClassSection::class)
                    ->withTimestamps();
+    }
+
+    /**
+     * Generate a code for a class section based on grade code and section name
+     */
+    public static function generateCode($gradeCode, $sectionName)
+    {
+        return $gradeCode . '-' . strtoupper(substr($sectionName, 0, 1));
+    }
+
+    /**
+     * Check if section is at capacity
+     */
+    public function isAtCapacity()
+    {
+        return $this->students()->count() >= $this->capacity;
     }
 }

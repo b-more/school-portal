@@ -9,6 +9,7 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use App\Models\User;
 use App\Models\UserCredential;
+use App\Models\Grade;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Hash;
@@ -39,21 +40,11 @@ class StudentsRelationManager extends RelationManager
                     ->required()
                     ->unique(ignoreRecord: true)
                     ->maxLength(255),
-                Forms\Components\Select::make('grade')
-                    ->options([
-                        'Grade 1' => 'Grade 1',
-                        'Grade 2' => 'Grade 2',
-                        'Grade 3' => 'Grade 3',
-                        'Grade 4' => 'Grade 4',
-                        'Grade 5' => 'Grade 5',
-                        'Grade 6' => 'Grade 6',
-                        'Grade 7' => 'Grade 7',
-                        'Grade 8' => 'Grade 8',
-                        'Grade 9' => 'Grade 9',
-                        'Grade 10' => 'Grade 10',
-                        'Grade 11' => 'Grade 11',
-                        'Grade 12' => 'Grade 12',
-                    ])
+                Forms\Components\Select::make('grade_id')
+                    ->label('Grade')
+                    ->relationship('grade', 'name')
+                    ->searchable()
+                    ->preload()
                     ->required(),
                 Forms\Components\DatePicker::make('admission_date')
                     ->required(),
@@ -81,7 +72,10 @@ class StudentsRelationManager extends RelationManager
                     ->searchable(),
                 Tables\Columns\TextColumn::make('student_id_number')
                     ->searchable(),
-                Tables\Columns\TextColumn::make('grade'),
+                Tables\Columns\TextColumn::make('grade.name')
+                    ->label('Grade')
+                    ->searchable()
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('gender'),
                 Tables\Columns\TextColumn::make('date_of_birth')
                     ->date(),
@@ -104,20 +98,9 @@ class StudentsRelationManager extends RelationManager
                         'transferred' => 'Transferred',
                     ]),
                 Tables\Filters\SelectFilter::make('grade')
-                    ->options([
-                        'Grade 1' => 'Grade 1',
-                        'Grade 2' => 'Grade 2',
-                        'Grade 3' => 'Grade 3',
-                        'Grade 4' => 'Grade 4',
-                        'Grade 5' => 'Grade 5',
-                        'Grade 6' => 'Grade 6',
-                        'Grade 7' => 'Grade 7',
-                        'Grade 8' => 'Grade 8',
-                        'Grade 9' => 'Grade 9',
-                        'Grade 10' => 'Grade 10',
-                        'Grade 11' => 'Grade 11',
-                        'Grade 12' => 'Grade 12',
-                    ]),
+                    ->relationship('grade', 'name')
+                    ->searchable()
+                    ->preload(),
             ])
             ->headerActions([
                 Tables\Actions\CreateAction::make()
@@ -158,10 +141,13 @@ class StudentsRelationManager extends RelationManager
                         }
 
                         try {
+                            // Get the grade name from the relationship
+                            $gradeDisplay = $record->grade ? $record->grade->name : 'Unknown Grade';
+
                             // Personalize message
                             $personalizedMessage = str_replace(
                                 ['{parent_name}', '{student_name}', '{grade}'],
-                                [$parent->name, $record->name, $record->grade],
+                                [$parent->name, $record->name, $gradeDisplay],
                                 $data['message']
                             );
 
@@ -328,14 +314,20 @@ class StudentsRelationManager extends RelationManager
      */
     protected function createStudentAccountIfNeeded($parent, $student, $data)
     {
+        // Get the grade information
+        $grade = null;
+        if (isset($data['grade_id'])) {
+            $grade = Grade::find($data['grade_id']);
+        }
+
         // Check if student should have their own account (grades 8-12)
-        if (!$this->shouldHavePortalAccess($data['grade'])) {
+        if (!$this->shouldHavePortalAccess($grade)) {
             return;
         }
 
         // Try to create an account for the student via DB transaction
         try {
-            DB::transaction(function () use ($parent, $student, $data) {
+            DB::transaction(function () use ($parent, $student, $data, $grade) {
                 // Generate a secure random password
                 $password = Str::password(10);
 
@@ -411,16 +403,23 @@ class StudentsRelationManager extends RelationManager
     /**
      * Determine if a student should have portal access based on their grade
      */
-    protected function shouldHavePortalAccess(string $grade): bool
+    protected function shouldHavePortalAccess($grade): bool
     {
-        // Parse grade to handle various formats (e.g., "Grade 8", "8", "8th")
-        $normalizedGrade = preg_replace('/[^0-9]/', '', $grade);
+        if (!$grade) {
+            return false;
+        }
 
-        // Convert to integer for proper comparison
-        $gradeNum = (int) $normalizedGrade;
+        // Extract grade level from the grade name or use the level field
+        $gradeLevel = $grade->level ?? 0;
+
+        // If level is not set, try to extract from name
+        if ($gradeLevel == 0 && $grade->name) {
+            $normalizedGrade = preg_replace('/[^0-9]/', '', $grade->name);
+            $gradeLevel = (int) $normalizedGrade;
+        }
 
         // Secondary school students (typically grades 8-12) get portal access
-        return $gradeNum >= 8 && $gradeNum <= 12;
+        return $gradeLevel >= 8 && $gradeLevel <= 12;
     }
 
     /**

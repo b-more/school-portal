@@ -137,7 +137,6 @@ class CreateStudent extends CreateRecord
         });
     }
 
-
     /**
      * Send a notification to the parent about the new student registration
      */
@@ -167,7 +166,43 @@ class CreateStudent extends CreateRecord
                     'message_length' => strlen($message)
                 ]);
 
+                // Insert SMS log entry directly before sending
+                $smsLogId = null;
+                try {
+                    $smsLogId = DB::table('sms_logs')->insertGetId([
+                        'recipient' => $formattedPhone,
+                        'message' => str_replace('@', '(at)', $message),
+                        'status' => 'pending',
+                        'message_type' => 'general', // Using general as it's safe for the existing enum
+                        'reference_id' => $student->id, // Include student ID as reference
+                        'cost' => ceil(strlen($message) / 160) * 0.50,
+                        'sent_by' => auth()->id() ?? 1,
+                        'created_at' => now(),
+                        'updated_at' => now()
+                    ]);
+
+                    Log::info('Parent notification SMS log created', [
+                        'log_id' => $smsLogId,
+                        'student_id' => $student->id
+                    ]);
+                } catch (\Exception $logError) {
+                    Log::error('Failed to create registration SMS log: ' . $logError->getMessage());
+                }
+
                 $success = $this->sendMessage($message, $formattedPhone);
+
+                // If we created our own log, ensure it has the right status
+                if ($smsLogId) {
+                    try {
+                        DB::table('sms_logs')
+                            ->where('id', $smsLogId)
+                            ->update([
+                                'status' => $success ? 'sent' : 'failed'
+                            ]);
+                    } catch (\Exception $updateError) {
+                        Log::error('Failed to update parent notification log: ' . $updateError->getMessage());
+                    }
+                }
 
                 if ($success) {
                     // Log the successful SMS send
@@ -306,9 +341,14 @@ class CreateStudent extends CreateRecord
      */
     protected function sendMessage($message_string, $phone_number)
     {
+        // Generate a unique reference for this message to track through logs
+        $messageRef = md5($phone_number . substr($message_string, 0, 30) . time());
+        $smsLogId = null;
+
         try {
             // Log the sending attempt
             Log::info('Sending SMS notification', [
+                'ref' => $messageRef,
                 'phone' => $phone_number,
                 'message' => substr($message_string, 0, 100) . '...', // Log more of the message for debugging
                 'message_length' => strlen($message_string),
@@ -317,64 +357,190 @@ class CreateStudent extends CreateRecord
 
             // Replace @ with (at) for SMS compatibility
             $sms_message = str_replace('@', '(at)', $message_string);
-            $url_encoded_message = urlencode($sms_message);
 
-            // Build the full URL for debugging
+            // Calculate message cost
+            $messageParts = ceil(strlen($sms_message) / 160);
+            $cost = 0.50 * $messageParts;
+
+            // Determine appropriate message type based on content
+            $messageType = 'general';
+            if (strpos($sms_message, 'portal account has been created') !== false) {
+                $messageType = 'general'; // Would be 'student_credentials' if enum supported it
+            } elseif (strpos($sms_message, 'has been registered') !== false) {
+                $messageType = 'general'; // Would be 'student_registration' if enum supported it
+            }
+
+            // Look for an existing pending log entry for this message
+            $existingLog = DB::table('sms_logs')
+                ->where('recipient', $phone_number)
+                ->where('message', $sms_message)
+                ->where('status', 'pending')
+                ->latest('id')
+                ->first();
+
+            if ($existingLog) {
+                // Use the existing log entry
+                $smsLogId = $existingLog->id;
+                Log::info('Found existing SMS log', [
+                    'ref' => $messageRef,
+                    'log_id' => $smsLogId
+                ]);
+            } else {
+                // Create a new log entry
+                try {
+                    $smsLogId = DB::table('sms_logs')->insertGetId([
+                        'recipient' => $phone_number,
+                        'message' => $sms_message,
+                        'status' => 'pending',
+                        'message_type' => $messageType,
+                        'reference_id' => null,
+                        'cost' => $cost,
+                        'sent_by' => auth()->id() ?? 1,
+                        'created_at' => now(),
+                        'updated_at' => now()
+                    ]);
+
+                    Log::info('Created new SMS log', [
+                        'ref' => $messageRef,
+                        'log_id' => $smsLogId
+                    ]);
+                } catch (\Exception $logError) {
+                    Log::error('Failed to create SMS log', [
+                        'ref' => $messageRef,
+                        'error' => $logError->getMessage()
+                    ]);
+                }
+            }
+
+            // Send the message
+            $url_encoded_message = urlencode($sms_message);
             $url = 'https://www.cloudservicezm.com/smsservice/httpapi?username=Blessmore&password=Blessmore&msg=' . $url_encoded_message . '&shortcode=2343&sender_id=StFrancis&phone=' . $phone_number . '&api_key=121231313213123123';
 
-            // Log the full URL (without password) for debugging
-            $debugUrl = preg_replace('/password=[^&]*/', 'password=***', $url);
-            Log::debug('SMS API URL', ['url' => $debugUrl]);
+            Log::debug('SMS API URL', [
+                'ref' => $messageRef,
+                'url' => preg_replace('/password=[^&]*/', 'password=***', $url)
+            ]);
 
             $sendSenderSMS = Http::withoutVerifying()
-                ->timeout(20) // Increased timeout to 20 seconds
-                ->connectTimeout(10) // Separate connection timeout
-                ->retry(3, 2000) // Retry 3 times with 2 second delay
+                ->timeout(20)
+                ->connectTimeout(10)
+                ->retry(3, 2000)
                 ->post($url);
 
-            // Log the detailed response
+            // Determine if the message was sent successfully
+            $isSuccessful = $sendSenderSMS->successful() &&
+                           (strtolower($sendSenderSMS->body()) === 'success' ||
+                            strpos(strtolower($sendSenderSMS->body()), 'success') !== false);
+
+            // Log the response
             Log::info('SMS API Response', [
+                'ref' => $messageRef,
                 'status' => $sendSenderSMS->status(),
                 'body' => $sendSenderSMS->body(),
                 'to' => substr($phone_number, 0, 6) . '****' . substr($phone_number, -3),
-                'successful' => $sendSenderSMS->successful(),
-                'headers' => $sendSenderSMS->headers(),
+                'successful' => $isSuccessful,
+                'log_id' => $smsLogId
             ]);
 
-            // Check if the response indicates success
-            $responseBody = $sendSenderSMS->body();
+            // Update the SMS log status
+            if ($smsLogId) {
+                try {
+                    $updated = DB::table('sms_logs')
+                        ->where('id', $smsLogId)
+                        ->update([
+                            'status' => $isSuccessful ? 'sent' : 'failed',
+                            'provider_reference' => $sendSenderSMS->json('message_id') ?? null,
+                            'error_message' => $isSuccessful ? null : $sendSenderSMS->body(),
+                            'updated_at' => now()
+                        ]);
 
-            // Sometimes SMS APIs return success even with HTTP 200 but with error messages in the body
-            // Check for common error patterns in the response body
-            if (str_contains(strtolower($responseBody), 'error') ||
-                str_contains(strtolower($responseBody), 'failed') ||
-                str_contains(strtolower($responseBody), 'invalid')) {
-                Log::warning('SMS API returned error in response body', [
-                    'phone' => $phone_number,
-                    'response' => $responseBody
-                ]);
-                return false;
+                    Log::info('Updated SMS log status', [
+                        'ref' => $messageRef,
+                        'log_id' => $smsLogId,
+                        'status' => $isSuccessful ? 'sent' : 'failed',
+                        'updated' => $updated ? 'Yes' : 'No'
+                    ]);
+
+                    // Verify the update worked
+                    if (!$updated) {
+                        // Try direct SQL query as a fallback
+                        DB::statement("UPDATE sms_logs SET status = ?, updated_at = NOW() WHERE id = ?", [
+                            $isSuccessful ? 'sent' : 'failed',
+                            $smsLogId
+                        ]);
+
+                        Log::info('Updated SMS log with direct SQL', [
+                            'ref' => $messageRef,
+                            'log_id' => $smsLogId
+                        ]);
+                    }
+                } catch (\Exception $updateError) {
+                    Log::error('Failed to update SMS log', [
+                        'ref' => $messageRef,
+                        'log_id' => $smsLogId,
+                        'error' => $updateError->getMessage()
+                    ]);
+                }
             }
 
-            return $sendSenderSMS->successful();
+            return $isSuccessful;
         } catch (\Illuminate\Http\Client\ConnectionException $e) {
-            // Specific handling for connection errors
+            // Connection timeout or other HTTP client error
             Log::error('SMS connection error', [
+                'ref' => $messageRef,
                 'error' => 'Unable to connect to SMS service',
                 'message' => $e->getMessage(),
                 'phone' => $phone_number,
             ]);
 
-            // Don't re-throw for connection errors - let the caller handle it gracefully
+            // Update log status
+            if ($smsLogId) {
+                try {
+                    DB::table('sms_logs')
+                        ->where('id', $smsLogId)
+                        ->update([
+                            'status' => 'failed',
+                            'error_message' => 'Connection error: ' . $e->getMessage(),
+                            'updated_at' => now()
+                        ]);
+                } catch (\Exception $updateError) {
+                    Log::error('Failed to update SMS log after connection error', [
+                        'ref' => $messageRef,
+                        'log_id' => $smsLogId,
+                        'error' => $updateError->getMessage()
+                    ]);
+                }
+            }
+
             return false;
         } catch (\Exception $e) {
-            Log::error('SMS sending failed', [
+            // Other unexpected error
+            Log::error('SMS sending failed with exception', [
+                'ref' => $messageRef,
                 'error' => $e->getMessage(),
                 'phone' => $phone_number,
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            // For other errors, also return false instead of throwing
+            // Update log status
+            if ($smsLogId) {
+                try {
+                    DB::table('sms_logs')
+                        ->where('id', $smsLogId)
+                        ->update([
+                            'status' => 'failed',
+                            'error_message' => 'Exception: ' . $e->getMessage(),
+                            'updated_at' => now()
+                        ]);
+                } catch (\Exception $updateError) {
+                    Log::error('Failed to update SMS log after exception', [
+                        'ref' => $messageRef,
+                        'log_id' => $smsLogId,
+                        'error' => $updateError->getMessage()
+                    ]);
+                }
+            }
+
             return false;
         }
     }
