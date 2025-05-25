@@ -11,6 +11,7 @@ use App\Models\UserCredential;
 use App\Models\Grade;
 use App\Models\Teacher;
 use App\Models\SmsLog;
+use App\Models\AcademicYear;
 use App\Constants\RoleConstants;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -165,33 +166,114 @@ class StudentResource extends Resource
                                                     ->preload()
                                                     ->live()
                                                     ->afterStateUpdated(function ($state, callable $set) {
-                                                        // Clear dependent selections when this changes
-                                                        $set('fee_structure_id', null);
-                                                        $set('student_id', null);
-                                                        $set('balance', null);
+                                                        // Clear dependent selections when grade changes
+                                                        $set('class_section_id', null);
+                                                        $set('student_id_number', null);
                                                     }),
 
-                                                Forms\Components\Hidden::make('student_id_number')
-                                                    ->dehydrated(true)
-                                                    ->default(null),
-
-                                                Forms\Components\Placeholder::make('student_id_preview')
-                                                    ->label('Student ID')
-                                                    ->content(function (callable $get, ?string $state) {
+                                                Forms\Components\Select::make('class_section_id')
+                                                    ->label('Class Section')
+                                                    ->options(function (callable $get) {
                                                         $gradeId = $get('grade_id');
                                                         if (!$gradeId) {
-                                                            return 'Select a grade to generate Student ID';
+                                                            return [];
                                                         }
 
-                                                        // Get the grade model to access the name
-                                                        $grade = Grade::find($gradeId);
-                                                        if (!$grade) {
-                                                            return 'Invalid grade selected';
+                                                        // Get current academic year
+                                                        $currentAcademicYear = AcademicYear::where('is_active', true)->first();
+                                                        if (!$currentAcademicYear) {
+                                                            return [];
                                                         }
 
-                                                        // Generate the ID if not already set
-                                                        return self::generateStudentId($grade->name);
+                                                        // Get available class sections for the selected grade in current academic year
+                                                        return \App\Models\ClassSection::where('grade_id', $gradeId)
+                                                            ->where('academic_year_id', $currentAcademicYear->id)
+                                                            ->where('is_active', true)
+                                                            ->get()
+                                                            ->mapWithKeys(function ($section) {
+                                                                $currentStudents = $section->students()->count();
+                                                                $capacity = $section->capacity;
+                                                                $availableSpots = $capacity - $currentStudents;
+
+                                                                $label = "{$section->name} ({$currentStudents}/{$capacity} students)";
+                                                                if ($availableSpots <= 0) {
+                                                                    $label .= " - FULL";
+                                                                } else if ($availableSpots <= 5) {
+                                                                    $label .= " - {$availableSpots} spots left";
+                                                                }
+
+                                                                return [$section->id => $label];
+                                                            })
+                                                            ->toArray();
+                                                    })
+                                                    ->required()
+                                                    ->searchable()
+                                                    ->preload()
+                                                    ->live()
+                                                    ->disabled(fn (callable $get) => !$get('grade_id'))
+                                                    ->helperText(function (callable $get) {
+                                                        $gradeId = $get('grade_id');
+                                                        if (!$gradeId) {
+                                                            return 'Please select a grade first';
+                                                        }
+
+                                                        $currentAcademicYear = AcademicYear::where('is_active', true)->first();
+                                                        if (!$currentAcademicYear) {
+                                                            return 'No active academic year found';
+                                                        }
+
+                                                        $sectionsCount = \App\Models\ClassSection::where('grade_id', $gradeId)
+                                                            ->where('academic_year_id', $currentAcademicYear->id)
+                                                            ->where('is_active', true)
+                                                            ->count();
+
+                                                        if ($sectionsCount === 0) {
+                                                            return 'No class sections available for this grade. Please create sections first.';
+                                                        }
+
+                                                        return "Choose from {$sectionsCount} available section(s)";
+                                                    })
+                                                    ->afterStateUpdated(function ($state, callable $set, callable $get) {
+                                                        // Generate student ID when both grade and section are selected
+                                                        if ($state && $get('grade_id')) {
+                                                            $grade = Grade::find($get('grade_id'));
+                                                            if ($grade) {
+                                                                $studentId = self::generateStudentId($grade);
+                                                                $set('student_id_number', $studentId);
+                                                            }
+                                                        }
                                                     }),
+
+                                                Forms\Components\Placeholder::make('section_info')
+                                                    ->label('Section Information')
+                                                    ->content(function (callable $get) {
+                                                        $sectionId = $get('class_section_id');
+                                                        if (!$sectionId) {
+                                                            return 'Select a class section to see details';
+                                                        }
+
+                                                        $section = \App\Models\ClassSection::with(['grade', 'classTeacher', 'academicYear'])
+                                                            ->find($sectionId);
+
+                                                        if (!$section) {
+                                                            return 'Section not found';
+                                                        }
+
+                                                        $currentStudents = $section->students()->count();
+                                                        $teacherName = $section->classTeacher?->name ?? 'Not assigned';
+
+                                                        return "Section: {$section->grade->name} {$section->name}\n" .
+                                                               "Academic Year: {$section->academicYear->name}\n" .
+                                                               "Class Teacher: {$teacherName}\n" .
+                                                               "Current Students: {$currentStudents}/{$section->capacity}";
+                                                    })
+                                                    ->visible(fn (callable $get) => !empty($get('class_section_id'))),
+
+                                                Forms\Components\TextInput::make('student_id_number')
+                                                    ->label('Student ID')
+                                                    ->disabled()
+                                                    ->dehydrated(true)
+                                                    ->helperText('Generated automatically: YY + Grade Level + Sequential Number (e.g., 25300012)'),
                                             ]),
 
                                         Forms\Components\Card::make()
@@ -349,23 +431,100 @@ class StudentResource extends Resource
                 Tables\Columns\TextColumn::make('student_id_number')
                     ->label('Student ID')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->copyable()
+                    ->tooltip('Click to copy')
+                    ->description(function (Student $record) {
+                        if (!$record->student_id_number || strlen($record->student_id_number) < 8) {
+                            return null;
+                        }
+
+                        $year = '20' . substr($record->student_id_number, 0, 2);
+                        $gradeLevel = (int) substr($record->student_id_number, 2, 2);
+                        $sequential = substr($record->student_id_number, 4);
+
+                        return "Year: {$year}, Grade: {$gradeLevel}, #: {$sequential}";
+                    }),
+
                 Tables\Columns\TextColumn::make('name')
                     ->searchable()
-                    ->sortable(),
+                    ->sortable()
+                    ->weight('bold'),
+
                 Tables\Columns\TextColumn::make('grade.name')
                     ->label('Grade')
                     ->searchable()
+                    ->sortable()
+                    ->badge()
+                    ->color('primary'),
+
+                Tables\Columns\TextColumn::make('classSection.name')
+                    ->label('Section')
+                    ->getStateUsing(function (Student $record) {
+                        if (!$record->classSection) {
+                            return 'Not Assigned';
+                        }
+
+                        $currentStudents = $record->classSection->students()->count();
+                        $capacity = $record->classSection->capacity;
+
+                        return "{$record->classSection->name} ({$currentStudents}/{$capacity})";
+                    })
+                    ->tooltip(function (Student $record) {
+                        if (!$record->classSection) {
+                            return 'Student needs to be assigned to a class section';
+                        }
+
+                        $section = $record->classSection;
+                        $teacher = $section->classTeacher?->name ?? 'No teacher assigned';
+
+                        return "Section: {$section->grade->name} {$section->name}\n" .
+                               "Class Teacher: {$teacher}\n" .
+                               "Academic Year: {$section->academicYear->name}";
+                    })
+                    ->badge()
+                    ->color(function (Student $record) {
+                        if (!$record->classSection) {
+                            return 'danger'; // Red for unassigned
+                        }
+
+                        $currentStudents = $record->classSection->students()->count();
+                        $capacity = $record->classSection->capacity;
+                        $utilization = ($currentStudents / $capacity) * 100;
+
+                        if ($utilization >= 95) return 'danger';
+                        if ($utilization >= 80) return 'warning';
+                        return 'success';
+                    })
                     ->sortable(),
+
                 Tables\Columns\TextColumn::make('parentGuardian.name')
                     ->sortable()
                     ->label('Parent/Guardian')
-                    ->visible($isTeacher || $isAdmin), // Hide from parents
+                    ->visible($isTeacher || $isAdmin)
+                    ->limit(20)
+                    ->tooltip(function (Student $record) {
+                        if (!$record->parentGuardian) return null;
+
+                        return "Name: {$record->parentGuardian->name}\n" .
+                               "Phone: {$record->parentGuardian->phone}\n" .
+                               "Relationship: {$record->parentGuardian->relationship}";
+                    }),
+
                 Tables\Columns\TextColumn::make('gender')
-                    ->searchable(),
+                    ->searchable()
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'male' => 'blue',
+                        'female' => 'pink',
+                        default => 'gray',
+                    }),
+
                 Tables\Columns\TextColumn::make('date_of_birth')
-                    ->date()
-                    ->sortable(),
+                    ->date('M j, Y')
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+
                 Tables\Columns\TextColumn::make('enrollment_status')
                     ->badge()
                     ->color(fn (string $state): string => match ($state) {
@@ -375,12 +534,14 @@ class StudentResource extends Resource
                         'transferred' => 'warning',
                         default => 'gray',
                     }),
+
                 Tables\Columns\TextColumn::make('admission_date')
-                    ->date()
+                    ->date('M j, Y')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
+
                 Tables\Columns\TextColumn::make('created_at')
-                    ->dateTime()
+                    ->dateTime('M j, Y H:i')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
@@ -392,15 +553,171 @@ class StudentResource extends Resource
                         'graduated' => 'Graduated',
                         'transferred' => 'Transferred',
                     ]),
+
                 Tables\Filters\SelectFilter::make('grade_id')
                     ->label('Grade')
                     ->relationship('grade', 'name')
-                    ->visible($isTeacher || $isAdmin), // Parents don't need this filter
+                    ->visible($isTeacher || $isAdmin)
+                    ->preload(),
+
+                Tables\Filters\SelectFilter::make('class_section_id')
+                    ->label('Class Section')
+                    ->options(function () {
+                        $currentAcademicYear = AcademicYear::where('is_active', true)->first();
+
+                        if (!$currentAcademicYear) {
+                            return [];
+                        }
+
+                        return \App\Models\ClassSection::with(['grade'])
+                            ->where('academic_year_id', $currentAcademicYear->id)
+                            ->where('is_active', true)
+                            ->get()
+                            ->mapWithKeys(function ($section) {
+                                return [$section->id => "{$section->grade->name} {$section->name}"];
+                            })
+                            ->toArray();
+                    })
+                    ->visible($isTeacher || $isAdmin)
+                    ->preload(),
+
+                Tables\Filters\Filter::make('unassigned_to_section')
+                    ->label('Unassigned to Section')
+                    ->query(fn (Builder $query): Builder => $query->whereNull('class_section_id'))
+                    ->visible($isAdmin)
+                    ->toggle(),
+
+                Tables\Filters\Filter::make('section_at_capacity')
+                    ->label('In Full Sections')
+                    ->query(function (Builder $query): Builder {
+                        return $query->whereHas('classSection', function ($sectionQuery) {
+                            $sectionQuery->whereRaw('(SELECT COUNT(*) FROM students WHERE students.class_section_id = class_sections.id) >= class_sections.capacity');
+                        });
+                    })
+                    ->visible($isAdmin)
+                    ->toggle(),
+
+                Tables\Filters\SelectFilter::make('gender')
+                    ->options([
+                        'male' => 'Male',
+                        'female' => 'Female',
+                    ])
+                    ->visible($isTeacher || $isAdmin),
+
+                Tables\Filters\Filter::make('current_academic_year')
+                    ->label('Current Academic Year Only')
+                    ->query(function (Builder $query): Builder {
+                        $currentAcademicYear = AcademicYear::where('is_active', true)->first();
+
+                        if (!$currentAcademicYear) {
+                            return $query;
+                        }
+
+                        return $query->whereHas('classSection', function ($sectionQuery) use ($currentAcademicYear) {
+                            $sectionQuery->where('academic_year_id', $currentAcademicYear->id);
+                        });
+                    })
+                    ->visible($isAdmin)
+                    ->default(true)
+                    ->toggle(),
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make()
-                    ->visible($isAdmin), // Only admin can edit
+                    ->visible($isAdmin),
+
+                Tables\Actions\Action::make('assignToSection')
+                    ->label('Assign to Section')
+                    ->icon('heroicon-o-arrow-right-circle')
+                    ->color('warning')
+                    ->visible(function (Student $record) use ($isAdmin) {
+                        return $isAdmin && !$record->class_section_id;
+                    })
+                    ->form([
+                        Forms\Components\Select::make('class_section_id')
+                            ->label('Class Section')
+                            ->options(function (Student $record) {
+                                if (!$record->grade_id) {
+                                    return [];
+                                }
+
+                                $currentAcademicYear = AcademicYear::where('is_active', true)->first();
+                                if (!$currentAcademicYear) {
+                                    return [];
+                                }
+
+                                return \App\Models\ClassSection::where('grade_id', $record->grade_id)
+                                    ->where('academic_year_id', $currentAcademicYear->id)
+                                    ->where('is_active', true)
+                                    ->get()
+                                    ->mapWithKeys(function ($section) {
+                                        $currentStudents = $section->students()->count();
+                                        $capacity = $section->capacity;
+                                        $availableSpots = $capacity - $currentStudents;
+
+                                        $label = "{$section->name} ({$currentStudents}/{$capacity})";
+                                        if ($availableSpots <= 0) {
+                                            $label .= " - FULL";
+                                        } else if ($availableSpots <= 5) {
+                                            $label .= " - {$availableSpots} spots left";
+                                        }
+
+                                        return [$section->id => $label];
+                                    })
+                                    ->toArray();
+                            })
+                            ->required()
+                            ->searchable(),
+
+                        Forms\Components\Placeholder::make('current_grade')
+                            ->label('Current Grade')
+                            ->content(fn (Student $record) => $record->grade?->name ?? 'No grade assigned'),
+
+                        Forms\Components\Placeholder::make('student_info')
+                            ->label('Student Information')
+                            ->content(fn (Student $record) => "Name: {$record->name}\nStudent ID: {$record->student_id_number}"),
+                    ])
+                    ->action(function (Student $record, array $data) {
+                        $section = \App\Models\ClassSection::find($data['class_section_id']);
+
+                        if (!$section) {
+                            Notification::make()
+                                ->title('Section not found')
+                                ->danger()
+                                ->send();
+                            return;
+                        }
+
+                        // Check capacity
+                        $currentStudents = $section->students()->count();
+                        if ($currentStudents >= $section->capacity) {
+                            Notification::make()
+                                ->title('Section is at capacity')
+                                ->body("Section {$section->name} is full ({$currentStudents}/{$section->capacity})")
+                                ->warning()
+                                ->send();
+                            return;
+                        }
+
+                        // Update student
+                        $record->update([
+                            'class_section_id' => $data['class_section_id']
+                        ]);
+
+                        // Generate new student ID
+                        $grade = $record->grade;
+                        if ($grade) {
+                            $newStudentId = self::generateStudentId($grade);
+                            $record->update(['student_id_number' => $newStudentId]);
+                        }
+
+                        Notification::make()
+                            ->title('Student assigned to section')
+                            ->body("Assigned {$record->name} to {$section->grade->name} {$section->name}")
+                            ->success()
+                            ->send();
+                    }),
+
                 Tables\Actions\Action::make('sendNotification')
                     ->label('Send SMS')
                     ->icon('heroicon-o-chat-bubble-left')
@@ -466,12 +783,13 @@ class StudentResource extends Resource
                                 ->send();
                         }
                     })
-                    ->visible($isAdmin || $isTeacher), // Only admin and teachers can send SMS
+                    ->visible($isAdmin || $isTeacher),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make()
                         ->visible($isAdmin),
+
                     Tables\Actions\BulkAction::make('updateStatus')
                         ->label('Update Status')
                         ->icon('heroicon-o-pencil-square')
@@ -489,92 +807,264 @@ class StudentResource extends Resource
                             $query->update(['enrollment_status' => $data['enrollment_status']]);
                         })
                         ->deselectRecordsAfterCompletion()
-                        ->visible($isAdmin), // Only admin can update status
+                        ->visible($isAdmin),
+
+                    Tables\Actions\BulkAction::make('assignToSections')
+                        ->label('Assign to Sections')
+                        ->icon('heroicon-o-arrow-right-circle')
+                        ->form([
+                            Forms\Components\Select::make('assignment_method')
+                                ->label('Assignment Method')
+                                ->options([
+                                    'same_section' => 'Assign all to the same section',
+                                    'distribute_evenly' => 'Distribute evenly across available sections',
+                                    'by_grade' => 'Auto-assign by grade (fill sections sequentially)',
+                                ])
+                                ->required()
+                                ->live(),
+
+                            Forms\Components\Select::make('specific_section_id')
+                                ->label('Target Section')
+                                ->options(function () {
+                                    $currentAcademicYear = AcademicYear::where('is_active', true)->first();
+                                    if (!$currentAcademicYear) {
+                                        return [];
+                                    }
+
+                                    return \App\Models\ClassSection::with(['grade'])
+                                        ->where('academic_year_id', $currentAcademicYear->id)
+                                        ->where('is_active', true)
+                                        ->get()
+                                        ->mapWithKeys(function ($section) {
+                                            $currentStudents = $section->students()->count();
+                                            $capacity = $section->capacity;
+                                            $availableSpots = $capacity - $currentStudents;
+
+                                            $label = "{$section->grade->name} {$section->name} ({$currentStudents}/{$capacity})";
+                                            if ($availableSpots <= 0) {
+                                                $label .= " - FULL";
+                                            } else {
+                                                $label .= " - {$availableSpots} spots available";
+                                            }
+
+                                            return [$section->id => $label];
+                                        })
+                                        ->toArray();
+                                })
+                                ->required()
+                                ->visible(fn (callable $get) => $get('assignment_method') === 'same_section'),
+
+                            Forms\Components\Placeholder::make('warning')
+                                ->label('Important')
+                                ->content('This will update student IDs to match their enrollment year and grade. Make sure to inform students and parents of any ID changes.')
+                                ->extraAttributes(['class' => 'text-amber-600']),
+                        ])
+                        ->action(function ($records, array $data): void {
+                            $method = $data['assignment_method'];
+                            $assignedCount = 0;
+                            $failedCount = 0;
+                            $errors = [];
+
+                            foreach ($records as $student) {
+                                // Skip if student already has a section
+                                if ($student->class_section_id) {
+                                    continue;
+                                }
+
+                                // Skip if student doesn't have a grade
+                                if (!$student->grade_id) {
+                                    $failedCount++;
+                                    $errors[] = "{$student->name} - No grade assigned";
+                                    continue;
+                                }
+
+                                try {
+                                    $sectionId = null;
+
+                                    switch ($method) {
+                                        case 'same_section':
+                                            $sectionId = $data['specific_section_id'];
+
+                                            // Check if section belongs to student's grade
+                                            $section = \App\Models\ClassSection::find($sectionId);
+                                            if (!$section || $section->grade_id != $student->grade_id) {
+                                                $failedCount++;
+                                                $errors[] = "{$student->name} - Section doesn't match student's grade";
+                                                continue 2;
+                                            }
+                                            break;
+
+                                        case 'distribute_evenly':
+                                        case 'by_grade':
+                                            // Get available sections for this student's grade
+                                            $currentAcademicYear = AcademicYear::where('is_active', true)->first();
+                                            $availableSections = \App\Models\ClassSection::where('grade_id', $student->grade_id)
+                                                ->where('academic_year_id', $currentAcademicYear->id)
+                                                ->where('is_active', true)
+                                                ->get()
+                                                ->filter(function ($section) {
+                                                    return $section->students()->count() < $section->capacity;
+                                                });
+
+                                            if ($availableSections->isEmpty()) {
+                                                $failedCount++;
+                                                $errors[] = "{$student->name} - No available sections in {$student->grade->name}";
+                                                continue 2;
+                                            }
+
+                                            // For distribute_evenly, find section with least students
+                                            // For by_grade, find first available section
+                                            $targetSection = $availableSections->sortBy(function ($section) use ($method) {
+                                                return $method === 'distribute_evenly'
+                                                    ? $section->students()->count()
+                                                    : $section->id;
+                                            })->first();
+
+                                            $sectionId = $targetSection->id;
+                                            break;
+                                    }
+
+                                    if ($sectionId) {
+                                        // Check final capacity
+                                        $section = \App\Models\ClassSection::find($sectionId);
+                                        $currentStudents = $section->students()->count();
+
+                                        if ($currentStudents >= $section->capacity) {
+                                            $failedCount++;
+                                            $errors[] = "{$student->name} - Section {$section->name} is full";
+                                            continue;
+                                        }
+
+                                        // Assign student to section
+                                        $student->update(['class_section_id' => $sectionId]);
+
+                                        // Generate new student ID
+                                        $newStudentId = self::generateStudentId($student->grade);
+                                        $student->update(['student_id_number' => $newStudentId]);
+
+                                        $assignedCount++;
+                                    }
+
+                                } catch (\Exception $e) {
+                                    $failedCount++;
+                                    $errors[] = "{$student->name} - Error: {$e->getMessage()}";
+                                    Log::error('Bulk section assignment error', [
+                                        'student_id' => $student->id,
+                                        'error' => $e->getMessage()
+                                    ]);
+                                }
+                            }
+
+                            // Show results notification
+                            $title = "Bulk Assignment Results";
+                            $body = "Successfully assigned: {$assignedCount} students";
+
+                            if ($failedCount > 0) {
+                                $body .= ", Failed: {$failedCount} students";
+
+                                // Log detailed errors for admin review
+                                if (!empty($errors)) {
+                                    Log::warning('Bulk assignment failures', [
+                                        'errors' => $errors,
+                                        'user_id' => Auth::id()
+                                    ]);
+
+                                    $body .= ". Check logs for details.";
+                                }
+                            }
+
+                            Notification::make()
+                                ->title($title)
+                                ->body($body)
+                                ->success($assignedCount > 0)
+                                ->warning($failedCount > 0)
+                                ->send();
+                        })
+                        ->deselectRecordsAfterCompletion()
+                        ->visible($isAdmin),
+
                     Tables\Actions\BulkAction::make('bulkSms')
-    ->label('Send Bulk SMS')
-    ->icon('heroicon-o-chat-bubble-left-ellipsis')
-    ->form([
-        Forms\Components\Textarea::make('message')
-            ->label('SMS Message')
-            ->required()
-            ->default('Dear {parent_name}, this is an important message about your child {student_name} in {grade}.')
-            ->helperText('You can use placeholders: {parent_name}, {student_name}, and {grade}')
-            ->placeholder('Enter message to send to parents/guardians')
-            ->rows(3),
-    ])
-    ->action(function ($records, array $data): void {
-        // Instead of using Builder query, work directly with the selected records
-        // $records is a Collection of Student models
+                        ->label('Send Bulk SMS')
+                        ->icon('heroicon-o-chat-bubble-left-ellipsis')
+                        ->form([
+                            Forms\Components\Textarea::make('message')
+                                ->label('SMS Message')
+                                ->required()
+                                ->default('Dear {parent_name}, this is an important message about your child {student_name} in {grade}.')
+                                ->helperText('You can use placeholders: {parent_name}, {student_name}, and {grade}')
+                                ->placeholder('Enter message to send to parents/guardians')
+                                ->rows(3),
+                        ])
+                        ->action(function ($records, array $data): void {
+                            $successCount = 0;
+                            $failedCount = 0;
 
-        $successCount = 0;
-        $failedCount = 0;
+                            foreach ($records as $student) {
+                                // Ensure we have the necessary relationships loaded
+                                if (!$student->relationLoaded('parentGuardian')) {
+                                    $student->load('parentGuardian');
+                                }
+                                if (!$student->relationLoaded('grade')) {
+                                    $student->load('grade');
+                                }
 
-        foreach ($records as $student) {
-            // Ensure we have the necessary relationships loaded
-            if (!$student->relationLoaded('parentGuardian')) {
-                $student->load('parentGuardian');
-            }
-            if (!$student->relationLoaded('grade')) {
-                $student->load('grade');
-            }
+                                // Check if parent guardian exists and has phone
+                                if (!$student->parentGuardian || !$student->parentGuardian->phone) {
+                                    $failedCount++;
+                                    continue;
+                                }
 
-            // Check if parent guardian exists and has phone
-            if (!$student->parentGuardian || !$student->parentGuardian->phone) {
-                $failedCount++;
-                continue;
-            }
+                                try {
+                                    // Personalize message with parent and student names
+                                    $personalizedMessage = str_replace(
+                                        ['{parent_name}', '{student_name}', '{grade}'],
+                                        [
+                                            $student->parentGuardian->name,
+                                            $student->name,
+                                            $student->grade?->name ?? 'Unknown'
+                                        ],
+                                        $data['message']
+                                    );
 
-            try {
-                // Personalize message with parent and student names
-                $personalizedMessage = str_replace(
-                    ['{parent_name}', '{student_name}', '{grade}'],
-                    [
-                        $student->parentGuardian->name,
-                        $student->name,
-                        $student->grade?->name ?? 'Unknown'
-                    ],
-                    $data['message']
-                );
+                                    // Format phone and send
+                                    $formattedPhone = self::formatPhoneNumber($student->parentGuardian->phone);
 
-                // Format phone and send
-                $formattedPhone = self::formatPhoneNumber($student->parentGuardian->phone);
+                                    // Send the SMS with specific message type and reference
+                                    $sent = self::sendMessage(
+                                        $personalizedMessage,
+                                        $formattedPhone,
+                                        'student_bulk_notification',
+                                        $student->id
+                                    );
 
-                // Send the SMS with specific message type and reference
-                $sent = self::sendMessage(
-                    $personalizedMessage,
-                    $formattedPhone,
-                    'student_bulk_notification',
-                    $student->id
-                );
+                                    if ($sent) {
+                                        $successCount++;
+                                    } else {
+                                        $failedCount++;
+                                    }
+                                } catch (\Exception $e) {
+                                    $failedCount++;
 
-                if ($sent) {
-                    $successCount++;
-                } else {
-                    $failedCount++;
-                }
-            } catch (\Exception $e) {
-                $failedCount++;
+                                    // Log error
+                                    Log::error('Failed to send bulk SMS', [
+                                        'student_id' => $student->id,
+                                        'parent_guardian_id' => $student->parentGuardian?->id,
+                                        'error' => $e->getMessage()
+                                    ]);
+                                }
+                            }
 
-                // Log error
-                Log::error('Failed to send bulk SMS', [
-                    'student_id' => $student->id,
-                    'parent_guardian_id' => $student->parentGuardian?->id,
-                    'error' => $e->getMessage()
-                ]);
-            }
-        }
-
-        // Show notification with results
-        Notification::make()
-            ->title('Bulk SMS Results')
-            ->body("Successfully sent: {$successCount}, Failed: {$failedCount}")
-            ->success($successCount > 0)
-            ->warning($failedCount > 0)
-            ->send();
-    })
-    ->deselectRecordsAfterCompletion()
-    ->visible($isAdmin || $isTeacher), // Only admin and teachers can send bulk SMS
-]),
+                            // Show notification with results
+                            Notification::make()
+                                ->title('Bulk SMS Results')
+                                ->body("Successfully sent: {$successCount}, Failed: {$failedCount}")
+                                ->success($successCount > 0)
+                                ->warning($failedCount > 0)
+                                ->send();
+                        })
+                        ->deselectRecordsAfterCompletion()
+                        ->visible($isAdmin || $isTeacher),
+                ]),
             ]);
     }
 
@@ -599,50 +1089,64 @@ class StudentResource extends Resource
     }
 
     /**
-     * Generate a student ID based on the student's grade
-     * Format: SFG1001, SFG2001, etc.
+     * Generate a student ID based on academic year + grade level + sequential number
+     * Format: YYGGNNNN (e.g., 25030012 = Year 2025, Grade 3, Student #12)
      */
-    public static function generateStudentId(string $grade): string
+    public static function generateStudentId(Grade $grade): string
     {
-        // Map different grades to their prefix codes
-        $gradeMap = [
-            'Baby Class' => 'SFBC',
-            'Middle Class' => 'SFMC',
-            'Reception' => 'SFR',
-            'Grade 1' => 'SFG1',
-            'Grade 2' => 'SFG2',
-            'Grade 3' => 'SFG3',
-            'Grade 4' => 'SFG4',
-            'Grade 5' => 'SFG5',
-            'Grade 6' => 'SFG6',
-            'Grade 7' => 'SFG7',
-            'Grade 8' => 'SFG8',
-            'Grade 9' => 'SFG9',
-            'Grade 10' => 'SFG10',
-            'Grade 11' => 'SFG11',
-            'Grade 12' => 'SFG12',
+        // Get current academic year
+        $currentAcademicYear = AcademicYear::where('is_active', true)->first();
+
+        if (!$currentAcademicYear) {
+            // Fallback to current calendar year if no academic year is active
+            $year = date('y'); // Last 2 digits of current year
+        } else {
+            // Extract year from academic year start date
+            $year = $currentAcademicYear->start_date->format('y');
+        }
+
+        // Map grade names to grade levels (numbers)
+        $gradeLevelMap = [
+            'Baby Class' => '00',
+            'Middle Class' => '01',
+            'Reception' => '02',
+            'Grade 1' => '03',
+            'Grade 2' => '04',
+            'Grade 3' => '05',
+            'Grade 4' => '06',
+            'Grade 5' => '07',
+            'Grade 6' => '08',
+            'Grade 7' => '09',
+            'Grade 8' => '10',
+            'Grade 9' => '11',
+            'Grade 10' => '12',
+            'Grade 11' => '13',
+            'Grade 12' => '14',
         ];
 
-        $prefix = $gradeMap[$grade] ?? 'SF';
+        $gradeLevel = $gradeLevelMap[$grade->name] ?? '99'; // Default to 99 for unknown grades
 
-        // Get the latest student number for this grade
-        $lastStudent = Student::whereHas('grade', function($query) use ($grade) {
-                $query->where('name', $grade);
-            })
-            ->where('student_id_number', 'like', $prefix . '%')
+        // Create the prefix: YY + GG
+        $prefix = $year . $gradeLevel;
+
+        // Find the latest student ID with this prefix
+        $lastStudent = Student::where('student_id_number', 'like', $prefix . '%')
             ->orderBy('student_id_number', 'desc')
             ->first();
 
-        if ($lastStudent) {
-            // Extract the numeric part from the last ID
-            $lastIdNumber = (int) substr($lastStudent->student_id_number, strlen($prefix));
-            $newIdNumber = $lastIdNumber + 1;
+        if ($lastStudent && strlen($lastStudent->student_id_number) >= 8) {
+            // Extract the sequential number from the last 4 digits
+            $lastSequential = (int) substr($lastStudent->student_id_number, -4);
+            $newSequential = $lastSequential + 1;
         } else {
-            $newIdNumber = 1;
+            $newSequential = 1;
         }
 
-        // Format with leading zeros to ensure 3 digits
-        return $prefix . str_pad($newIdNumber, 3, '0', STR_PAD_LEFT);
+        // Format the sequential number with leading zeros (4 digits)
+        $sequentialFormatted = str_pad($newSequential, 4, '0', STR_PAD_LEFT);
+
+        // Return the complete student ID: YYGGNNNN
+        return $prefix . $sequentialFormatted;
     }
 
     /**
@@ -673,22 +1177,7 @@ class StudentResource extends Resource
     }
 
     /**
-     * Calculate the cost of an SMS based on message length
-     */
-    private static function calculateMessageCost(string $message): float
-    {
-        $length = strlen($message);
-
-        // Standard GSM 03.38 character set: 160 chars per SMS
-        // Unicode messages: 70 chars per SMS
-        $hasUnicode = preg_match('/[^\x20-\x7E]/', $message);
-
-        $parts = $hasUnicode ? ceil($length / 70) : ceil($length / 160);
-        return 0.50 * $parts; // 0.50 per message part
-    }
-
-    /**
-     * Send a message via SMS and log it to the SMS log
+     * Send a message via SMS and log it
      *
      * @param string $message_string The message content
      * @param string $phone_number The recipient's phone number
@@ -696,166 +1185,89 @@ class StudentResource extends Resource
      * @param int|null $reference_id The ID of the related record (e.g., student ID)
      * @return bool Whether the message was sent successfully
      */
-    // public static function sendMessage($message_string, $phone_number, $message_type = 'general', $reference_id = null)
-    // {
-    //     try {
-    //         // Log the sending attempt
-    //         Log::info('Sending SMS notification', [
-    //             'phone' => $phone_number,
-    //             'message' => substr($message_string, 0, 30) . '...' // Only log beginning of message for privacy
-    //         ]);
-
-    //         // Create an SMS log entry before sending
-    //         $smsLog = SmsLog::create([
-    //             'recipient' => $phone_number,
-    //             'message' => $message_string,
-    //             'status' => 'pending',
-    //             'message_type' => $message_type,
-    //             'reference_id' => $reference_id,
-    //             'cost' => self::calculateMessageCost($message_string),
-    //             'sent_by' => Auth::id(),
-    //         ]);
-
-    //         // Send the SMS
-    //         $url_encoded_message = urlencode($message_string);
-    //         $sendSenderSMS = Http::withoutVerifying()
-    //             ->post('https://www.cloudservicezm.com/smsservice/httpapi?username=Blessmore&password=Blessmore&msg=' . $url_encoded_message . '&shortcode=2343&sender_id=StFrancis&phone=' . $phone_number . '&api_key=121231313213123123');
-
-    //         // Update the SMS log with the result
-    //         $smsLog->update([
-    //             'status' => $sendSenderSMS->successful() ? 'sent' : 'failed',
-    //             'provider_reference' => $sendSenderSMS->json('message_id') ?? null,
-    //             'error_message' => $sendSenderSMS->successful() ? null : $sendSenderSMS->body(),
-    //         ]);
-
-    //         // Log the response
-    //         Log::info('SMS API Response', [
-    //             'status' => $sendSenderSMS->status(),
-    //             'body' => $sendSenderSMS->body(),
-    //             'to' => substr($phone_number, 0, 6) . '****' . substr($phone_number, -3),
-    //             'sms_log_id' => $smsLog->id
-    //         ]);
-
-    //         return $sendSenderSMS->successful();
-    //     } catch (\Exception $e) {
-    //         // Update the SMS log with the error if it exists
-    //         if (isset($smsLog)) {
-    //             $smsLog->update([
-    //                 'status' => 'failed',
-    //                 'error_message' => $e->getMessage(),
-    //             ]);
-    //         }
-
-    //         Log::error('SMS sending failed', [
-    //             'error' => $e->getMessage(),
-    //             'phone' => $phone_number,
-    //             'sms_log_id' => $smsLog->id ?? null
-    //         ]);
-    //         throw $e; // Re-throw to be caught by the calling method
-    //     }
-    // }
-
-    /**
- * Send a message via SMS and log it to the SMS log
- *
- * @param string $message_string The message content
- * @param string $phone_number The recipient's phone number
- * @param string $message_type The type of message (general, student_notification, etc.)
- * @param int|null $reference_id The ID of the related record (e.g., student ID)
- * @return bool Whether the message was sent successfully
- */
-    /**
- * Send a message via SMS and log it
- *
- * @param string $message_string The message content
- * @param string $phone_number The recipient's phone number
- * @param string $message_type The type of message (general, student_notification, etc.)
- * @param int|null $reference_id The ID of the related record (e.g., student ID)
- * @return bool Whether the message was sent successfully
- */
-public static function sendMessage($message_string, $phone_number, $message_type = 'general', $reference_id = null)
-{
-    try {
-        // Send the SMS
-        $url_encoded_message = urlencode($message_string);
-        $sendSenderSMS = Http::withoutVerifying()
-            ->post('https://www.cloudservicezm.com/smsservice/httpapi?username=Blessmore&password=Blessmore&msg=' . $url_encoded_message . '&shortcode=2343&sender_id=StFrancis&phone=' . $phone_number . '&api_key=121231313213123123');
-
-        // Map custom message types to allowed enum values
-        $allowedMessageTypes = [
-            'homework_notification',
-            'result_notification',
-            'fee_reminder',
-            'event_notification',
-            'general',
-            'other'
-        ];
-
-        // Map your custom types to valid enum values
-        $mappedMessageType = 'general'; // Default
-
-        if ($message_type === 'student_notification' || $message_type === 'student_bulk_notification') {
-            $mappedMessageType = 'general';
-        } else if (in_array($message_type, $allowedMessageTypes)) {
-            $mappedMessageType = $message_type;
-        }
-
-        // Calculate message cost
-        $messageParts = ceil(strlen($message_string) / 160);
-        $cost = 0.50 * $messageParts;
-
-        // Create log entry
-        DB::table('sms_logs')->insert([
-            'recipient' => $phone_number,
-            'message' => $message_string,
-            'status' => $sendSenderSMS->successful() ? 'sent' : 'failed',
-            'message_type' => $mappedMessageType,
-            'reference_id' => $reference_id,
-            'cost' => $cost,
-            'provider_reference' => $sendSenderSMS->json('message_id') ?? null,
-            'error_message' => $sendSenderSMS->successful() ? null : $sendSenderSMS->body(),
-            'sent_by' => Auth::id(),
-            'created_at' => now(),
-            'updated_at' => now()
-        ]);
-
-        // Log the response
-        Log::info('SMS API Response', [
-            'status' => $sendSenderSMS->status(),
-            'body' => $sendSenderSMS->body(),
-            'to' => substr($phone_number, 0, 6) . '****' . substr($phone_number, -3),
-            'successful' => $sendSenderSMS->successful()
-        ]);
-
-        return $sendSenderSMS->successful();
-    } catch (\Exception $e) {
-        // Log the error
-        Log::error('SMS sending failed', [
-            'error' => $e->getMessage(),
-            'phone' => $phone_number
-        ]);
-
-        // Try to log the failure
+    public static function sendMessage($message_string, $phone_number, $message_type = 'general', $reference_id = null)
+    {
         try {
+            // Send the SMS
+            $url_encoded_message = urlencode($message_string);
+            $sendSenderSMS = Http::withoutVerifying()
+                ->post('https://www.cloudservicezm.com/smsservice/httpapi?username=Blessmore&password=Blessmore&msg=' . $url_encoded_message . '&shortcode=2343&sender_id=StFrancis&phone=' . $phone_number . '&api_key=121231313213123123');
+
+            // Map custom message types to allowed enum values
+            $allowedMessageTypes = [
+                'homework_notification',
+                'result_notification',
+                'fee_reminder',
+                'event_notification',
+                'general',
+                'other'
+            ];
+
+            // Map your custom types to valid enum values
+            $mappedMessageType = 'general'; // Default
+
+            if ($message_type === 'student_notification' || $message_type === 'student_bulk_notification') {
+                $mappedMessageType = 'general';
+            } else if (in_array($message_type, $allowedMessageTypes)) {
+                $mappedMessageType = $message_type;
+            }
+
+            // Calculate message cost
+            $messageParts = ceil(strlen($message_string) / 160);
+            $cost = 0.50 * $messageParts;
+
+            // Create log entry
             DB::table('sms_logs')->insert([
                 'recipient' => $phone_number,
                 'message' => $message_string,
-                'status' => 'failed',
-                'message_type' => 'general', // Safe fallback
+                'status' => $sendSenderSMS->successful() ? 'sent' : 'failed',
+                'message_type' => $mappedMessageType,
                 'reference_id' => $reference_id,
-                'cost' => ceil(strlen($message_string) / 160) * 0.50,
-                'error_message' => $e->getMessage(),
+                'cost' => $cost,
+                'provider_reference' => $sendSenderSMS->json('message_id') ?? null,
+                'error_message' => $sendSenderSMS->successful() ? null : $sendSenderSMS->body(),
                 'sent_by' => Auth::id(),
                 'created_at' => now(),
                 'updated_at' => now()
             ]);
-        } catch (\Exception $logException) {
-            Log::critical('Could not log SMS failure: ' . $logException->getMessage());
-        }
 
-        throw $e; // Re-throw to be caught by the calling method
+            // Log the response
+            Log::info('SMS API Response', [
+                'status' => $sendSenderSMS->status(),
+                'body' => $sendSenderSMS->body(),
+                'to' => substr($phone_number, 0, 6) . '****' . substr($phone_number, -3),
+                'successful' => $sendSenderSMS->successful()
+            ]);
+
+            return $sendSenderSMS->successful();
+        } catch (\Exception $e) {
+            // Log the error
+            Log::error('SMS sending failed', [
+                'error' => $e->getMessage(),
+                'phone' => $phone_number
+            ]);
+
+            // Try to log the failure
+            try {
+                DB::table('sms_logs')->insert([
+                    'recipient' => $phone_number,
+                    'message' => $message_string,
+                    'status' => 'failed',
+                    'message_type' => 'general', // Safe fallback
+                    'reference_id' => $reference_id,
+                    'cost' => ceil(strlen($message_string) / 160) * 0.50,
+                    'error_message' => $e->getMessage(),
+                    'sent_by' => Auth::id(),
+                    'created_at' => now(),
+                    'updated_at' => now()
+                ]);
+            } catch (\Exception $logException) {
+                Log::critical('Could not log SMS failure: ' . $logException->getMessage());
+            }
+
+            throw $e; // Re-throw to be caught by the calling method
+        }
     }
-}
 
     public static function shouldRegisterNavigation(): bool
     {

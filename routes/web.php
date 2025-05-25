@@ -3,6 +3,7 @@
 use App\Http\Controllers\StudentFeeController;
 use App\Http\Controllers\HomeworkController;
 use App\Http\Controllers\FeeStatementsController;
+use App\Http\Controllers\PaymentStatementController; // ADD THIS LINE
 use App\Constants\RoleConstants;
 use Illuminate\Support\Facades\Route;
 
@@ -60,8 +61,20 @@ Route::prefix('fee-statements')->middleware(['auth'])->group(function () {
 
 // Student Fees Routes
 Route::middleware(['auth'])->group(function () {
+    // Existing PDF receipt route (keep unchanged)
     Route::get('/student-fees/{studentFee}/receipt', [StudentFeeController::class, 'generateReceipt'])->name('student-fees.receipt');
+
+    // NEW: HTML receipt view route
+    Route::get('/student-fees/{studentFee}/receipt/view', [StudentFeeController::class, 'showReceipt'])->name('student-fees.receipt.view');
+
+    // NEW: Explicit PDF download route
+    Route::get('/student-fees/{studentFee}/receipt/pdf', [StudentFeeController::class, 'generateReceipt'])->name('student-fees.receipt.pdf');
+
+    // Existing bulk receipts route (keep unchanged)
     Route::post('/student-fees/bulk-receipts', [StudentFeeController::class, 'generateBulkReceipts'])->name('student-fees.bulk-receipts');
+
+    // NEW: Debug route (only for development - remove in production)
+    Route::get('/debug/student-fee/{studentFee}', [StudentFeeController::class, 'debugFeeStructure'])->name('debug.student-fee');
 });
 
 // Homework and Submission Routes
@@ -73,4 +86,27 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/homework/{homework}/download-all-submissions', [HomeworkController::class, 'downloadAllSubmissions'])->name('homework.download-all-submissions');
     Route::get('/homework-submissions/{submission}/download', [HomeworkController::class, 'downloadSubmission'])->name('homework-submissions.download');
     Route::get('/filament/resources/homework-submissions/{record}/download', [HomeworkController::class, 'downloadSubmission'])->name('filament.resources.homework-submissions.download');
+});
+
+// Payment Statement Routes
+Route::middleware(['auth'])->group(function () {
+    // Generate payment statement for a student
+    Route::get('/payment-statement/student/{student}', [PaymentStatementController::class, 'generateStatement'])
+        ->name('payment-statement.generate');
+
+    // Generate payment statement from a fee record
+    Route::get('/payment-statement/fee/{studentFee}', [PaymentStatementController::class, 'generateFromFee'])
+        ->name('payment-statement.from-fee');
+
+    // Email payment statement
+    Route::post('/payment-statement/student/{student}/email', [PaymentStatementController::class, 'emailStatement'])
+        ->name('payment-statement.email');
+
+    // Get payment statement summary (for AJAX/API)
+    Route::get('/payment-statement/student/{student}/summary', [PaymentStatementController::class, 'getStatementSummary'])
+        ->name('payment-statement.summary');
+
+    // Bulk statement generation (for multiple students)
+    Route::post('/payment-statements/bulk', [PaymentStatementController::class, 'generateBulkStatements'])
+        ->name('payment-statements.bulk');
 });

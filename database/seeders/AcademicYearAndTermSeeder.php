@@ -18,8 +18,8 @@ class AcademicYearAndTermSeeder extends Seeder
         $academicYears = [
             [
                 'name' => '2023',
-                'start_date' => '2023-01-09', // January start
-                'end_date' => '2023-12-15',   // December end
+                'start_date' => '2023-01-09',
+                'end_date' => '2023-12-15',
                 'is_active' => false,
                 'description' => 'Academic Year 2023',
                 'number_of_terms' => 3,
@@ -46,9 +46,9 @@ class AcademicYearAndTermSeeder extends Seeder
             ],
             [
                 'name' => '2024',
-                'start_date' => '2024-01-08', // January start
-                'end_date' => '2024-12-13',   // December end
-                'is_active' => false, // Current academic year
+                'start_date' => '2024-01-08',
+                'end_date' => '2024-12-13',
+                'is_active' => false,
                 'description' => 'Academic Year 2024',
                 'number_of_terms' => 3,
                 'terms' => [
@@ -74,36 +74,36 @@ class AcademicYearAndTermSeeder extends Seeder
             ],
             [
                 'name' => '2025',
-                'start_date' => '2025-01-06', // January start
-                'end_date' => '2025-12-12',   // December end
-                'is_active' => true,
-                'description' => 'Academic Year 2025',
+                'start_date' => '2025-01-06',
+                'end_date' => '2025-12-12',
+                'is_active' => true, // Current active academic year
+                'description' => 'Academic Year 2025 - Current',
                 'number_of_terms' => 3,
                 'terms' => [
                     [
                         'name' => 'Term 1',
                         'start_date' => '2025-01-06',
                         'end_date' => '2025-04-11',
-                        'is_active' => false,
+                        'is_active' => false, // Past term
                     ],
                     [
                         'name' => 'Term 2',
                         'start_date' => '2025-05-05',
                         'end_date' => '2025-08-15',
-                        'is_active' => true,
+                        'is_active' => true, // Current active term (May 2025)
                     ],
                     [
                         'name' => 'Term 3',
                         'start_date' => '2025-09-08',
                         'end_date' => '2025-12-12',
-                        'is_active' => false,
+                        'is_active' => false, // Future term
                     ],
                 ]
             ],
             [
                 'name' => '2026',
-                'start_date' => '2026-01-05', // January start
-                'end_date' => '2026-12-11',   // December end
+                'start_date' => '2026-01-05',
+                'end_date' => '2026-12-11',
                 'is_active' => false,
                 'description' => 'Academic Year 2026',
                 'number_of_terms' => 3,
@@ -130,8 +130,9 @@ class AcademicYearAndTermSeeder extends Seeder
             ],
         ];
 
-        // First, disable all active academic years to avoid conflicts
+        // First, disable all active academic years and terms to avoid conflicts
         AcademicYear::where('is_active', true)->update(['is_active' => false]);
+        Term::where('is_active', true)->update(['is_active' => false]);
 
         // Create or update each academic year and its terms
         foreach ($academicYears as $yearData) {
@@ -148,11 +149,6 @@ class AcademicYearAndTermSeeder extends Seeder
                 $yearData
             );
 
-            // Disable all active terms for this academic year to avoid conflicts
-            Term::where('academic_year_id', $academicYear->id)
-                ->where('is_active', true)
-                ->update(['is_active' => false]);
-
             // Create or update each term for this academic year
             foreach ($terms as $termData) {
                 // Convert string dates to Carbon instances
@@ -168,9 +164,64 @@ class AcademicYearAndTermSeeder extends Seeder
                     $termData
                 );
             }
+
+            $this->command->info("Created/Updated Academic Year: {$academicYear->name} with " . count($terms) . " terms");
         }
 
-        // Output success message
-        $this->command->info('Created ' . count($academicYears) . ' academic years with their terms');
+        // Validate current active settings
+        $activeAcademicYear = AcademicYear::where('is_active', true)->first();
+        $activeTerm = Term::where('is_active', true)->first();
+
+        if ($activeAcademicYear) {
+            $this->command->info("✅ Active Academic Year: {$activeAcademicYear->name}");
+        }
+
+        if ($activeTerm) {
+            $this->command->info("✅ Active Term: {$activeTerm->name} (Academic Year: {$activeTerm->academicYear->name})");
+        }
+
+        // Auto-detect and set current term based on today's date
+        $this->autoDetectCurrentTerm();
+
+        $this->command->info('✅ Academic years and terms seeded successfully for 2025!');
+    }
+
+    /**
+     * Automatically detect and set the current term based on today's date
+     */
+    private function autoDetectCurrentTerm(): void
+    {
+        $today = Carbon::now();
+
+        // Find the term that contains today's date
+        $currentTerm = Term::where('start_date', '<=', $today)
+            ->where('end_date', '>=', $today)
+            ->first();
+
+        if ($currentTerm) {
+            // Set all terms to inactive first
+            Term::where('is_active', true)->update(['is_active' => false]);
+
+            // Set the detected term as active
+            $currentTerm->update(['is_active' => true]);
+
+            // Also ensure its academic year is active
+            $currentTerm->academicYear->update(['is_active' => true]);
+
+            $this->command->info("🎯 Auto-detected current term: {$currentTerm->name} ({$currentTerm->academicYear->name})");
+            $this->command->info("📅 Term period: {$currentTerm->start_date->format('M j, Y')} - {$currentTerm->end_date->format('M j, Y')}");
+        } else {
+            $this->command->warn("⚠️  No current term found for today's date ({$today->format('M j, Y')})");
+
+            // Find the next upcoming term
+            $nextTerm = Term::where('start_date', '>', $today)
+                ->orderBy('start_date')
+                ->first();
+
+            if ($nextTerm) {
+                $daysUntil = $today->diffInDays($nextTerm->start_date);
+                $this->command->info("📅 Next term: {$nextTerm->name} starts in {$daysUntil} days ({$nextTerm->start_date->format('M j, Y')})");
+            }
+        }
     }
 }
