@@ -3,7 +3,7 @@
 namespace App\Filament\Resources\SchoolClassResource\RelationManagers;
 
 use App\Models\Subject;
-use App\Models\Employee;
+use App\Models\Teacher;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\RelationManagers\RelationManager;
@@ -15,8 +15,6 @@ use Illuminate\Support\Facades\DB;
 class SubjectTeachersRelationManager extends RelationManager
 {
     protected static string $relationship = 'subjectTeachers';
-
-    // Fix: Changed from string to ?string to match the parent class
     protected static ?string $title = 'Subject-Teacher Assignments';
 
     public function form(Form $form): Form
@@ -25,18 +23,23 @@ class SubjectTeachersRelationManager extends RelationManager
             ->schema([
                 Forms\Components\Select::make('subject_id')
                     ->label('Subject')
-                    ->options(Subject::query()->pluck('name', 'id'))
+                    ->options(Subject::where('is_active', true)->pluck('name', 'id'))
                     ->searchable()
                     ->required(),
 
-                Forms\Components\Select::make('employee_id')
+                Forms\Components\Select::make('teacher_id')
                     ->label('Teacher')
-                    ->options(Employee::query()
-                        ->where('department', 'Secondary')
-                        ->where('status', 'active')
-                        ->pluck('name', 'id'))
+                    ->options(function () {
+                        return Teacher::where('is_active', true)
+                            ->whereNotNull('specialization') // Secondary teachers only
+                            ->get()
+                            ->mapWithKeys(function ($teacher) {
+                                return [$teacher->id => "{$teacher->name} ({$teacher->employee_id}) - {$teacher->specialization}"];
+                            });
+                    })
                     ->searchable()
-                    ->required(),
+                    ->required()
+                    ->helperText('Only secondary teachers with specializations are shown'),
             ]);
     }
 
@@ -50,24 +53,34 @@ class SubjectTeachersRelationManager extends RelationManager
                     ->searchable()
                     ->sortable(),
 
-                // Using a custom accessor to get the subject name
+                Tables\Columns\TextColumn::make('employee_id')
+                    ->label('Employee ID')
+                    ->searchable(),
+
+                Tables\Columns\TextColumn::make('specialization')
+                    ->label('Specialization')
+                    ->searchable(),
+
+                // Get the subject name from the pivot relationship
                 Tables\Columns\TextColumn::make('subject_name')
                     ->label('Subject')
                     ->getStateUsing(function ($record): string {
+                        // Get subject from the pivot table
                         $subjectId = DB::table('class_subject_teacher')
                             ->where('class_id', $this->ownerRecord->id)
-                            ->where('employee_id', $record->id)
+                            ->where('teacher_id', $record->id)
                             ->value('subject_id');
 
                         return Subject::find($subjectId)?->name ?? 'Unknown';
                     }),
 
-                Tables\Columns\TextColumn::make('position')
-                    ->label('Position'),
-
                 Tables\Columns\TextColumn::make('phone')
                     ->label('Contact')
                     ->searchable(),
+
+                Tables\Columns\IconColumn::make('is_active')
+                    ->label('Active')
+                    ->boolean(),
             ])
             ->filters([
                 // Filter by subject
@@ -75,7 +88,7 @@ class SubjectTeachersRelationManager extends RelationManager
                     ->form([
                         Forms\Components\Select::make('subject_id')
                             ->label('Subject')
-                            ->options(Subject::query()->pluck('name', 'id'))
+                            ->options(Subject::where('is_active', true)->pluck('name', 'id'))
                             ->searchable(),
                     ])
                     ->query(function (Builder $query, array $data): Builder {
@@ -83,10 +96,17 @@ class SubjectTeachersRelationManager extends RelationManager
                             return $query;
                         }
 
-                        return $query->whereHas('subjectTeachers', function ($q) use ($data) {
+                        return $query->whereHas('subjects', function ($q) use ($data) {
                             $q->where('class_subject_teacher.subject_id', $data['subject_id'])
                               ->where('class_subject_teacher.class_id', $this->ownerRecord->id);
                         });
+                    }),
+
+                Tables\Filters\SelectFilter::make('specialization')
+                    ->options(function () {
+                        return Teacher::whereNotNull('specialization')
+                            ->distinct()
+                            ->pluck('specialization', 'specialization');
                     }),
             ])
             ->headerActions([
@@ -96,37 +116,85 @@ class SubjectTeachersRelationManager extends RelationManager
                     ->form([
                         Forms\Components\Select::make('subject_id')
                             ->label('Subject')
-                            ->options(Subject::query()->pluck('name', 'id'))
+                            ->options(Subject::where('is_active', true)->pluck('name', 'id'))
                             ->searchable()
                             ->required(),
 
-                        Forms\Components\Select::make('employee_id')
+                        Forms\Components\Select::make('teacher_id')
                             ->label('Teacher')
-                            ->options(Employee::query()
-                                ->where('department', 'Secondary')
-                                ->where('status', 'active')
-                                ->pluck('name', 'id'))
+                            ->options(function () {
+                                return Teacher::where('is_active', true)
+                                    ->whereNotNull('specialization') // Secondary teachers only
+                                    ->get()
+                                    ->mapWithKeys(function ($teacher) {
+                                        return [$teacher->id => "{$teacher->name} ({$teacher->employee_id}) - {$teacher->specialization}"];
+                                    });
+                            })
                             ->searchable()
-                            ->required(),
+                            ->required()
+                            ->helperText('Only secondary teachers with specializations are shown'),
                     ])
                     ->action(function (array $data): void {
                         // Insert into the class_subject_teacher pivot table
-                        DB::table('class_subject_teacher')->insert([
+                        DB::table('class_subject_teacher')->updateOrInsert([
                             'class_id' => $this->ownerRecord->id,
                             'subject_id' => $data['subject_id'],
-                            'employee_id' => $data['employee_id'],
+                            'teacher_id' => $data['teacher_id'],
+                        ], [
                             'created_at' => now(),
                             'updated_at' => now(),
                         ]);
                     }),
             ])
             ->actions([
+                Tables\Actions\EditAction::make()
+                    ->form([
+                        Forms\Components\Select::make('subject_id')
+                            ->label('Subject')
+                            ->options(Subject::where('is_active', true)->pluck('name', 'id'))
+                            ->searchable()
+                            ->required()
+                            ->default(function ($record) {
+                                return DB::table('class_subject_teacher')
+                                    ->where('class_id', $this->ownerRecord->id)
+                                    ->where('teacher_id', $record->id)
+                                    ->value('subject_id');
+                            }),
+
+                        Forms\Components\Select::make('teacher_id')
+                            ->label('Teacher')
+                            ->options(function () {
+                                return Teacher::where('is_active', true)
+                                    ->whereNotNull('specialization')
+                                    ->get()
+                                    ->mapWithKeys(function ($teacher) {
+                                        return [$teacher->id => "{$teacher->name} ({$teacher->employee_id}) - {$teacher->specialization}"];
+                                    });
+                            })
+                            ->searchable()
+                            ->required()
+                            ->default(function ($record) {
+                                return $record->id;
+                            }),
+                    ])
+                    ->action(function ($record, array $data): void {
+                        // Update the assignment
+                        DB::table('class_subject_teacher')
+                            ->where('class_id', $this->ownerRecord->id)
+                            ->where('teacher_id', $record->id)
+                            ->update([
+                                'subject_id' => $data['subject_id'],
+                                'teacher_id' => $data['teacher_id'],
+                                'updated_at' => now(),
+                            ]);
+                    }),
+
                 // Custom delete action to handle the three-way relationship
                 Tables\Actions\DeleteAction::make()
                     ->action(function ($record): void {
                         DB::table('class_subject_teacher')
                             ->where('class_id', $this->ownerRecord->id)
-                            ->where('employee_id', $record->id)
+                            ->where('teacher_id', $record->id)
                             ->delete();
                     }),
             ])
@@ -134,11 +202,11 @@ class SubjectTeachersRelationManager extends RelationManager
                 Tables\Actions\BulkActionGroup::make([
                     Tables\Actions\DeleteBulkAction::make()
                         ->action(function ($records): void {
-                            $employeeIds = $records->pluck('id')->toArray();
+                            $teacherIds = $records->pluck('id')->toArray();
 
                             DB::table('class_subject_teacher')
                                 ->where('class_id', $this->ownerRecord->id)
-                                ->whereIn('employee_id', $employeeIds)
+                                ->whereIn('teacher_id', $teacherIds)
                                 ->delete();
                         }),
                 ]),

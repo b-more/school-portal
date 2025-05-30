@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Models\Grade;
 use App\Models\ParentGuardian;
 use App\Models\UserCredential;
+use App\Services\StudentFeeService;
 use Filament\Actions;
 use Filament\Resources\Pages\CreateRecord;
 use Illuminate\Database\Eloquent\Model;
@@ -47,6 +48,50 @@ class CreateStudent extends CreateRecord
         return DB::transaction(function () use ($data, $gradeName) {
             // Create the student record
             $student = static::getModel()::create($data);
+
+            // **NEW: Automatically create student fee for current term**
+            try {
+                $studentFee = StudentFeeService::createFeeForNewStudent($student);
+
+                if ($studentFee) {
+                    Log::info('Student fee automatically created', [
+                        'student_id' => $student->id,
+                        'fee_id' => $studentFee->id,
+                        'amount' => $studentFee->balance
+                    ]);
+
+                    // Show notification about fee creation
+                    Notification::make()
+                        ->title('Student Fee Created')
+                        ->body("Fee of ZMW " . number_format($studentFee->balance, 2) . " automatically created for current term.")
+                        ->success()
+                        ->send();
+                } else {
+                    // Log warning but don't fail student creation
+                    Log::warning('Could not automatically create fee for new student', [
+                        'student_id' => $student->id,
+                        'reason' => 'No active term or fee structure found'
+                    ]);
+
+                    Notification::make()
+                        ->title('Fee Creation Notice')
+                        ->body('Student created successfully, but no fee was created (no active term or fee structure found). Please create fee manually.')
+                        ->warning()
+                        ->send();
+                }
+            } catch (\Exception $e) {
+                // Log error but don't fail student creation
+                Log::error('Failed to create automatic fee for new student', [
+                    'student_id' => $student->id,
+                    'error' => $e->getMessage()
+                ]);
+
+                Notification::make()
+                    ->title('Fee Creation Failed')
+                    ->body('Student created successfully, but automatic fee creation failed. Please create fee manually.')
+                    ->warning()
+                    ->send();
+            }
 
             // If the student is in a grade that should have portal access (e.g., grade 8-12)
             if ($gradeName && $this->shouldHavePortalAccess($gradeName)) {

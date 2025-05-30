@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Models\Grade;
 use App\Models\Subject;
 use App\Models\ClassSection;
+use App\Models\AcademicYear;
 use App\Constants\RoleConstants;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -122,8 +123,11 @@ class TeacherResource extends Resource
                                         if ($state === 'primary') {
                                             $set('is_grade_teacher', true);
                                             $set('is_class_teacher', true);
+                                            $set('specialization', null); // Clear specialization for primary teachers
                                         } else {
                                             $set('is_class_teacher', false);
+                                            $set('grade_id', null); // Clear grade for secondary teachers initially
+                                            $set('class_section_id', null);
                                         }
                                     })
                                     ->columnSpanFull(),
@@ -132,10 +136,10 @@ class TeacherResource extends Resource
                                 Forms\Components\Card::make()
                                     ->schema([
                                         Forms\Components\Placeholder::make('primary_teacher_info')
-                                            ->content('Primary teachers are responsible for one class and teach all subjects for that class.')
+                                            ->content('Primary teachers are automatically assigned to ALL subjects for their assigned grade and class section. They will teach all subjects to one class.')
                                             ->columnSpanFull(),
 
-                                        Forms\Components\Select::make('primary_grade_id')
+                                        Forms\Components\Select::make('grade_id')
                                             ->label('Assigned Grade')
                                             ->options(function () {
                                                 return Grade::whereIn('name', [
@@ -147,16 +151,41 @@ class TeacherResource extends Resource
                                                 ->pluck('name', 'id');
                                             })
                                             ->required()
+                                            ->searchable()
                                             ->live()
-                                            ->afterStateUpdated(fn (Forms\Set $set) => $set('primary_class_section_id', null))
+                                            ->afterStateUpdated(function (Forms\Set $set, $state) {
+                                                $set('class_section_id', null);
+
+                                                // Show subjects that will be automatically assigned
+                                                if ($state) {
+                                                    $grade = Grade::with('subjects')->find($state);
+                                                    if ($grade && $grade->subjects->count() > 0) {
+                                                        $subjectNames = $grade->subjects->pluck('name')->join(', ');
+                                                        $set('auto_assigned_subjects', $subjectNames);
+                                                    } else {
+                                                        $set('auto_assigned_subjects', 'No subjects found for this grade. Please assign subjects to this grade first.');
+                                                    }
+                                                } else {
+                                                    $set('auto_assigned_subjects', '');
+                                                }
+                                            })
                                             ->visible(function (Forms\Get $get) {
                                                 return $get('teacher_type') === 'primary';
                                             }),
 
-                                        Forms\Components\Select::make('primary_class_section_id')
+                                        Forms\Components\Placeholder::make('auto_assigned_subjects')
+                                            ->label('Subjects that will be automatically assigned')
+                                            ->content(function (Forms\Get $get) {
+                                                return $get('auto_assigned_subjects') ?: 'Select a grade to see subjects';
+                                            })
+                                            ->visible(function (Forms\Get $get) {
+                                                return $get('teacher_type') === 'primary' && $get('grade_id');
+                                            }),
+
+                                        Forms\Components\Select::make('class_section_id')
                                             ->label('Assigned Class Section')
                                             ->options(function (Forms\Get $get) {
-                                                $gradeId = $get('primary_grade_id');
+                                                $gradeId = $get('grade_id');
                                                 if (!$gradeId) {
                                                     return [];
                                                 }
@@ -166,14 +195,16 @@ class TeacherResource extends Resource
                                                     ->with('grade')
                                                     ->get()
                                                     ->mapWithKeys(function ($section) {
-                                                        return [$section->id => "{$section->grade->name} - {$section->name}"];
+                                                        $studentCount = $section->students()->where('enrollment_status', 'active')->count();
+                                                        return [$section->id => "{$section->grade->name} - {$section->name} ({$studentCount} students)"];
                                                     });
                                             })
                                             ->preload(false)
                                             ->searchable()
                                             ->required()
+                                            ->helperText('The teacher will be assigned as the class teacher for this section.')
                                             ->visible(function (Forms\Get $get) {
-                                                return $get('teacher_type') === 'primary' && $get('primary_grade_id');
+                                                return $get('teacher_type') === 'primary' && $get('grade_id');
                                             }),
                                     ])
                                     ->visible(function (Forms\Get $get) {
@@ -185,13 +216,14 @@ class TeacherResource extends Resource
                                 Forms\Components\Card::make()
                                     ->schema([
                                         Forms\Components\Placeholder::make('secondary_teacher_info')
-                                            ->content('Secondary teachers specialize in specific subjects and can teach across multiple classes and grades.')
+                                            ->content('Secondary teachers specialize in specific subjects. Optionally assign a grade if they are a grade teacher.')
                                             ->columnSpanFull(),
 
                                         Forms\Components\TextInput::make('specialization')
                                             ->label('Subject Specialization')
                                             ->maxLength(255)
                                             ->required()
+                                            ->helperText('e.g., Mathematics, Physics, English Literature')
                                             ->visible(function (Forms\Get $get) {
                                                 return $get('teacher_type') === 'secondary';
                                             }),
@@ -200,7 +232,7 @@ class TeacherResource extends Resource
                                             ->label('Is Grade Teacher?')
                                             ->helperText('Grade teachers have additional responsibilities for overseeing an entire grade level')
                                             ->default(false)
-                                            ->reactive()
+                                            ->live()
                                             ->visible(function (Forms\Get $get) {
                                                 return $get('teacher_type') === 'secondary';
                                             }),
@@ -229,6 +261,7 @@ class TeacherResource extends Resource
                                                     ->label('Subject')
                                                     ->options(function () {
                                                         return Subject::where('is_active', true)
+                                                            ->where('grade_level', 'Secondary')
                                                             ->pluck('name', 'id');
                                                     })
                                                     ->required()
@@ -249,7 +282,8 @@ class TeacherResource extends Resource
                                                         ->mapWithKeys(function ($section) {
                                                             $gradeName = $section->grade->name ?? '';
                                                             $gradeNumber = str_replace('Grade ', '', $gradeName);
-                                                            return [$section->id => "{$gradeNumber} {$section->name}"];
+                                                            $studentCount = $section->students()->where('enrollment_status', 'active')->count();
+                                                            return [$section->id => "{$gradeNumber} {$section->name} ({$studentCount} students)"];
                                                         });
                                                     })
                                                     ->required()
@@ -258,6 +292,7 @@ class TeacherResource extends Resource
                                             ->columns(2)
                                             ->minItems(1)
                                             ->required()
+                                            ->helperText('Teacher will only have access to students in these class sections')
                                             ->visible(function (Forms\Get $get) {
                                                 return $get('teacher_type') === 'secondary';
                                             }),
@@ -313,18 +348,86 @@ class TeacherResource extends Resource
 
                 Forms\Components\Group::make()
                     ->schema([
-                        Forms\Components\Section::make('Schedule Summary')
+                        Forms\Components\Section::make('Assignment Preview')
                             ->schema([
-                                Forms\Components\Placeholder::make('schedule_info')
+                                Forms\Components\Placeholder::make('assignment_preview')
                                     ->content(function (Forms\Get $get) {
-                                        if ($get('teacher_type') === 'primary') {
-                                            return 'As a primary teacher, you will be teaching all subjects to your assigned class.';
-                                        } elseif ($get('teacher_type') === 'secondary') {
-                                            return 'As a secondary teacher, you will teach your specialized subjects across multiple classes.';
-                                        } else {
-                                            return 'Please select a teacher type to see schedule information.';
+                                        $teacherType = $get('teacher_type');
+
+                                        if ($teacherType === 'primary') {
+                                            $gradeId = $get('grade_id');
+                                            $classSectionId = $get('class_section_id');
+
+                                            if ($gradeId && $classSectionId) {
+                                                $grade = Grade::with('subjects')->find($gradeId);
+                                                $classSection = ClassSection::find($classSectionId);
+                                                $studentCount = $classSection ? $classSection->students()->where('enrollment_status', 'active')->count() : 0;
+                                                $subjectCount = $grade ? $grade->subjects()->where('is_active', true)->count() : 0;
+
+                                                return "**Assignment Summary:**\n" .
+                                                       "• **Role:** Class Teacher\n" .
+                                                       "• **Grade:** " . ($grade ? $grade->name : 'N/A') . "\n" .
+                                                       "• **Class:** " . ($classSection ? $classSection->grade->name . ' - ' . $classSection->name : 'N/A') . "\n" .
+                                                       "• **Students:** {$studentCount}\n" .
+                                                       "• **Subjects:** {$subjectCount} (all subjects for this grade)\n" .
+                                                       "• **Access:** All students in assigned class section";
+                                            }
+
+                                            return "Select a grade and class section to see assignment preview.";
                                         }
-                                    }),
+
+                                        if ($teacherType === 'secondary') {
+                                            $assignments = $get('subject_classes') ?? [];
+                                            $isGradeTeacher = $get('is_grade_teacher');
+                                            $gradeId = $get('grade_id');
+
+                                            $content = "**Assignment Summary:**\n";
+                                            $content .= "• **Role:** Subject Teacher\n";
+
+                                            if ($isGradeTeacher && $gradeId) {
+                                                $grade = Grade::find($gradeId);
+                                                $content .= "• **Grade Responsibility:** " . ($grade ? $grade->name : 'N/A') . "\n";
+                                            }
+
+                                            if (!empty($assignments)) {
+                                                $totalStudents = 0;
+                                                $classCount = 0;
+                                                $subjectNames = [];
+                                                $classSectionIds = [];
+
+                                                foreach ($assignments as $assignment) {
+                                                    if (isset($assignment['subject_id']) && isset($assignment['class_section_id'])) {
+                                                        $subject = Subject::find($assignment['subject_id']);
+                                                        $classSection = ClassSection::find($assignment['class_section_id']);
+
+                                                        if ($subject) {
+                                                            $subjectNames[] = $subject->name;
+                                                        }
+
+                                                        if ($classSection && !in_array($classSection->id, $classSectionIds)) {
+                                                            $classSectionIds[] = $classSection->id;
+                                                            $totalStudents += $classSection->students()->where('enrollment_status', 'active')->count();
+                                                            $classCount++;
+                                                        }
+                                                    }
+                                                }
+
+                                                $uniqueSubjects = array_unique($subjectNames);
+
+                                                $content .= "• **Subjects:** " . implode(', ', $uniqueSubjects) . "\n";
+                                                $content .= "• **Classes:** {$classCount}\n";
+                                                $content .= "• **Total Students:** {$totalStudents}\n";
+                                                $content .= "• **Access:** Only students from assigned class sections";
+                                            } else {
+                                                $content .= "Add subject-class assignments to see preview.";
+                                            }
+
+                                            return $content;
+                                        }
+
+                                        return "Select a teacher type to see assignment information.";
+                                    })
+                                    ->columnSpanFull(),
                             ]),
 
                         Forms\Components\Section::make('Additional Information')
@@ -364,22 +467,34 @@ class TeacherResource extends Resource
                     ->sortable()
                     ->description(fn (Teacher $record): string => $record->specialization ? 'Secondary Teacher' : 'Primary Teacher'),
 
-                Tables\Columns\TextColumn::make('subjects.name')
-                    ->badge()
-                    ->label('Subjects')
-                    ->visible(fn ($livewire) => !in_array($livewire->getTableFilterState('filter_teacher_type')['value'] ?? '', ['primary'])),
+                Tables\Columns\TextColumn::make('grade.name')
+                    ->label('Assigned Grade')
+                    ->searchable()
+                    ->sortable()
+                    ->placeholder('Not Assigned'),
 
                 Tables\Columns\TextColumn::make('classSection.name')
                     ->label('Class Section')
-                    ->placeholder('N/A'),
+                    ->placeholder('Not Assigned')
+                    ->getStateUsing(function (Teacher $record): ?string {
+                        if ($record->class_section_id && $record->classSection) {
+                            return $record->classSection->grade->name . ' - ' . $record->classSection->name;
+                        }
+                        return null;
+                    }),
 
                 Tables\Columns\ToggleColumn::make('is_grade_teacher')
                     ->label('Grade Teacher')
                     ->sortable(),
 
-                Tables\Columns\TextColumn::make('grade.name')
-                    ->label('Assigned Grade')
-                    ->searchable(),
+                Tables\Columns\ToggleColumn::make('is_class_teacher')
+                    ->label('Class Teacher')
+                    ->sortable(),
+
+                Tables\Columns\TextColumn::make('subjects.name')
+                    ->badge()
+                    ->label('Subjects')
+                    ->visible(fn ($livewire) => !in_array($livewire->getTableFilterState('filter_teacher_type')['value'] ?? '', ['primary'])),
 
                 Tables\Columns\TextColumn::make('phone')
                     ->searchable()
@@ -435,6 +550,9 @@ class TeacherResource extends Resource
                 Tables\Filters\TernaryFilter::make('is_grade_teacher')
                     ->label('Grade Teachers'),
 
+                Tables\Filters\TernaryFilter::make('is_class_teacher')
+                    ->label('Class Teachers'),
+
                 Tables\Filters\TernaryFilter::make('is_active')
                     ->label('Active Status'),
 
@@ -472,6 +590,36 @@ class TeacherResource extends Resource
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
                 Tables\Actions\ActionGroup::make([
+                    Tables\Actions\Action::make('viewAssignments')
+                        ->label('View Assignments')
+                        ->icon('heroicon-o-eye')
+                        ->color('info')
+                        ->modalHeading('Teacher Assignments')
+                        ->modalContent(function (Teacher $record) {
+                            $summary = $record->getTeachingSummary();
+                            $content = "<div class='space-y-4'>";
+                            $content .= "<div><strong>Teacher Type:</strong> {$summary['teacher_type']}</div>";
+                            $content .= "<div><strong>Assigned Grade:</strong> " . ($record->grade ? $record->grade->name : 'Not Assigned') . "</div>";
+                            $content .= "<div><strong>Class Section:</strong> " . ($record->classSection ? $record->classSection->name : 'Not Assigned') . "</div>";
+                            $content .= "<div><strong>Total Students:</strong> {$summary['total_students']}</div>";
+                            $content .= "<div><strong>Total Subjects:</strong> {$summary['total_subjects']}</div>";
+                            $content .= "<div><strong>Class Sections:</strong> {$summary['total_class_sections']}</div>";
+
+                            if (!$summary['assignments']->isEmpty()) {
+                                $content .= "<div><strong>Assignments:</strong><ul class='mt-2 space-y-1'>";
+                                foreach ($summary['assignments'] as $assignment) {
+                                    $classSection = $assignment['class_section'];
+                                    $subjects = $assignment['subjects']->pluck('name')->join(', ');
+                                    $studentCount = $assignment['student_count'];
+                                    $content .= "<li>• {$classSection->grade->name} - {$classSection->name} ({$studentCount} students)<br>&nbsp;&nbsp;Subjects: {$subjects}</li>";
+                                }
+                                $content .= "</ul></div>";
+                            }
+
+                            $content .= "</div>";
+                            return new \Illuminate\Support\HtmlString($content);
+                        }),
+
                     Tables\Actions\Action::make('assignSubjects')
                         ->label('Assign Subjects')
                         ->icon('heroicon-o-book-open')
@@ -488,61 +636,6 @@ class TeacherResource extends Resource
 
                             Notification::make()
                                 ->title('Subjects assigned successfully')
-                                ->success()
-                                ->send();
-                        }),
-
-                    Tables\Actions\Action::make('assignClassSections')
-                        ->label('Assign Class Sections')
-                        ->icon('heroicon-o-user-group')
-                        ->form([
-                            Forms\Components\Select::make('class_sections')
-                                ->label('Class Sections')
-                                ->multiple()
-                                ->options(function (Teacher $record) {
-                                    $query = ClassSection::query();
-
-                                    // Filter classes based on teacher type
-                                    if (empty($record->specialization)) {
-                                        // Primary teacher - show primary grades
-                                        $query->whereHas('grade', function($q) {
-                                            $q->whereIn('name', [
-                                                'Baby Class', 'Middle Class', 'Reception',
-                                                'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4',
-                                                'Grade 5', 'Grade 6', 'Grade 7'
-                                            ]);
-                                        });
-                                    } else {
-                                        // Secondary teacher - show secondary grades
-                                        $query->whereHas('grade', function($q) {
-                                            $q->whereIn('name', [
-                                                'Grade 8', 'Grade 9', 'Grade 10',
-                                                'Grade 11', 'Grade 12'
-                                            ]);
-                                        });
-                                    }
-
-                                    return $query->with('grade')->get()->mapWithKeys(function ($section) {
-                                        $gradeName = $section->grade->name ?? '';
-                                        $gradeNumber = str_replace('Grade ', '', $gradeName);
-                                        return [$section->id => "{$gradeNumber} {$section->name}"];
-                                    });
-                                })
-                                ->preload()
-                                ->required(),
-                        ])
-                        ->action(function (Teacher $record, array $data): void {
-                            // If assigning as class teacher, update class sections
-                            $record->update(['is_class_teacher' => true]);
-
-                            // Update the class sections
-                            foreach ($data['class_sections'] as $classSectionId) {
-                                ClassSection::where('id', $classSectionId)
-                                    ->update(['class_teacher_id' => $record->id]);
-                            }
-
-                            Notification::make()
-                                ->title('Class sections assigned successfully')
                                 ->success()
                                 ->send();
                         }),
@@ -668,6 +761,7 @@ class TeacherResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()
+            ->with(['grade', 'classSection.grade']) // Eager load relationships
             ->withoutGlobalScopes([
                 SoftDeletingScope::class,
             ]);
@@ -703,54 +797,47 @@ class TeacherResource extends Resource
         return "TCH-{$yearMonth}{$formattedNumber}";
     }
 
-    public function afterSave(array $data): void
-    {
-        /** @var Teacher $teacher */
-        $teacher = $this->record;
-
-        // Handle primary teachers
-        if (isset($data['teacher_type']) && $data['teacher_type'] === 'primary' && isset($data['primary_class_section_id'])) {
-            // Set the teacher for the assigned class section
-            $classSection = ClassSection::find($data['primary_class_section_id']);
-            if ($classSection) {
-                $classSection->update(['class_teacher_id' => $teacher->id]);
-                $teacher->update(['class_section_id' => $data['primary_class_section_id']]);
-            }
-        }
-
-        // Handle secondary teachers
-        if (isset($data['teacher_type']) && $data['teacher_type'] === 'secondary' && isset($data['subject_classes'])) {
-            // Clear existing subject teachings for this teacher
-            $teacher->subjectTeachings()->delete();
-
-            // Add new subject teachings
-            foreach ($data['subject_classes'] as $assignment) {
-                $teacher->subjectTeachings()->create([
-                    'subject_id' => $assignment['subject_id'],
-                    'class_section_id' => $assignment['class_section_id'],
-                    'academic_year_id' => ClassSection::find($assignment['class_section_id'])->academic_year_id ?? null,
-                ]);
-            }
-
-            // Sync subjects
-            $subjectIds = collect($data['subject_classes'])->pluck('subject_id')->unique()->toArray();
-            $teacher->subjects()->sync($subjectIds);
-        }
-    }
-
+    /**
+     * Handle form data before saving - FIXED VERSION
+     */
     protected function mutateFormDataBeforeSave(array $data): array
     {
         // Handle the different teacher types
-        if (isset($data['teacher_type']) && $data['teacher_type'] === 'primary') {
-            // For primary teachers, use the primary grade ID
-            $data['grade_id'] = $data['primary_grade_id'] ?? null;
-            $data['is_grade_teacher'] = true;
-            $data['is_class_teacher'] = true;
-            $data['class_section_id'] = $data['primary_class_section_id'] ?? null;
+        if (isset($data['teacher_type'])) {
+            if ($data['teacher_type'] === 'primary') {
+                // For primary teachers - ensure all required fields are set
+                $data['is_grade_teacher'] = true;
+                $data['is_class_teacher'] = true;
+                $data['specialization'] = null; // Primary teachers don't have specialization
+
+                // Ensure grade_id and class_section_id are properly set
+                // (They should already be set from the form, but let's be explicit)
+                if (!isset($data['grade_id']) || !$data['grade_id']) {
+                    throw new \Exception('Grade is required for primary teachers');
+                }
+
+                if (!isset($data['class_section_id']) || !$data['class_section_id']) {
+                    throw new \Exception('Class section is required for primary teachers');
+                }
+            } elseif ($data['teacher_type'] === 'secondary') {
+                // For secondary teachers
+                $data['is_class_teacher'] = false;
+                $data['class_section_id'] = null; // Secondary teachers aren't assigned to specific class sections initially
+
+                // Only set grade_id if they are a grade teacher
+                if (!($data['is_grade_teacher'] ?? false)) {
+                    $data['grade_id'] = null;
+                }
+
+                // Ensure specialization is set
+                if (!isset($data['specialization']) || !$data['specialization']) {
+                    throw new \Exception('Specialization is required for secondary teachers');
+                }
+            }
         }
 
         // Handle role assignment for users
-        if (isset($data['user_id']) && isset($data['teacher_type'])) {
+        if (isset($data['user_id'])) {
             $user = User::find($data['user_id']);
             if ($user) {
                 $user->update(['role_id' => RoleConstants::TEACHER]);
@@ -759,10 +846,102 @@ class TeacherResource extends Resource
 
         // Remove form-specific fields before saving
         unset($data['teacher_type']);
-        unset($data['primary_grade_id']);
-        unset($data['primary_class_section_id']);
         unset($data['subject_classes']);
+        unset($data['auto_assigned_subjects']);
 
         return $data;
+    }
+
+    /**
+     * Handle data after creating the teacher
+     */
+    protected function afterCreate(): void
+    {
+        $record = $this->record;
+        $data = $this->form->getRawState();
+
+        // Handle subject assignments for secondary teachers
+        if (isset($data['subject_classes']) && !empty($data['subject_classes'])) {
+            $currentAcademicYear = AcademicYear::where('is_active', true)->first();
+
+            foreach ($data['subject_classes'] as $assignment) {
+                if (isset($assignment['subject_id']) && isset($assignment['class_section_id'])) {
+                    // Create subject teaching assignment
+                    $record->subjectTeachings()->create([
+                        'subject_id' => $assignment['subject_id'],
+                        'class_section_id' => $assignment['class_section_id'],
+                        'academic_year_id' => $currentAcademicYear?->id,
+                    ]);
+                }
+            }
+        }
+
+        // For primary teachers, assign all subjects for their grade
+        if ($record->isPrimaryTeacher() && $record->grade_id && $record->class_section_id) {
+            $this->assignAllSubjectsToGrade($record);
+        }
+    }
+
+    /**
+     * Handle data after updating the teacher
+     */
+    protected function afterSave(): void
+    {
+        $record = $this->record;
+        $data = $this->form->getRawState();
+
+        // Only handle updates, not creation (afterCreate handles that)
+        if (!$this->record->wasRecentlyCreated) {
+            // Handle subject assignments for secondary teachers
+            if (isset($data['subject_classes'])) {
+                // Clear existing assignments
+                $record->subjectTeachings()->delete();
+
+                if (!empty($data['subject_classes'])) {
+                    $currentAcademicYear = AcademicYear::where('is_active', true)->first();
+
+                    foreach ($data['subject_classes'] as $assignment) {
+                        if (isset($assignment['subject_id']) && isset($assignment['class_section_id'])) {
+                            // Create subject teaching assignment
+                            $record->subjectTeachings()->create([
+                                'subject_id' => $assignment['subject_id'],
+                                'class_section_id' => $assignment['class_section_id'],
+                                'academic_year_id' => $currentAcademicYear?->id,
+                            ]);
+                        }
+                    }
+                }
+            }
+
+            // For primary teachers, assign all subjects for their grade
+            if ($record->isPrimaryTeacher() && $record->grade_id && $record->class_section_id) {
+                $this->assignAllSubjectsToGrade($record);
+            }
+        }
+    }
+
+    /**
+     * Assign all subjects to a primary teacher's grade
+     */
+    private function assignAllSubjectsToGrade(Teacher $teacher): void
+    {
+        if (!$teacher->grade || !$teacher->classSection) {
+            return;
+        }
+
+        $currentAcademicYear = AcademicYear::where('is_active', true)->first();
+        $subjects = $teacher->grade->subjects()->where('is_active', true)->get();
+
+        // Clear existing assignments
+        $teacher->subjectTeachings()->delete();
+
+        // Assign all subjects
+        foreach ($subjects as $subject) {
+            $teacher->subjectTeachings()->create([
+                'subject_id' => $subject->id,
+                'class_section_id' => $teacher->class_section_id,
+                'academic_year_id' => $currentAcademicYear?->id,
+            ]);
+        }
     }
 }

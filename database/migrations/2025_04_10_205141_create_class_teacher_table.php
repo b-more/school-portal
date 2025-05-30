@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('class_teacher', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('class_id')->nullable();
-            $table->unsignedBigInteger('employee_id')->nullable(); // Teacher
+            $table->unsignedBigInteger('teacher_id')->nullable(); // Teacher
             $table->string('role')->default('class_teacher');
             $table->boolean('is_primary')->default(true);
             $table->timestamps();

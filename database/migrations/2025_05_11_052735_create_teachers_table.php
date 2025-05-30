@@ -14,6 +14,8 @@ return new class extends Migration
          Schema::create('teachers', function (Blueprint $table) {
             $table->id();
             $table->UnsignedBigInteger('user_id')->nullable();
+            $table->UnsignedBigInteger('grade_id')->nullable();
+            $table->UnsignedBigInteger('class_section_id')->nullable();
             $table->string('name')->nullable();
             $table->boolean('is_grade_teacher')->default(false);
             $table->UnsignedBigInteger('role_id')->default(2); // Teacher role
@@ -26,7 +28,7 @@ return new class extends Migration
             $table->text('address')->nullable();
             $table->boolean('is_active')->default(true);
             $table->boolean('is_class_teacher')->default(false);
-            $table->UnsignedBigInteger('class_section_id')->nullable();
+           // $table->UnsignedBigInteger('class_section_id')->nullable();
             $table->string('profile_photo')->nullable();
             $table->text('biography')->nullable();
             $table->softDeletes();

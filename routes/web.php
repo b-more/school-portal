@@ -3,7 +3,7 @@
 use App\Http\Controllers\StudentFeeController;
 use App\Http\Controllers\HomeworkController;
 use App\Http\Controllers\FeeStatementsController;
-use App\Http\Controllers\PaymentStatementController; // ADD THIS LINE
+use App\Http\Controllers\PaymentStatementController;
 use App\Constants\RoleConstants;
 use Illuminate\Support\Facades\Route;
 
@@ -77,15 +77,46 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/debug/student-fee/{studentFee}', [StudentFeeController::class, 'debugFeeStructure'])->name('debug.student-fee');
 });
 
-// Homework and Submission Routes
+// Enhanced Homework and Submission Routes
 Route::middleware(['auth'])->group(function () {
-    Route::get('/homework/{homework}/download', [HomeworkController::class, 'download'])->name('homework.download');
-    Route::get('/homework/{homework}', [HomeworkController::class, 'show'])->name('homework.show');
-    Route::get('/homework/{homework}/download-file', [HomeworkController::class, 'downloadHomeworkFile'])->name('homework.download-file');
-    Route::get('/homework/{homework}/download-resources', [HomeworkController::class, 'downloadResources'])->name('homework.download-resources');
-    Route::get('/homework/{homework}/download-all-submissions', [HomeworkController::class, 'downloadAllSubmissions'])->name('homework.download-all-submissions');
-    Route::get('/homework-submissions/{submission}/download', [HomeworkController::class, 'downloadSubmission'])->name('homework-submissions.download');
-    Route::get('/filament/resources/homework-submissions/{record}/download', [HomeworkController::class, 'downloadSubmission'])->name('filament.resources.homework-submissions.download');
+    // Primary homework routes
+    Route::get('/homework/{homework}/download', [HomeworkController::class, 'download'])
+        ->name('homework.download');
+
+    Route::get('/homework/{homework}/view', [HomeworkController::class, 'view'])
+        ->name('homework.view');
+
+    Route::get('/homework/{homework}', [HomeworkController::class, 'show'])
+        ->name('homework.show');
+
+    // Alternative download routes (for backward compatibility)
+    Route::get('/homework/{homework}/download-file', [HomeworkController::class, 'downloadHomeworkFile'])
+        ->name('homework.download-file');
+
+    Route::get('/homework/{homework}/download-resources', [HomeworkController::class, 'downloadResources'])
+        ->name('homework.download-resources');
+
+    // Teacher-specific routes
+    Route::get('/homework/{homework}/download-all-submissions', [HomeworkController::class, 'downloadAllSubmissions'])
+        ->name('homework.download-all-submissions');
+
+    // Submission routes
+    Route::get('/homework-submissions/{submission}/download', [HomeworkController::class, 'downloadSubmission'])
+        ->name('homework-submissions.download');
+
+    Route::get('/filament/resources/homework-submissions/{record}/download', [HomeworkController::class, 'downloadSubmission'])
+        ->name('filament.resources.homework-submissions.download');
+
+    // API routes for homework
+    Route::get('/homework/grade/{gradeId}', [HomeworkController::class, 'getHomeworkByGrade'])
+        ->name('homework.by-grade');
+
+    Route::get('/homework/stats', [HomeworkController::class, 'getHomeworkStats'])
+        ->name('homework.stats');
+
+    // Get homework details (API)
+    Route::get('/homework/{homework}/details', [HomeworkController::class, 'show'])
+        ->name('homework.details');
 });
 
 // Payment Statement Routes

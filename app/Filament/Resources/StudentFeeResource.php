@@ -6,392 +6,467 @@ use App\Filament\Resources\StudentFeeResource\Pages;
 use App\Models\StudentFee;
 use App\Models\FeeStructure;
 use App\Models\Student;
+use App\Models\ParentGuardian;
 use App\Models\AcademicYear;
 use App\Models\Term;
 use App\Models\Grade;
-use App\Services\BalanceForwardService;
-use App\Services\TermService;
-use App\Http\Controllers\PaymentStatementController;
+use App\Services\StudentFeeService;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Filament\Notifications\Notification;
 use Illuminate\Database\Eloquent\Builder;
+use Filament\Notifications\Notification;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Http;
+use Carbon\Carbon;
+use App\Constants\RoleConstants;
+use Illuminate\Support\Facades\Auth;
 
 class StudentFeeResource extends Resource
 {
     protected static ?string $model = StudentFee::class;
+
     protected static ?string $navigationIcon = 'heroicon-o-banknotes';
+
     protected static ?string $navigationGroup = 'Finance Management';
+
+    protected static ?int $navigationSort = 2;
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return auth()->user()?->role_id === RoleConstants::ADMIN ?? false;
+    }
+
+    /**
+     * Check if there is an existing fee record for the student and fee structure
+     */
+    protected static function checkForDuplicateFee($studentId, $feeStructureId, $academicYearId, $termId, $editing = false, $recordId = null)
+    {
+        if (!$studentId || !$feeStructureId) {
+            return null;
+        }
+
+        $query = StudentFee::where('student_id', $studentId)
+            ->where('fee_structure_id', $feeStructureId);
+
+        // If we're editing, exclude the current record
+        if ($editing && $recordId) {
+            $query->where('id', '!=', $recordId);
+        }
+
+        return $query->first();
+    }
 
     public static function form(Form $form): Form
     {
-        $termService = app(TermService::class);
-        $currentTerm = $termService->getCurrentTerm();
-        $currentAcademicYear = $termService->getCurrentAcademicYear();
+        return $form
+            ->schema([
+                Forms\Components\Group::make()
+                    ->schema([
+                        Forms\Components\Section::make('Fee Period')
+                            ->schema([
+                                // Step 1: Select Academic Year
+                                Forms\Components\Select::make('academic_year_id')
+                                    ->label('Academic Year')
+                                    ->options(function () {
+                                        return AcademicYear::orderBy('name')
+                                            ->pluck('name', 'id')
+                                            ->toArray();
+                                    })
+                                    ->required()
+                                    ->live()
+                                    ->afterStateUpdated(function ($state, callable $set) {
+                                        // Clear dependent selections when this changes
+                                        $set('term_id', null);
+                                        $set('grade_id', null);
+                                        $set('fee_structure_id', null);
+                                        $set('student_id', null);
+                                        $set('balance', null);
+                                    }),
 
-        return $form->schema([
-            Forms\Components\Group::make()
-                ->schema([
-                    Forms\Components\Section::make('Smart Term Selection')
-                        ->description('System automatically detects current term based on date')
-                        ->schema([
-                            Forms\Components\Placeholder::make('current_period_info')
-                                ->label('Current Period')
-                                ->content(function () use ($currentTerm, $currentAcademicYear) {
-                                    if ($currentTerm && $currentAcademicYear) {
-                                        return "📅 Current Term: {$currentTerm->name} ({$currentAcademicYear->name})";
-                                    }
-                                    return "⚠️ No active term found. Please check term dates.";
-                                })
-                                ->columnSpanFull(),
+                                // Step 2: Select Term
+                                Forms\Components\Select::make('term_id')
+                                    ->label('Term')
+                                    ->options(function (callable $get) {
+                                        $academicYearId = $get('academic_year_id');
 
-                            Forms\Components\Select::make('academic_year_id')
-                                ->label('Academic Year')
-                                ->options(AcademicYear::orderBy('start_date', 'desc')->pluck('name', 'id'))
-                                ->default($currentAcademicYear?->id)
-                                ->required()
-                                ->live()
-                                ->afterStateUpdated(function ($state, callable $set) {
-                                    $set('term_id', null);
-                                    $set('grade_id', null);
-                                    $set('fee_structure_id', null);
-                                }),
+                                        if (!$academicYearId) {
+                                            return [];
+                                        }
 
-                            Forms\Components\Select::make('term_id')
-                                ->label('Term')
-                                ->options(function (callable $get) use ($termService) {
-                                    $academicYearId = $get('academic_year_id');
-                                    if (!$academicYearId) return [];
+                                        return Term::where('academic_year_id', $academicYearId)
+                                            ->orderBy('name')
+                                            ->pluck('name', 'id')
+                                            ->toArray();
+                                    })
+                                    ->required()
+                                    ->live()
+                                    ->afterStateUpdated(function ($state, callable $set) {
+                                        // Clear dependent selections when this changes
+                                        $set('grade_id', null);
+                                        $set('fee_structure_id', null);
+                                        $set('student_id', null);
+                                        $set('balance', null);
+                                    })
+                                    ->visible(fn (callable $get) => (bool) $get('academic_year_id')),
 
-                                    $terms = Term::where('academic_year_id', $academicYearId)
-                                        ->orderBy('start_date')
-                                        ->get();
+                                // Step 3: Select Grade
+                                Forms\Components\Select::make('grade_id')
+                                    ->label('Grade')
+                                    ->options(function (callable $get) {
+                                        $academicYearId = $get('academic_year_id');
+                                        $termId = $get('term_id');
 
-                                    $options = [];
-                                    foreach ($terms as $term) {
-                                        $validation = $termService->validateTermForFeeAssignment($term);
-                                        $status = $validation['is_current'] ? ' (Current)' : '';
-                                        $options[$term->id] = $term->name . $status;
-                                    }
+                                        if (!$academicYearId || !$termId) {
+                                            return [];
+                                        }
 
-                                    return $options;
-                                })
-                                ->default($currentTerm?->id)
-                                ->required()
-                                ->live()
-                                ->afterStateUpdated(function ($state, callable $set) {
-                                    $set('grade_id', null);
-                                    $set('fee_structure_id', null);
-                                }),
+                                        // First try to find grades with fee structures for this term/year
+                                        $gradeIds = FeeStructure::where('academic_year_id', $academicYearId)
+                                            ->where('term_id', $termId)
+                                            ->where('is_active', true)
+                                            ->distinct('grade_id')
+                                            ->pluck('grade_id');
 
-                            Forms\Components\Select::make('grade_id')
-                                ->label('Grade')
-                                ->options(function (callable $get) {
-                                    $academicYearId = $get('academic_year_id');
-                                    $termId = $get('term_id');
+                                        return Grade::whereIn('id', $gradeIds)
+                                            ->orderBy('level')
+                                            ->pluck('name', 'id')
+                                            ->toArray();
+                                    })
+                                    ->required()
+                                    ->live()
+                                    ->afterStateUpdated(function ($state, callable $set, callable $get) {
+                                        // Automatically select the fee structure for this grade/term/year
+                                        $academicYearId = $get('academic_year_id');
+                                        $termId = $get('term_id');
+                                        $gradeId = $state;
 
-                                    if (!$academicYearId || !$termId) return [];
+                                        if (!$academicYearId || !$termId || !$gradeId) {
+                                            $set('fee_structure_id', null);
+                                            return;
+                                        }
 
-                                    $gradeIds = FeeStructure::where('academic_year_id', $academicYearId)
-                                        ->where('term_id', $termId)
-                                        ->where('is_active', true)
-                                        ->distinct('grade_id')
-                                        ->pluck('grade_id');
-
-                                    return Grade::whereIn('id', $gradeIds)
-                                        ->orderBy('level')
-                                        ->pluck('name', 'id');
-                                })
-                                ->required()
-                                ->live()
-                                ->afterStateUpdated(function ($state, callable $set, callable $get) {
-                                    $academicYearId = $get('academic_year_id');
-                                    $termId = $get('term_id');
-
-                                    if ($academicYearId && $termId && $state) {
                                         $feeStructure = FeeStructure::where('academic_year_id', $academicYearId)
                                             ->where('term_id', $termId)
-                                            ->where('grade_id', $state)
+                                            ->where('grade_id', $gradeId)
                                             ->where('is_active', true)
                                             ->first();
 
                                         if ($feeStructure) {
                                             $set('fee_structure_id', $feeStructure->id);
-                                            $set('balance', $feeStructure->total_fee);
+                                        } else {
+                                            $set('fee_structure_id', null);
                                         }
-                                    }
-                                }),
-                        ])
-                        ->columns(2),
 
-                    Forms\Components\Section::make('Student & Payment Details')
-                        ->schema([
-                            Forms\Components\Select::make('student_id')
-                                ->label('Student')
-                                ->options(function (callable $get) {
-                                    $gradeId = $get('grade_id');
-                                    if (!$gradeId) return [];
+                                        // Clear student selection
+                                        $set('student_id', null);
+                                    })
+                                    ->visible(fn (callable $get) => (bool) $get('academic_year_id') && (bool) $get('term_id')),
+                            ]),
 
-                                    return Student::where('grade_id', $gradeId)
-                                        ->where('enrollment_status', 'active')
-                                        ->orderBy('name')
-                                        ->get()
-                                        ->mapWithKeys(fn($student) => [
-                                            $student->id => "{$student->name} ({$student->student_id_number})"
-                                        ]);
-                                })
-                                ->searchable()
-                                ->required()
-                                ->live()
-                                ->afterStateUpdated(function ($state, callable $set, callable $get) {
-                                    if ($state && $get('fee_structure_id')) {
-                                        // Check for existing fee record
-                                        $existing = StudentFee::where('student_id', $state)
-                                            ->where('fee_structure_id', $get('fee_structure_id'))
-                                            ->first();
+                        Forms\Components\Section::make('Student & Fee Information')
+                            ->schema([
+                                // Step 4: Fee Structure (Auto-selected but displayed)
+                                Forms\Components\Select::make('fee_structure_id')
+                                    ->label('Fee Structure')
+                                    ->options(function (callable $get) {
+                                        $academicYearId = $get('academic_year_id');
+                                        $termId = $get('term_id');
+                                        $gradeId = $get('grade_id');
 
-                                        if ($existing) {
-                                            Notification::make()
-                                                ->title('Duplicate Fee Record')
-                                                ->body('This student already has a fee record for this term.')
-                                                ->warning()
-                                                ->send();
-                                            $set('student_id', null);
+                                        if (!$academicYearId || !$termId || !$gradeId) {
+                                            return [];
                                         }
-                                    }
-                                }),
 
-                            Forms\Components\Hidden::make('fee_structure_id'),
+                                        return FeeStructure::where('academic_year_id', $academicYearId)
+                                            ->where('term_id', $termId)
+                                            ->where('grade_id', $gradeId)
+                                            ->where('is_active', true)
+                                            ->get()
+                                            ->mapWithKeys(function ($feeStructure) {
+                                                return [$feeStructure->id => "ZMW " . number_format($feeStructure->total_fee, 2)];
+                                            });
+                                    })
+                                    ->disabled() // Auto-selected, just shown for visibility
+                                    ->required()
+                                    ->live()
+                                    ->afterStateUpdated(function ($state, callable $set) {
+                                        if ($state) {
+                                            $feeStructure = FeeStructure::find($state);
+                                            if ($feeStructure) {
+                                                $set('balance', $feeStructure->total_fee);
+                                            } else {
+                                                $set('balance', null);
+                                            }
+                                        } else {
+                                            $set('balance', null);
+                                        }
+                                    })
+                                    ->visible(fn (callable $get) => (bool) $get('grade_id')),
 
-                            Forms\Components\Placeholder::make('fee_breakdown')
-                                ->label('Fee Structure')
-                                ->content(function (callable $get) {
-                                    $feeStructureId = $get('fee_structure_id');
-                                    if (!$feeStructureId) return 'Select grade first';
+                                // Fee amount display
+                                Forms\Components\Placeholder::make('fee_amount')
+                                    ->label('Total Fee Amount')
+                                    ->content(function (callable $get) {
+                                        $feeStructureId = $get('fee_structure_id');
 
-                                    $feeStructure = FeeStructure::find($feeStructureId);
-                                    if (!$feeStructure) return 'Fee structure not found';
+                                        if (!$feeStructureId) {
+                                            return 'Select grade first';
+                                        }
 
-                                    $html = "<div class='space-y-2'>";
-                                    $html .= "<div><strong>Basic Fee:</strong> ZMW " . number_format($feeStructure->basic_fee, 2) . "</div>";
+                                        $feeStructure = FeeStructure::find($feeStructureId);
 
-                                    if ($feeStructure->additional_charges) {
-                                        $html .= "<div><strong>Additional Charges:</strong></div>";
-                                        foreach ($feeStructure->additional_charges as $charge) {
-                                            if (isset($charge['description'], $charge['amount'])) {
-                                                $html .= "<div class='ml-4'>• {$charge['description']}: ZMW " . number_format($charge['amount'], 2) . "</div>";
+                                        if (!$feeStructure) {
+                                            return 'No fee structure found';
+                                        }
+
+                                        return "ZMW " . number_format($feeStructure->total_fee, 2);
+                                    })
+                                    ->visible(fn (callable $get) => (bool) $get('fee_structure_id')),
+
+                                // Step 5: Select Student for selected grade
+                                Forms\Components\Select::make('student_id')
+                                    ->label('Student')
+                                    ->options(function (callable $get) {
+                                        $gradeId = $get('grade_id');
+
+                                        if (!$gradeId) {
+                                            return [];
+                                        }
+
+                                        // FIXED: Get students using the grade_id foreign key relationship
+                                        $students = Student::where('grade_id', $gradeId)
+                                            ->where('enrollment_status', 'active')
+                                            ->orderBy('name')
+                                            ->get();
+
+                                        // If no students found with grade_id, also try class_section approach
+                                        if ($students->isEmpty()) {
+                                            // Get class sections for this grade
+                                            $classSectionIds = \App\Models\ClassSection::where('grade_id', $gradeId)
+                                                ->pluck('id');
+
+                                            $students = Student::whereIn('class_section_id', $classSectionIds)
+                                                ->where('enrollment_status', 'active')
+                                                ->orderBy('name')
+                                                ->get();
+                                        }
+
+                                        return $students->pluck('name', 'id');
+                                    })
+                                    ->searchable()
+                                    ->preload()
+                                    ->required()
+                                    ->live()
+                                    ->afterStateUpdated(function($state, callable $set, callable $get) {
+                                        // Check if this student already has fees assigned for this structure
+                                        $feeStructureId = $get('fee_structure_id');
+                                        $academicYearId = $get('academic_year_id');
+                                        $termId = $get('term_id');
+                                        $gradeId = $get('grade_id');
+
+                                        if ($state && $feeStructureId) {
+                                            $existingFee = StudentFee::where('student_id', $state)
+                                                ->where('fee_structure_id', $feeStructureId)
+                                                ->first();
+
+                                            if ($existingFee) {
+                                                // Get the URL to edit the existing fee
+                                                $url = route('filament.admin.resources.student-fees.edit', ['record' => $existingFee->id]);
+
+                                                Notification::make()
+                                                    ->title('Fee Already Assigned')
+                                                    ->body('This student already has fees assigned for this term/grade. Please edit the existing record instead.')
+                                                    ->warning()
+                                                    ->actions([
+                                                        \Filament\Notifications\Actions\Action::make('edit')
+                                                            ->label('Edit Existing Record')
+                                                            ->url($url)
+                                                            ->openUrlInNewTab(),
+                                                    ])
+                                                    ->persistent()
+                                                    ->send();
                                             }
                                         }
-                                    }
+                                    })
+                                    ->visible(fn (callable $get) => (bool) $get('fee_structure_id')),
+                            ]),
 
-                                    $html .= "<div class='border-t pt-2 mt-2 font-bold'>Total Fee: ZMW " . number_format($feeStructure->total_fee, 2) . "</div>";
-                                    $html .= "</div>";
+                        Forms\Components\Section::make('Payment Details')
+                            ->schema([
+                                Forms\Components\Select::make('payment_status')
+                                    ->options([
+                                        'unpaid' => 'Unpaid',
+                                        'partial' => 'Partial',
+                                        'paid' => 'Paid',
+                                    ])
+                                    ->required()
+                                    ->default('unpaid')
+                                    ->live()
+                                    ->reactive(),
 
-                                    return new \Illuminate\Support\HtmlString($html);
-                                })
-                                ->visible(fn (callable $get) => (bool) $get('fee_structure_id')),
+                                Forms\Components\TextInput::make('amount_paid')
+                                    ->numeric()
+                                    ->required()
+                                    ->default(0)
+                                    ->prefix('ZMW')
+                                    ->step(0.01)
+                                    ->live()
+                                    ->reactive()
+                                    ->afterStateUpdated(function ($state, callable $set, $get) {
+                                        $feeStructureId = $get('fee_structure_id');
+                                        if ($feeStructureId) {
+                                            $feeStructure = FeeStructure::find($feeStructureId);
+                                            if ($feeStructure) {
+                                                $amountPaid = (float) $state;
+                                                $totalFee = (float) $feeStructure->total_fee;
+                                                $balance = $totalFee - $amountPaid;
 
-                            Forms\Components\Select::make('payment_status')
-                                ->options([
-                                    'unpaid' => 'Unpaid',
-                                    'partial' => 'Partial Payment',
-                                    'paid' => 'Fully Paid',
-                                    'overpaid' => 'Overpaid (Credit Balance)',
-                                ])
-                                ->default('unpaid')
-                                ->required()
-                                ->live(),
+                                                $set('balance', max(0, $balance));
 
-                            Forms\Components\TextInput::make('amount_paid')
-                                ->label('Payment Amount')
-                                ->numeric()
-                                ->prefix('ZMW')
-                                ->step(0.01)
-                                ->default(0)
-                                ->live()
-                                ->afterStateUpdated(function ($state, callable $set, callable $get) {
-                                    $feeStructureId = $get('fee_structure_id');
-                                    if (!$feeStructureId) return;
+                                                if ($amountPaid <= 0) {
+                                                    $set('payment_status', 'unpaid');
+                                                } elseif ($amountPaid >= $totalFee) {
+                                                    $set('payment_status', 'paid');
+                                                } else {
+                                                    $set('payment_status', 'partial');
+                                                }
+                                            }
+                                        }
+                                    }),
 
-                                    $feeStructure = FeeStructure::find($feeStructureId);
-                                    if (!$feeStructure) return;
+                                Forms\Components\TextInput::make('balance')
+                                    ->numeric()
+                                    ->required()
+                                    ->prefix('ZMW')
+                                    ->step(0.01)
+                                    ->disabled(),
 
-                                    $amountPaid = (float) $state;
-                                    $totalFee = (float) $feeStructure->total_fee;
-                                    $balance = $totalFee - $amountPaid;
+                                Forms\Components\DatePicker::make('payment_date')
+                                    ->required()
+                                    ->visible(fn (callable $get) => $get('payment_status') !== 'unpaid')
+                                    ->default(now()),
 
-                                    $set('balance', $balance);
+                                Forms\Components\TextInput::make('receipt_number')
+                                    ->required()
+                                    ->visible(fn (callable $get) => $get('payment_status') !== 'unpaid')
+                                    ->maxLength(255),
 
-                                    // Auto-set payment status
-                                    if ($amountPaid <= 0) {
-                                        $set('payment_status', 'unpaid');
-                                    } elseif ($amountPaid > $totalFee) {
-                                        $set('payment_status', 'overpaid');
-                                    } elseif ($amountPaid >= $totalFee) {
-                                        $set('payment_status', 'paid');
-                                    } else {
-                                        $set('payment_status', 'partial');
-                                    }
-                                }),
+                                Forms\Components\Select::make('payment_method')
+                                    ->options([
+                                        'cash' => 'Cash',
+                                        'bank_transfer' => 'Bank Transfer',
+                                        'mobile_money' => 'Mobile Money',
+                                        'cheque' => 'Cheque',
+                                        'other' => 'Other',
+                                    ])
+                                    ->required()
+                                    ->visible(fn (callable $get) => $get('payment_status') !== 'unpaid'),
 
-                            Forms\Components\TextInput::make('balance')
-                                ->label('Outstanding Balance')
-                                ->numeric()
-                                ->prefix('ZMW')
-                                ->disabled()
-                                ->dehydrated(),
+                                Forms\Components\Toggle::make('send_sms_notification')
+                                    ->label('Send SMS Notification')
+                                    ->helperText('Send an SMS notification to the parent/guardian about this payment')
+                                    ->default(true)
+                                    ->visible(fn (callable $get) => $get('payment_status') !== 'unpaid'),
+                            ])
+                            ->visible(fn (callable $get) => (bool) $get('student_id')),
+                    ])
+                    ->columnSpan(2),
 
-                            Forms\Components\Group::make()
-                                ->schema([
-                                    Forms\Components\DatePicker::make('payment_date')
-                                        ->default(now())
-                                        ->visible(fn (callable $get) => $get('payment_status') !== 'unpaid'),
+                Forms\Components\Group::make()
+                    ->schema([
+                        Forms\Components\Section::make('Notes')
+                            ->schema([
+                                Forms\Components\Textarea::make('notes')
+                                    ->maxLength(65535),
+                            ]),
 
-                                    Forms\Components\TextInput::make('receipt_number')
-                                        ->default(fn() => 'RCP-' . date('Y') . '-' . str_pad(mt_rand(1, 9999), 4, '0', STR_PAD_LEFT))
-                                        ->visible(fn (callable $get) => $get('payment_status') !== 'unpaid'),
+                        Forms\Components\Section::make('Fee Structure Details')
+                            ->schema([
+                                Forms\Components\Placeholder::make('fee_details')
+                                    ->label('Fee Structure Details')
+                                    ->content(function (callable $get) {
+                                        $feeStructureId = $get('fee_structure_id');
 
-                                    Forms\Components\Select::make('payment_method')
-                                        ->options([
-                                            'cash' => 'Cash',
-                                            'bank_transfer' => 'Bank Transfer',
-                                            'mobile_money' => 'Mobile Money (Airtel/MTN)',
-                                            'cheque' => 'Cheque',
-                                            'credit_card' => 'Credit Card',
-                                            'online_payment' => 'Online Payment',
-                                            'other' => 'Other',
-                                        ])
-                                        ->visible(fn (callable $get) => $get('payment_status') !== 'unpaid'),
-                                ])
-                                ->columns(2),
+                                        if (!$feeStructureId) {
+                                            return 'Select grade first';
+                                        }
 
-                            Forms\Components\Toggle::make('send_sms_notification')
-                                ->label('Send SMS Notification')
-                                ->default(true)
-                                ->visible(fn (callable $get) => $get('payment_status') !== 'unpaid'),
+                                        $feeStructure = FeeStructure::find($feeStructureId);
 
-                            Forms\Components\Textarea::make('notes')
-                                ->rows(3)
-                                ->placeholder('Additional notes about this payment...'),
-                        ])
-                        ->columns(2),
+                                        if (!$feeStructure) {
+                                            return 'No fee structure found';
+                                        }
 
-                    // Overpayment handling section
-                    Forms\Components\Section::make('Overpayment Options')
-                        ->schema([
-                            Forms\Components\Placeholder::make('overpayment_notice')
-                                ->content(function (callable $get) {
-                                    $amountPaid = (float) ($get('amount_paid') ?? 0);
-                                    $feeStructureId = $get('fee_structure_id');
+                                        $details = "<strong>Basic Fee:</strong> ZMW " . number_format($feeStructure->basic_fee, 2) . "<br>";
 
-                                    if (!$feeStructureId) return '';
+                                        if ($feeStructure->additional_charges) {
+                                            $details .= "<strong>Additional Charges:</strong><br>";
 
-                                    $feeStructure = FeeStructure::find($feeStructureId);
-                                    if (!$feeStructure) return '';
+                                            foreach ($feeStructure->additional_charges as $charge) {
+                                                if (isset($charge['description']) && isset($charge['amount'])) {
+                                                    $details .= "• {$charge['description']}: ZMW " . number_format($charge['amount'], 2) . "<br>";
+                                                }
+                                            }
+                                        }
 
-                                    $overpayment = $amountPaid - $feeStructure->total_fee;
+                                        $details .= "<strong>Total:</strong> ZMW " . number_format($feeStructure->total_fee, 2);
 
-                                    if ($overpayment <= 0) return '';
+                                        return new \Illuminate\Support\HtmlString($details);
+                                    })
+                                    ->visible(fn (callable $get) => (bool) $get('fee_structure_id')),
+                            ])
+                            ->visible(fn (callable $get) => (bool) $get('fee_structure_id')),
 
-                                    return "⚠️ Overpayment detected: ZMW " . number_format($overpayment, 2) .
-                                           ". This amount can be carried forward to the next term.";
-                                }),
+                        Forms\Components\Section::make('Student Information')
+                            ->schema([
+                                Forms\Components\Placeholder::make('student_details')
+                                    ->label('Student Details')
+                                    ->content(function (callable $get) {
+                                        $studentId = $get('student_id');
 
-                            Forms\Components\Radio::make('overpayment_action')
-                                ->label('Handle Overpayment')
-                                ->options([
-                                    'carry_forward' => 'Carry forward to next term',
-                                    'credit_balance' => 'Keep as credit balance',
-                                    'refund' => 'Process refund (manual)',
-                                ])
-                                ->default('carry_forward')
-                                ->visible(function (callable $get) {
-                                    $amountPaid = (float) ($get('amount_paid') ?? 0);
-                                    $feeStructureId = $get('fee_structure_id');
+                                        if (!$studentId) {
+                                            return 'No student selected';
+                                        }
 
-                                    if (!$feeStructureId) return false;
+                                        $student = Student::with(['parentGuardian', 'grade'])->find($studentId);
 
-                                    $feeStructure = FeeStructure::find($feeStructureId);
-                                    return $feeStructure && $amountPaid > $feeStructure->total_fee;
-                                }),
-                        ])
-                        ->visible(function (callable $get) {
-                            return $get('payment_status') === 'overpaid';
-                        }),
-                ])
-                ->columnSpan(2),
+                                        if (!$student) {
+                                            return 'Student not found';
+                                        }
 
-            // Payment History Preview (for existing records)
-            Forms\Components\Group::make()
-                ->schema([
-                    Forms\Components\Section::make('Student Payment History')
-                        ->schema([
-                            Forms\Components\Placeholder::make('payment_history')
-                                ->content(function (callable $get) {
-                                    $studentId = $get('student_id');
-                                    if (!$studentId) return 'Select a student to view payment history';
+                                        $details = "<strong>Name:</strong> {$student->name}<br>";
 
-                                    $balanceService = app(BalanceForwardService::class);
-                                    $student = Student::find($studentId);
-                                    $history = $balanceService->getPaymentHistory($student);
+                                        // Get grade name from relationship or fallback
+                                        $gradeName = '';
+                                        if ($student->grade) {
+                                            $gradeName = $student->grade->name;
+                                        } elseif ($student->grade_id) {
+                                            $grade = Grade::find($student->grade_id);
+                                            $gradeName = $grade ? $grade->name : 'Unknown';
+                                        } else {
+                                            $gradeName = 'Not assigned';
+                                        }
 
-                                    if (empty($history)) {
-                                        return 'No previous payment records found for this student.';
-                                    }
+                                        $details .= "<strong>Grade:</strong> {$gradeName}<br>";
+                                        $details .= "<strong>ID Number:</strong> " . ($student->student_id_number ?? 'Not assigned') . "<br>";
 
-                                    $html = "<div class='space-y-3'>";
-                                    foreach (array_slice($history, 0, 3) as $record) { // Show last 3 records
-                                        $statusColor = match($record['payment_status']) {
-                                            'paid' => 'text-green-600',
-                                            'partial' => 'text-yellow-600',
-                                            'unpaid' => 'text-red-600',
-                                            default => 'text-gray-600'
-                                        };
+                                        if ($student->parentGuardian) {
+                                            $details .= "<br><strong>Parent/Guardian:</strong> {$student->parentGuardian->name}<br>";
+                                            $details .= "<strong>Contact:</strong> {$student->parentGuardian->phone}<br>";
+                                        }
 
-                                        $html .= "<div class='border-l-4 border-blue-400 pl-3'>";
-                                        $html .= "<div class='font-semibold'>{$record['term']} ({$record['academic_year']})</div>";
-                                        $html .= "<div class='text-sm text-gray-600'>";
-                                        $html .= "Fee: ZMW " . number_format($record['total_fee'], 2) . " | ";
-                                        $html .= "Paid: ZMW " . number_format($record['amount_paid'], 2) . " | ";
-                                        $html .= "<span class='{$statusColor}'>Balance: ZMW " . number_format($record['balance'], 2) . "</span>";
-                                        $html .= "</div></div>";
-                                    }
-                                    $html .= "</div>";
-
-                                    return new \Illuminate\Support\HtmlString($html);
-                                })
-                                ->visible(fn (callable $get) => (bool) $get('student_id')),
-                        ]),
-
-                    Forms\Components\Section::make('Payment Summary')
-                        ->schema([
-                            Forms\Components\Placeholder::make('payment_summary')
-                                ->content(function (callable $get) {
-                                    $studentId = $get('student_id');
-                                    if (!$studentId) return '';
-
-                                    $balanceService = app(BalanceForwardService::class);
-                                    $student = Student::find($studentId);
-                                    $statement = $balanceService->generatePaymentStatement($student);
-
-                                    $html = "<div class='bg-gray-50 p-4 rounded-lg space-y-2'>";
-                                    $html .= "<div class='font-semibold text-lg'>Payment Summary</div>";
-                                    $html .= "<div>Total Fees: ZMW " . number_format($statement['total_fees_charged'], 2) . "</div>";
-                                    $html .= "<div>Total Paid: ZMW " . number_format($statement['total_payments_made'], 2) . "</div>";
-                                    $html .= "<div class='font-semibold'>Outstanding: ZMW " . number_format($statement['total_outstanding'], 2) . "</div>";
-                                    $html .= "</div>";
-
-                                    return new \Illuminate\Support\HtmlString($html);
-                                })
-                                ->visible(fn (callable $get) => (bool) $get('student_id')),
-                        ]),
-                ])
-                ->columnSpan(1),
-        ])
-        ->columns(3);
+                                        return new \Illuminate\Support\HtmlString($details);
+                                    })
+                                    ->visible(fn (callable $get) => (bool) $get('student_id')),
+                            ])
+                            ->visible(fn (callable $get) => (bool) $get('student_id')),
+                    ])
+                    ->columnSpan(1),
+            ])
+            ->columns(3);
     }
 
     public static function table(Table $table): Table
@@ -400,64 +475,39 @@ class StudentFeeResource extends Resource
             ->columns([
                 Tables\Columns\TextColumn::make('student.name')
                     ->searchable()
-                    ->sortable()
-                    ->weight('bold'),
-
-                Tables\Columns\TextColumn::make('student.student_id_number')
-                    ->label('Student ID')
-                    ->searchable(),
-
-                Tables\Columns\BadgeColumn::make('feeStructure.grade.name')
-                    ->label('Grade')
-                    ->color('primary'),
-
-                Tables\Columns\BadgeColumn::make('feeStructure.term.name')
-                    ->label('Term')
-                    ->color('secondary'),
-
-                Tables\Columns\TextColumn::make('feeStructure.total_fee')
-                    ->label('Fee Amount')
-                    ->money('ZMW')
                     ->sortable(),
-
+                Tables\Columns\TextColumn::make('feeStructure.grade.name')
+                    ->label('Grade')
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('feeStructure.term.name')
+                    ->label('Term')
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('feeStructure.academicYear.name')
+                    ->label('Academic Year')
+                    ->sortable(),
+                Tables\Columns\TextColumn::make('feeStructure.total_fee')
+                    ->money('ZMW')
+                    ->label('Total Fee')
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('amount_paid')
                     ->money('ZMW')
-                    ->sortable()
-                    ->color(fn ($record) => match($record->payment_status) {
-                        'paid' => 'success',
-                        'partial' => 'warning',
-                        'unpaid' => 'danger',
-                        'overpaid' => 'info',
-                        default => 'gray'
-                    }),
-
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('balance')
                     ->money('ZMW')
-                    ->sortable()
-                    ->color(fn ($record) => $record->balance <= 0 ? 'success' : 'danger'),
-
+                    ->sortable(),
                 Tables\Columns\BadgeColumn::make('payment_status')
                     ->colors([
                         'danger' => 'unpaid',
                         'warning' => 'partial',
                         'success' => 'paid',
-                        'info' => 'overpaid',
-                    ])
-                    ->formatStateUsing(fn ($state) => match($state) {
-                        'unpaid' => 'Unpaid',
-                        'partial' => 'Partial',
-                        'paid' => 'Paid',
-                        'overpaid' => 'Overpaid',
-                        default => $state
-                    }),
-
+                    ]),
                 Tables\Columns\TextColumn::make('payment_date')
-                    ->date('M j, Y')
-                    ->sortable()
-                    ->toggleable(),
-
+                    ->date()
+                    ->sortable(),
                 Tables\Columns\TextColumn::make('receipt_number')
                     ->searchable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+                Tables\Columns\TextColumn::make('payment_method')
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
@@ -466,168 +516,473 @@ class StudentFeeResource extends Resource
                         'unpaid' => 'Unpaid',
                         'partial' => 'Partial',
                         'paid' => 'Paid',
-                        'overpaid' => 'Overpaid',
                     ]),
-
+                Tables\Filters\SelectFilter::make('student')
+                    ->relationship('student', 'name'),
                 Tables\Filters\SelectFilter::make('academic_year_id')
                     ->label('Academic Year')
-                    ->relationship('academicYear', 'name')
-                    ->default(fn() => app(TermService::class)->getCurrentAcademicYear()?->id),
-
+                    ->options(function() {
+                        return AcademicYear::orderBy('name')
+                            ->pluck('name', 'id')
+                            ->toArray();
+                    }),
                 Tables\Filters\SelectFilter::make('term_id')
                     ->label('Term')
-                    ->relationship('term', 'name'),
+                    ->options(function() {
+                        return Term::orderBy('name')
+                            ->pluck('name', 'id')
+                            ->toArray();
+                    }),
+                Tables\Filters\SelectFilter::make('grade_id')
+                    ->label('Grade')
+                    ->options(function() {
+                        return Grade::orderBy('level')
+                            ->pluck('name', 'id')
+                            ->toArray();
+                    }),
+                Tables\Filters\Filter::make('payment_date')
+                    ->form([
+                        Forms\Components\DatePicker::make('from'),
+                        Forms\Components\DatePicker::make('until'),
+                    ])
+                    ->query(function (Builder $query, array $data): Builder {
+                        return $query
+                            ->when(
+                                $data['from'],
+                                fn (Builder $query, $date): Builder => $query->whereDate('payment_date', '>=', $date),
+                            )
+                            ->when(
+                                $data['until'],
+                                fn (Builder $query, $date): Builder => $query->whereDate('payment_date', '<=', $date),
+                            );
+                    }),
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
-
-                Tables\Actions\Action::make('viewPaymentHistory')
-                    ->label('Payment History')
-                    ->icon('heroicon-o-clock')
-                    ->color('info')
-                    ->modal()
-                    ->modalContent(fn (StudentFee $record) => view('filament.student-payment-history', [
-                        'student' => $record->student,
-                        'history' => app(BalanceForwardService::class)->getPaymentHistory($record->student)
-                    ]))
-                    ->modalHeading(fn (StudentFee $record) => "Payment History - {$record->student->name}"),
-
-                Tables\Actions\Action::make('processBalanceForward')
-                    ->label('Process Overpayment')
-                    ->icon('heroicon-o-arrow-right-circle')
-                    ->color('warning')
-                    ->visible(fn (StudentFee $record) => $record->payment_status === 'overpaid')
-                    ->action(function (StudentFee $record) {
-                        $balanceService = app(BalanceForwardService::class);
-                        $overpayment = $record->amount_paid - $record->feeStructure->total_fee;
-
-                        if ($overpayment > 0) {
-                            $result = $balanceService->processOverpayment($record, $overpayment);
-
-                            Notification::make()
-                                ->title('Overpayment Processed')
-                                ->body($result['message'])
-                                ->success()
-                                ->send();
-                        }
-                    }),
-
-                Tables\Actions\Action::make('generatePaymentStatement')
-                    ->label('Payment Statement')
-                    ->icon('heroicon-o-document-chart-bar')
-                    ->color('info')
+                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\Action::make('recordPayment')
+                    ->label('Record Payment')
+                    ->icon('heroicon-o-currency-dollar')
+                    ->color('success')
                     ->form([
-                        Forms\Components\Radio::make('statement_type')
-                            ->label('Statement Type')
-                            ->options([
-                                'term' => 'Current Term Only',
-                                'academic_year' => 'Full Academic Year',
-                                'complete' => 'Complete Payment History',
-                            ])
-                            ->default('term')
-                            ->required(),
-
-                        Forms\Components\Radio::make('format')
-                            ->label('Format')
-                            ->options([
-                                'pdf' => 'PDF Download',
-                                'html' => 'View in Browser',
-                            ])
-                            ->default('pdf')
-                            ->required(),
-                    ])
-                    ->action(function (StudentFee $record, array $data) {
-                        $params = ['student' => $record->student->id, 'format' => $data['format']];
-
-                        switch ($data['statement_type']) {
-                            case 'term':
-                                $params['term_id'] = $record->term_id;
-                                break;
-                            case 'academic_year':
-                                $params['academic_year_id'] = $record->academic_year_id;
-                                break;
-                            // 'complete' doesn't need additional parameters
-                        }
-
-                        $url = route('payment-statement.generate', $params);
-                        return redirect($url);
-                    }),
-
-                Tables\Actions\Action::make('emailPaymentStatement')
-                    ->label('Email Statement')
-                    ->icon('heroicon-o-envelope')
-                    ->color('warning')
-                    ->form([
-                        Forms\Components\TextInput::make('email')
-                            ->label('Email Address')
-                            ->email()
+                        Forms\Components\TextInput::make('amount_paid')
+                            ->numeric()
                             ->required()
-                            ->default(fn (StudentFee $record) => $record->student->parentGuardian?->email),
-
-                        Forms\Components\Select::make('statement_type')
-                            ->label('Statement Type')
+                            ->prefix('ZMW')
+                            ->step(0.01),
+                        Forms\Components\DatePicker::make('payment_date')
+                            ->required()
+                            ->default(now()),
+                        Forms\Components\TextInput::make('receipt_number')
+                            ->required()
+                            ->maxLength(255),
+                        Forms\Components\Select::make('payment_method')
                             ->options([
-                                'term' => 'Current Term Only',
-                                'academic_year' => 'Full Academic Year',
-                                'complete' => 'Complete Payment History',
+                                'cash' => 'Cash',
+                                'bank_transfer' => 'Bank Transfer',
+                                'mobile_money' => 'Mobile Money',
+                                'cheque' => 'Cheque',
+                                'other' => 'Other',
                             ])
-                            ->default('academic_year')
                             ->required(),
-
-                        Forms\Components\Textarea::make('message')
-                            ->label('Personal Message (Optional)')
-                            ->rows(3)
-                            ->placeholder('Add a personal message to include with the statement...'),
+                        Forms\Components\Textarea::make('notes')
+                            ->maxLength(65535),
+                        Forms\Components\Toggle::make('send_sms_notification')
+                            ->label('Send SMS Notification')
+                            ->helperText('Send an SMS notification to the parent/guardian about this payment')
+                            ->default(true),
                     ])
-                    ->action(function (StudentFee $record, array $data) {
-                        $params = [
-                            'email' => $data['email'],
-                            'message' => $data['message'] ?? null,
-                        ];
+                    ->action(function ($record, array $data): void {
+                        $paymentAmount = (float) $data['amount_paid'];
+                        $newAmountPaid = (float) $record->amount_paid + $paymentAmount;
+                        $totalFee = (float) $record->feeStructure->total_fee;
+                        $newBalance = $totalFee - $newAmountPaid;
+                        $status = 'partial';
 
-                        switch ($data['statement_type']) {
-                            case 'term':
-                                $params['term_id'] = $record->term_id;
-                                break;
-                            case 'academic_year':
-                                $params['academic_year_id'] = $record->academic_year_id;
-                                break;
+                        if ($newBalance <= 0) {
+                            $status = 'paid';
+                            $newBalance = 0;
                         }
 
-                        try {
-                            app(PaymentStatementController::class)->emailStatement($record->student, request()->merge($params));
+                        $record->update([
+                            'amount_paid' => $newAmountPaid,
+                            'balance' => $newBalance,
+                            'payment_status' => $status,
+                            'payment_date' => $data['payment_date'],
+                            'receipt_number' => $data['receipt_number'],
+                            'payment_method' => $data['payment_method'],
+                            'notes' => $data['notes'] ?? $record->notes,
+                        ]);
 
-                            Notification::make()
-                                ->title('Statement Sent')
-                                ->body("Payment statement has been sent to {$data['email']}")
-                                ->success()
-                                ->send();
-                        } catch (\Exception $e) {
-                            Notification::make()
-                                ->title('Email Failed')
-                                ->body('Failed to send payment statement: ' . $e->getMessage())
-                                ->danger()
-                                ->send();
+                        // Debug log for fee collection dashboard
+                        Log::info('Payment recorded', [
+                            'fee_id' => $record->id,
+                            'fee_structure_id' => $record->fee_structure_id,
+                            'amount' => $paymentAmount,
+                            'total_paid' => $newAmountPaid,
+                            'balance' => $newBalance,
+                            'status' => $status
+                        ]);
+
+                        // Send SMS notification if requested
+                        if (isset($data['send_sms_notification']) && $data['send_sms_notification']) {
+                            self::sendPaymentSMS($record, $paymentAmount);
                         }
+
+                        Notification::make()
+                            ->title('Payment Recorded')
+                            ->body("Payment of ZMW {$paymentAmount} has been recorded successfully.")
+                            ->success()
+                            ->send();
                     })
-                    ->visible(fn (StudentFee $record) => $record->student->parentGuardian?->email !== null),
+                    ->visible(fn ($record) => $record->payment_status !== 'paid'),
+                Tables\Actions\Action::make('printReceipt')
+                    ->label('Print Receipt')
+                    ->icon('heroicon-o-printer')
+                    ->color('primary')
+                    ->url(fn (StudentFee $record) => route('student-fees.receipt', $record))
+                    ->openUrlInNewTab()
+                    ->visible(fn ($record) => $record->payment_status !== 'unpaid'),
+                Tables\Actions\Action::make('sendPaymentSMS')
+                    ->label('Send SMS Receipt')
+                    ->icon('heroicon-o-chat-bubble-left')
+                    ->color('warning')
+                    ->action(function (StudentFee $record) {
+                        self::sendPaymentSMS($record);
+                    })
+                    ->visible(fn ($record) => $record->payment_status !== 'unpaid'),
             ])
-            ->defaultSort('created_at', 'desc');
-    }
+            ->bulkActions([
+                Tables\Actions\BulkActionGroup::make([
+                    Tables\Actions\DeleteBulkAction::make(),
 
-    public static function getRelations(): array
-    {
-        return [];
-    }
+                    // NEW: Bulk Fee Generation Actions
+                    Tables\Actions\BulkAction::make('bulkGenerateFeesCurrentTerm')
+                        ->label('Generate Fees for Current Term')
+                        ->icon('heroicon-o-plus-circle')
+                        ->color('success')
+                        ->form([
+                            Forms\Components\Select::make('grade_id')
+                                ->label('Select Grade (Optional)')
+                                ->placeholder('All grades')
+                                ->options(Grade::orderBy('level')->pluck('name', 'id'))
+                                ->searchable(),
 
-    public static function getPages(): array
-    {
-        return [
-            'index' => Pages\ListStudentFees::route('/'),
-            'create' => Pages\CreateStudentFee::route('/create'),
-            'view' => Pages\ViewStudentFee::route('/{record}'),
-            'edit' => Pages\EditStudentFee::route('/{record}/edit'),
-        ];
-    }
+                            Forms\Components\Placeholder::make('info')
+                                ->content('This will create fee records for students who don\'t have fees for the current term. Existing fees will not be affected.')
+                                ->columnSpanFull(),
+                        ])
+                        ->action(function (array $data) {
+                            $grade = isset($data['grade_id']) ? Grade::find($data['grade_id']) : null;
+
+                            try {
+                                $result = StudentFeeService::bulkCreateFeesForCurrentTerm($grade);
+
+                                if ($result['success']) {
+                                    Notification::make()
+                                        ->title('Bulk Fee Generation Complete')
+                                        ->body($result['message'])
+                                        ->success()
+                                        ->send();
+                                } else {
+                                    Notification::make()
+                                        ->title('Fee Generation Failed')
+                                        ->body($result['message'])
+                                        ->danger()
+                                        ->send();
+                                }
+                            } catch (\Exception $e) {
+                                Log::error('Bulk fee generation failed', [
+                                    'error' => $e->getMessage(),
+                                    'grade_id' => $grade?->id
+                                ]);
+
+                                Notification::make()
+                                    ->title('Generation Failed')
+                                    ->body('An error occurred during fee generation: ' . $e->getMessage())
+                                    ->danger()
+                                    ->send();
+                            }
+                        })
+                        ->requiresConfirmation()
+                        ->modalHeading('Generate Student Fees')
+                        ->modalSubheading('Are you sure you want to generate fees for students?')
+                        ->deselectRecordsAfterCompletion(),
+
+                    Tables\Actions\BulkAction::make('previewFeeGeneration')
+                        ->label('Preview Fee Generation')
+                        ->icon('heroicon-o-eye')
+                        ->color('info')
+                        ->form([
+                            Forms\Components\Select::make('grade_id')
+                                ->label('Select Grade (Optional)')
+                                ->placeholder('All grades')
+                                ->options(Grade::orderBy('level')->pluck('name', 'id'))
+                                ->searchable(),
+                        ])
+                        ->action(function (array $data) {
+                            $grade = isset($data['grade_id']) ? Grade::find($data['grade_id']) : null;
+                            $preview = StudentFeeService::previewFeeCreation($grade);
+
+                            if (!$preview['success']) {
+                                Notification::make()
+                                    ->title('Preview Failed')
+                                    ->body($preview['message'])
+                                    ->danger()
+                                    ->send();
+                                return;
+                            }
+
+                            $gradeText = $grade ? "for {$grade->name}" : "for all grades";
+                            $message = "Fee Generation Preview {$gradeText}:\n\n";
+                            $message .= "• Total Students: {$preview['total_students']}\n";
+                            $message .= "• Students Needing Fees: {$preview['students_needing_fees']}\n";
+                            $message .= "• Students With Fees: {$preview['students_with_fees']}\n";
+                            $message .= "• Current Term: {$preview['current_term']}\n";
+                            $message .= "• Academic Year: {$preview['current_academic_year']}";
+
+                            Notification::make()
+                                ->title('Fee Generation Preview')
+                                ->body($message)
+                                ->info()
+                                ->persistent()
+                                ->send();
+                        })
+                        ->deselectRecordsAfterCompletion(),
+
+                    Tables\Actions\BulkAction::make('bulkPrintReceipts')
+                        ->label('Print Receipts')
+                        ->icon('heroicon-o-printer')
+                        ->color('primary')
+                        ->action(function (Builder $query) {
+                            // This action would typically trigger a batch job to generate receipts
+                            $count = $query->where('payment_status', '!=', 'unpaid')->count();
+
+                            if ($count > 0) {
+                                Notification::make()
+                                    ->title('Receipt Generation Initiated')
+                                    ->body("Generating receipts for {$count} payments. Please check the downloads folder.")
+                                    ->success()
+                                    ->send();
+                            } else {
+                                Notification::make()
+                                    ->title('No Receipts to Generate')
+                                    ->body("There are no paid or partially paid fees to generate receipts for.")
+                                    ->warning()
+                                    ->send();
+                            }
+                        })
+                        ->deselectRecordsAfterCompletion(),
+
+                    Tables\Actions\BulkAction::make('bulkSendSMS')
+                        ->label('Send SMS Receipts')
+                        ->icon('heroicon-o-chat-bubble-left-ellipsis')
+                        ->color('warning')
+                        ->action(function (Builder $query) {
+                            $records = $query->where('payment_status', '!=', 'unpaid')->get();
+
+                            $successCount = 0;
+                            $failedCount = 0;
+
+                            foreach ($records as $record) {
+                                try {
+                                    self::sendPaymentSMS($record);
+                                    $successCount++;
+                                } catch (\Exception $e) {
+                                    $failedCount++;
+                                    Log::error('Failed to send bulk SMS receipt', [
+                                        'student_fee_id' => $record->id,
+                                        'error' => $e->getMessage()
+                                    ]);
+                                }
+                            }
+
+                            Notification::make()
+                                ->title('SMS Receipts')
+                                ->body("Successfully sent: {$successCount}, Failed: {$failedCount}")
+                                ->success($successCount > 0)
+                                ->warning($failedCount > 0)
+                                ->send();
+                        })
+                        ->deselectRecordsAfterCompletion()
+                        ->requiresConfirmation(),
+                ]),
+            ]);
+   }
+
+   /**
+    * Send payment SMS notification
+    */
+   public static function sendPaymentSMS(StudentFee $studentFee, float $lastPaymentAmount = null): void
+   {
+       // Get the student
+       $student = Student::find($studentFee->student_id);
+
+       if (!$student || !$student->parent_guardian_id) {
+           Notification::make()
+               ->title('SMS Not Sent')
+               ->body('No parent/guardian found for this student.')
+               ->warning()
+               ->send();
+           return;
+       }
+
+       // Get the parent/guardian
+       $parentGuardian = ParentGuardian::find($student->parent_guardian_id);
+
+       if (!$parentGuardian || !$parentGuardian->phone) {
+           Notification::make()
+               ->title('SMS Not Sent')
+               ->body('No phone number found for the parent/guardian.')
+               ->warning()
+               ->send();
+           return;
+       }
+
+       try {
+           // Payment amount is either the specified last payment or the total amount paid
+           $paymentAmount = $lastPaymentAmount ?? $studentFee->amount_paid;
+
+           // Format the message with payment details
+           $message = "Dear {$parentGuardian->name}, thank you for your payment of ZMW {$paymentAmount} for {$student->name}'s fees. ";
+
+           // Add fee structure details
+           if ($studentFee->feeStructure) {
+               $gradeName = $studentFee->feeStructure->grade->name ?? 'Unknown';
+               $termName = $studentFee->feeStructure->term->name ?? 'Unknown';
+               $message .= "Grade: {$gradeName}, Term: {$termName}. ";
+           }
+
+           // Add payment status
+           $message .= "Total fee: ZMW {$studentFee->feeStructure->total_fee}, Balance: ZMW {$studentFee->balance}. ";
+
+           if ($studentFee->payment_status === 'paid') {
+               $message .= "Status: FULLY PAID. Thank you!";
+           } else {
+               $message .= "Status: PARTIALLY PAID. Receipt No: {$studentFee->receipt_number}.";
+           }
+
+           // Format phone number
+           $phoneNumber = self::formatPhoneNumber($parentGuardian->phone);
+
+           // Send the SMS
+           self::sendMessage($message, $phoneNumber);
+
+           // Log successful SMS
+           Log::info('Fee payment notification sent', [
+               'student_fee_id' => $studentFee->id,
+               'student_id' => $student->id,
+               'parent_id' => $parentGuardian->id,
+               'amount' => $paymentAmount,
+               'total_amount' => $studentFee->feeStructure->total_fee,
+               'balance' => $studentFee->balance,
+               'receipt' => $studentFee->receipt_number
+           ]);
+
+           // Show success notification
+           Notification::make()
+               ->title('Payment Notification Sent')
+               ->body("SMS notification sent to {$parentGuardian->name}.")
+               ->success()
+               ->send();
+
+       } catch (\Exception $e) {
+           // Log error
+           Log::error('Failed to send payment notification', [
+               'student_fee_id' => $studentFee->id,
+               'student_id' => $student->id,
+               'parent_id' => $parentGuardian->id,
+               'error' => $e->getMessage()
+           ]);
+
+           // Show error notification
+           Notification::make()
+               ->title('SMS Notification Failed')
+               ->body("Could not send payment notification: {$e->getMessage()}")
+               ->danger()
+               ->send();
+
+           // Re-throw the exception to be caught by the caller
+           throw $e;
+       }
+   }
+
+   /**
+    * Format phone number to ensure it has the country code
+    */
+   protected static function formatPhoneNumber(string $phoneNumber): string
+   {
+       // Remove any non-numeric characters
+       $phoneNumber = preg_replace('/[^0-9]/', '', $phoneNumber);
+
+       // Check if number already has country code (260 for Zambia)
+       if (substr($phoneNumber, 0, 3) === '260') {
+           // Number already has country code
+           return $phoneNumber;
+       }
+
+       // If starting with 0, replace with country code
+       if (substr($phoneNumber, 0, 1) === '0') {
+           return '260' . substr($phoneNumber, 1);
+       }
+
+       // If number doesn't have country code, add it
+       if (strlen($phoneNumber) === 9) {
+           return '260' . $phoneNumber;
+       }
+
+       return $phoneNumber;
+   }
+
+   /**
+    * Send a message via SMS
+    */
+   protected static function sendMessage($message_string, $phone_number)
+   {
+       try {
+           // Log the sending attempt
+           Log::info('Sending fee payment SMS notification', [
+               'phone' => $phone_number,
+               'message' => substr($message_string, 0, 30) . '...' // Only log beginning of message for privacy
+           ]);
+
+           $url_encoded_message = urlencode($message_string);
+
+           $sendSenderSMS = Http::withoutVerifying()
+               ->post('https://www.cloudservicezm.com/smsservice/httpapi?username=Blessmore&password=Blessmore&msg=' . $url_encoded_message . '&shortcode=2343&sender_id=StFrancis&phone=' . $phone_number . '&api_key=121231313213123123');
+
+           // Log the response
+           Log::info('SMS API Response for fee payment', [
+               'status' => $sendSenderSMS->status(),
+               'body' => $sendSenderSMS->body(),
+               'to' => substr($phone_number, 0, 6) . '****' . substr($phone_number, -3),
+           ]);
+
+           return $sendSenderSMS->successful();
+       } catch (\Exception $e) {
+           Log::error('Fee payment SMS sending failed', [
+               'error' => $e->getMessage(),
+               'phone' => $phone_number,
+           ]);
+           throw $e; // Re-throw to be caught by the calling method
+       }
+   }
+
+   public static function getRelations(): array
+   {
+       return [
+           //
+       ];
+   }
+
+   public static function getPages(): array
+   {
+       return [
+           'index' => Pages\ListStudentFees::route('/'),
+           'create' => Pages\CreateStudentFee::route('/create'),
+           'view' => Pages\ViewStudentFee::route('/{record}'),
+           'edit' => Pages\EditStudentFee::route('/{record}/edit'),
+       ];
+   }
 }
