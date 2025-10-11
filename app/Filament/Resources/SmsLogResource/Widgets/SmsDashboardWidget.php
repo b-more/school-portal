@@ -16,9 +16,10 @@ class SmsDashboardWidget extends BaseWidget
         $today = Carbon::today();
         $dailyTotal = SmsLog::whereDate('created_at', $today)->count();
         $dailySent = SmsLog::whereDate('created_at', $today)
-            ->where('status', 'sent')
-            ->orWhere('status', 'delivered')
-            ->whereDate('created_at', $today)
+            ->where(function ($query) {
+                $query->where('status', 'sent')
+                    ->orWhere('status', 'delivered');
+            })
             ->count();
         $dailyFailed = SmsLog::whereDate('created_at', $today)
             ->where('status', 'failed')

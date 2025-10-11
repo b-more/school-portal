@@ -405,14 +405,14 @@ class StudentFeeService
 
             $response = Http::withoutVerifying()
                 ->timeout(20)
-                ->post('https://www.cloudservicezm.com/smsservice/httpapi', [
-                    'username' => 'Blessmore',
-                    'password' => 'Blessmore',
+                ->post(env('SMS_API_URL'), [
+                    'username' => env('SMS_USERNAME'),
+                    'password' => env('SMS_PASSWORD'),
                     'msg' => $urlEncodedMessage,
-                    'shortcode' => '2343',
-                    'sender_id' => 'StFrancis',
+                    'shortcode' => env('SMS_SHORTCODE'),
+                    'sender_id' => env('SMS_SENDER_ID'),
                     'phone' => $phoneNumber,
-                    'api_key' => '121231313213123123'
+                    'api_key' => env('SMS_API_KEY')
                 ]);
 
             $isSuccessful = $response->successful() &&

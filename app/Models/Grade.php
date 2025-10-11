@@ -28,6 +28,20 @@ class Grade extends Model
     ];
 
     /**
+     * Boot method to clear cache when grades are modified
+     */
+    protected static function booted()
+    {
+        static::saved(function ($grade) {
+            app(\App\Services\CacheService::class)->clearGradeCache();
+        });
+
+        static::deleted(function ($grade) {
+            app(\App\Services\CacheService::class)->clearGradeCache();
+        });
+    }
+
+    /**
      * Get the school section that this grade belongs to
      */
     public function schoolSection(): BelongsTo

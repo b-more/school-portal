@@ -31,7 +31,12 @@ class SmsLogResource extends Resource
 
     public static function shouldRegisterNavigation(): bool
     {
-        return auth()->user()?->role_id === RoleConstants::ADMIN ?? false;
+        $user = auth()->user();
+        if (! $user) {
+            return false;
+        }
+
+        return $user->role_id === RoleConstants::ADMIN;
     }
 
     // Disable resource creation

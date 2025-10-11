@@ -2,30 +2,25 @@
 
 namespace App\Filament\Resources;
 
+use App\Constants\RoleConstants;
 use App\Filament\Resources\StudentResource\Pages;
 use App\Filament\Resources\StudentResource\RelationManagers;
-use App\Models\Student;
-use App\Models\User;
-use App\Models\ParentGuardian;
-use App\Models\UserCredential;
-use App\Models\Grade;
-use App\Models\Teacher;
-use App\Models\SmsLog;
 use App\Models\AcademicYear;
-use App\Constants\RoleConstants;
+use App\Models\Grade;
+use App\Models\ParentGuardian;
+use App\Models\Student;
+use App\Models\Teacher;
 use Filament\Forms;
 use Filament\Forms\Form;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
-use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Auth;
 
 class StudentResource extends Resource
 {
@@ -38,6 +33,14 @@ class StudentResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         $query = parent::getEloquentQuery()
+            ->with([
+                'parentGuardian:id,name,phone,relationship',
+                'grade:id,name,level',
+                'classSection:id,name,grade_id,capacity,academic_year_id,class_teacher_id',
+                'classSection.grade:id,name',
+                'classSection.academicYear:id,name',
+                'classSection.classTeacher:id,name',
+            ])
             ->withCount('results')
             ->withCount('fees');
 
@@ -54,7 +57,9 @@ class StudentResource extends Resource
 
             if ($teacher) {
                 // Get students from classes where this teacher teaches
-                $classSectionIds = $teacher->classSections()->pluck('id')->toArray();
+                // Specify table name to avoid ambiguous column error
+                $classSectionIds = $teacher->classSections()->pluck('class_sections.id')->toArray();
+
                 return $query->whereIn('class_section_id', $classSectionIds);
             }
 
@@ -175,13 +180,13 @@ class StudentResource extends Resource
                                                     ->label('Class Section')
                                                     ->options(function (callable $get) {
                                                         $gradeId = $get('grade_id');
-                                                        if (!$gradeId) {
+                                                        if (! $gradeId) {
                                                             return [];
                                                         }
 
                                                         // Get current academic year
                                                         $currentAcademicYear = AcademicYear::where('is_active', true)->first();
-                                                        if (!$currentAcademicYear) {
+                                                        if (! $currentAcademicYear) {
                                                             return [];
                                                         }
 
@@ -197,8 +202,8 @@ class StudentResource extends Resource
 
                                                                 $label = "{$section->name} ({$currentStudents}/{$capacity} students)";
                                                                 if ($availableSpots <= 0) {
-                                                                    $label .= " - FULL";
-                                                                } else if ($availableSpots <= 5) {
+                                                                    $label .= ' - FULL';
+                                                                } elseif ($availableSpots <= 5) {
                                                                     $label .= " - {$availableSpots} spots left";
                                                                 }
 
@@ -210,15 +215,15 @@ class StudentResource extends Resource
                                                     ->searchable()
                                                     ->preload()
                                                     ->live()
-                                                    ->disabled(fn (callable $get) => !$get('grade_id'))
+                                                    ->disabled(fn (callable $get) => ! $get('grade_id'))
                                                     ->helperText(function (callable $get) {
                                                         $gradeId = $get('grade_id');
-                                                        if (!$gradeId) {
+                                                        if (! $gradeId) {
                                                             return 'Please select a grade first';
                                                         }
 
                                                         $currentAcademicYear = AcademicYear::where('is_active', true)->first();
-                                                        if (!$currentAcademicYear) {
+                                                        if (! $currentAcademicYear) {
                                                             return 'No active academic year found';
                                                         }
 
@@ -248,26 +253,26 @@ class StudentResource extends Resource
                                                     ->label('Section Information')
                                                     ->content(function (callable $get) {
                                                         $sectionId = $get('class_section_id');
-                                                        if (!$sectionId) {
+                                                        if (! $sectionId) {
                                                             return 'Select a class section to see details';
                                                         }
 
                                                         $section = \App\Models\ClassSection::with(['grade', 'classTeacher', 'academicYear'])
                                                             ->find($sectionId);
 
-                                                        if (!$section) {
+                                                        if (! $section) {
                                                             return 'Section not found';
                                                         }
 
                                                         $currentStudents = $section->students()->count();
                                                         $teacherName = $section->classTeacher?->name ?? 'Not assigned';
 
-                                                        return "Section: {$section->grade->name} {$section->name}\n" .
-                                                               "Academic Year: {$section->academicYear->name}\n" .
-                                                               "Class Teacher: {$teacherName}\n" .
+                                                        return "Section: {$section->grade->name} {$section->name}\n".
+                                                               "Academic Year: {$section->academicYear->name}\n".
+                                                               "Class Teacher: {$teacherName}\n".
                                                                "Current Students: {$currentStudents}/{$section->capacity}";
                                                     })
-                                                    ->visible(fn (callable $get) => !empty($get('class_section_id'))),
+                                                    ->visible(fn (callable $get) => ! empty($get('class_section_id'))),
 
                                                 Forms\Components\TextInput::make('student_id_number')
                                                     ->label('Student ID')
@@ -435,11 +440,11 @@ class StudentResource extends Resource
                     ->copyable()
                     ->tooltip('Click to copy')
                     ->description(function (Student $record) {
-                        if (!$record->student_id_number || strlen($record->student_id_number) < 8) {
+                        if (! $record->student_id_number || strlen($record->student_id_number) < 8) {
                             return null;
                         }
 
-                        $year = '20' . substr($record->student_id_number, 0, 2);
+                        $year = '20'.substr($record->student_id_number, 0, 2);
                         $gradeLevel = (int) substr($record->student_id_number, 2, 2);
                         $sequential = substr($record->student_id_number, 4);
 
@@ -461,7 +466,7 @@ class StudentResource extends Resource
                 Tables\Columns\TextColumn::make('classSection.name')
                     ->label('Section')
                     ->getStateUsing(function (Student $record) {
-                        if (!$record->classSection) {
+                        if (! $record->classSection) {
                             return 'Not Assigned';
                         }
 
@@ -471,20 +476,20 @@ class StudentResource extends Resource
                         return "{$record->classSection->name} ({$currentStudents}/{$capacity})";
                     })
                     ->tooltip(function (Student $record) {
-                        if (!$record->classSection) {
+                        if (! $record->classSection) {
                             return 'Student needs to be assigned to a class section';
                         }
 
                         $section = $record->classSection;
                         $teacher = $section->classTeacher?->name ?? 'No teacher assigned';
 
-                        return "Section: {$section->grade->name} {$section->name}\n" .
-                               "Class Teacher: {$teacher}\n" .
+                        return "Section: {$section->grade->name} {$section->name}\n".
+                               "Class Teacher: {$teacher}\n".
                                "Academic Year: {$section->academicYear->name}";
                     })
                     ->badge()
                     ->color(function (Student $record) {
-                        if (!$record->classSection) {
+                        if (! $record->classSection) {
                             return 'danger'; // Red for unassigned
                         }
 
@@ -492,8 +497,13 @@ class StudentResource extends Resource
                         $capacity = $record->classSection->capacity;
                         $utilization = ($currentStudents / $capacity) * 100;
 
-                        if ($utilization >= 95) return 'danger';
-                        if ($utilization >= 80) return 'warning';
+                        if ($utilization >= 95) {
+                            return 'danger';
+                        }
+                        if ($utilization >= 80) {
+                            return 'warning';
+                        }
+
                         return 'success';
                     })
                     ->sortable(),
@@ -504,10 +514,12 @@ class StudentResource extends Resource
                     ->visible($isTeacher || $isAdmin)
                     ->limit(20)
                     ->tooltip(function (Student $record) {
-                        if (!$record->parentGuardian) return null;
+                        if (! $record->parentGuardian) {
+                            return null;
+                        }
 
-                        return "Name: {$record->parentGuardian->name}\n" .
-                               "Phone: {$record->parentGuardian->phone}\n" .
+                        return "Name: {$record->parentGuardian->name}\n".
+                               "Phone: {$record->parentGuardian->phone}\n".
                                "Relationship: {$record->parentGuardian->relationship}";
                     }),
 
@@ -565,7 +577,7 @@ class StudentResource extends Resource
                     ->options(function () {
                         $currentAcademicYear = AcademicYear::where('is_active', true)->first();
 
-                        if (!$currentAcademicYear) {
+                        if (! $currentAcademicYear) {
                             return [];
                         }
 
@@ -609,7 +621,7 @@ class StudentResource extends Resource
                     ->query(function (Builder $query): Builder {
                         $currentAcademicYear = AcademicYear::where('is_active', true)->first();
 
-                        if (!$currentAcademicYear) {
+                        if (! $currentAcademicYear) {
                             return $query;
                         }
 
@@ -631,18 +643,18 @@ class StudentResource extends Resource
                     ->icon('heroicon-o-arrow-right-circle')
                     ->color('warning')
                     ->visible(function (Student $record) use ($isAdmin) {
-                        return $isAdmin && !$record->class_section_id;
+                        return $isAdmin && ! $record->class_section_id;
                     })
                     ->form([
                         Forms\Components\Select::make('class_section_id')
                             ->label('Class Section')
                             ->options(function (Student $record) {
-                                if (!$record->grade_id) {
+                                if (! $record->grade_id) {
                                     return [];
                                 }
 
                                 $currentAcademicYear = AcademicYear::where('is_active', true)->first();
-                                if (!$currentAcademicYear) {
+                                if (! $currentAcademicYear) {
                                     return [];
                                 }
 
@@ -657,8 +669,8 @@ class StudentResource extends Resource
 
                                         $label = "{$section->name} ({$currentStudents}/{$capacity})";
                                         if ($availableSpots <= 0) {
-                                            $label .= " - FULL";
-                                        } else if ($availableSpots <= 5) {
+                                            $label .= ' - FULL';
+                                        } elseif ($availableSpots <= 5) {
                                             $label .= " - {$availableSpots} spots left";
                                         }
 
@@ -680,11 +692,12 @@ class StudentResource extends Resource
                     ->action(function (Student $record, array $data) {
                         $section = \App\Models\ClassSection::find($data['class_section_id']);
 
-                        if (!$section) {
+                        if (! $section) {
                             Notification::make()
                                 ->title('Section not found')
                                 ->danger()
                                 ->send();
+
                             return;
                         }
 
@@ -696,12 +709,13 @@ class StudentResource extends Resource
                                 ->body("Section {$section->name} is full ({$currentStudents}/{$section->capacity})")
                                 ->warning()
                                 ->send();
+
                             return;
                         }
 
                         // Update student
                         $record->update([
-                            'class_section_id' => $data['class_section_id']
+                            'class_section_id' => $data['class_section_id'],
                         ]);
 
                         // Generate new student ID
@@ -732,12 +746,13 @@ class StudentResource extends Resource
                         // Get parent guardian
                         $parentGuardian = ParentGuardian::find($record->parent_guardian_id);
 
-                        if (!$parentGuardian || !$parentGuardian->phone) {
+                        if (! $parentGuardian || ! $parentGuardian->phone) {
                             Notification::make()
                                 ->title('Cannot send SMS')
                                 ->body('No parent/guardian phone number found.')
                                 ->danger()
                                 ->send();
+
                             return;
                         }
 
@@ -772,7 +787,7 @@ class StudentResource extends Resource
                             Log::error('Failed to send notification via SMS', [
                                 'student_id' => $record->id,
                                 'parent_guardian_id' => $parentGuardian->id,
-                                'error' => $e->getMessage()
+                                'error' => $e->getMessage(),
                             ]);
 
                             // Notify the admin of the SMS failure
@@ -827,7 +842,7 @@ class StudentResource extends Resource
                                 ->label('Target Section')
                                 ->options(function () {
                                     $currentAcademicYear = AcademicYear::where('is_active', true)->first();
-                                    if (!$currentAcademicYear) {
+                                    if (! $currentAcademicYear) {
                                         return [];
                                     }
 
@@ -842,7 +857,7 @@ class StudentResource extends Resource
 
                                             $label = "{$section->grade->name} {$section->name} ({$currentStudents}/{$capacity})";
                                             if ($availableSpots <= 0) {
-                                                $label .= " - FULL";
+                                                $label .= ' - FULL';
                                             } else {
                                                 $label .= " - {$availableSpots} spots available";
                                             }
@@ -872,9 +887,10 @@ class StudentResource extends Resource
                                 }
 
                                 // Skip if student doesn't have a grade
-                                if (!$student->grade_id) {
+                                if (! $student->grade_id) {
                                     $failedCount++;
                                     $errors[] = "{$student->name} - No grade assigned";
+
                                     continue;
                                 }
 
@@ -887,9 +903,10 @@ class StudentResource extends Resource
 
                                             // Check if section belongs to student's grade
                                             $section = \App\Models\ClassSection::find($sectionId);
-                                            if (!$section || $section->grade_id != $student->grade_id) {
+                                            if (! $section || $section->grade_id != $student->grade_id) {
                                                 $failedCount++;
                                                 $errors[] = "{$student->name} - Section doesn't match student's grade";
+
                                                 continue 2;
                                             }
                                             break;
@@ -909,6 +926,7 @@ class StudentResource extends Resource
                                             if ($availableSections->isEmpty()) {
                                                 $failedCount++;
                                                 $errors[] = "{$student->name} - No available sections in {$student->grade->name}";
+
                                                 continue 2;
                                             }
 
@@ -932,6 +950,7 @@ class StudentResource extends Resource
                                         if ($currentStudents >= $section->capacity) {
                                             $failedCount++;
                                             $errors[] = "{$student->name} - Section {$section->name} is full";
+
                                             continue;
                                         }
 
@@ -950,26 +969,26 @@ class StudentResource extends Resource
                                     $errors[] = "{$student->name} - Error: {$e->getMessage()}";
                                     Log::error('Bulk section assignment error', [
                                         'student_id' => $student->id,
-                                        'error' => $e->getMessage()
+                                        'error' => $e->getMessage(),
                                     ]);
                                 }
                             }
 
                             // Show results notification
-                            $title = "Bulk Assignment Results";
+                            $title = 'Bulk Assignment Results';
                             $body = "Successfully assigned: {$assignedCount} students";
 
                             if ($failedCount > 0) {
                                 $body .= ", Failed: {$failedCount} students";
 
                                 // Log detailed errors for admin review
-                                if (!empty($errors)) {
+                                if (! empty($errors)) {
                                     Log::warning('Bulk assignment failures', [
                                         'errors' => $errors,
-                                        'user_id' => Auth::id()
+                                        'user_id' => Auth::id(),
                                     ]);
 
-                                    $body .= ". Check logs for details.";
+                                    $body .= '. Check logs for details.';
                                 }
                             }
 
@@ -1001,16 +1020,17 @@ class StudentResource extends Resource
 
                             foreach ($records as $student) {
                                 // Ensure we have the necessary relationships loaded
-                                if (!$student->relationLoaded('parentGuardian')) {
+                                if (! $student->relationLoaded('parentGuardian')) {
                                     $student->load('parentGuardian');
                                 }
-                                if (!$student->relationLoaded('grade')) {
+                                if (! $student->relationLoaded('grade')) {
                                     $student->load('grade');
                                 }
 
                                 // Check if parent guardian exists and has phone
-                                if (!$student->parentGuardian || !$student->parentGuardian->phone) {
+                                if (! $student->parentGuardian || ! $student->parentGuardian->phone) {
                                     $failedCount++;
+
                                     continue;
                                 }
 
@@ -1021,7 +1041,7 @@ class StudentResource extends Resource
                                         [
                                             $student->parentGuardian->name,
                                             $student->name,
-                                            $student->grade?->name ?? 'Unknown'
+                                            $student->grade?->name ?? 'Unknown',
                                         ],
                                         $data['message']
                                     );
@@ -1049,7 +1069,7 @@ class StudentResource extends Resource
                                     Log::error('Failed to send bulk SMS', [
                                         'student_id' => $student->id,
                                         'parent_guardian_id' => $student->parentGuardian?->id,
-                                        'error' => $e->getMessage()
+                                        'error' => $e->getMessage(),
                                     ]);
                                 }
                             }
@@ -1083,7 +1103,7 @@ class StudentResource extends Resource
         return [
             'index' => Pages\ListStudents::route('/'),
             'create' => Pages\CreateStudent::route('/create'),
-            //'view' => Pages\ViewStudent::route('/{record}'),
+            // 'view' => Pages\ViewStudent::route('/{record}'),
             'edit' => Pages\EditStudent::route('/{record}/edit'),
         ];
     }
@@ -1091,62 +1111,69 @@ class StudentResource extends Resource
     /**
      * Generate a student ID based on academic year + grade level + sequential number
      * Format: YYGGNNNN (e.g., 25030012 = Year 2025, Grade 3, Student #12)
+     *
+     * Uses database transaction with row locking to prevent race conditions
+     * when multiple students are created simultaneously
      */
     public static function generateStudentId(Grade $grade): string
     {
-        // Get current academic year
-        $currentAcademicYear = AcademicYear::where('is_active', true)->first();
+        return DB::transaction(function () use ($grade) {
+            // Get current academic year
+            $currentAcademicYear = AcademicYear::where('is_active', true)->first();
 
-        if (!$currentAcademicYear) {
-            // Fallback to current calendar year if no academic year is active
-            $year = date('y'); // Last 2 digits of current year
-        } else {
-            // Extract year from academic year start date
-            $year = $currentAcademicYear->start_date->format('y');
-        }
+            if (! $currentAcademicYear) {
+                // Fallback to current calendar year if no academic year is active
+                $year = date('y'); // Last 2 digits of current year
+            } else {
+                // Extract year from academic year start date
+                $year = $currentAcademicYear->start_date->format('y');
+            }
 
-        // Map grade names to grade levels (numbers)
-        $gradeLevelMap = [
-            'Baby Class' => '00',
-            'Middle Class' => '01',
-            'Reception' => '02',
-            'Grade 1' => '03',
-            'Grade 2' => '04',
-            'Grade 3' => '05',
-            'Grade 4' => '06',
-            'Grade 5' => '07',
-            'Grade 6' => '08',
-            'Grade 7' => '09',
-            'Grade 8' => '10',
-            'Grade 9' => '11',
-            'Grade 10' => '12',
-            'Grade 11' => '13',
-            'Grade 12' => '14',
-        ];
+            // Map grade names to grade levels (numbers)
+            $gradeLevelMap = [
+                'Baby Class' => '00',
+                'Middle Class' => '01',
+                'Reception' => '02',
+                'Grade 1' => '03',
+                'Grade 2' => '04',
+                'Grade 3' => '05',
+                'Grade 4' => '06',
+                'Grade 5' => '07',
+                'Grade 6' => '08',
+                'Grade 7' => '09',
+                'Grade 8' => '10',
+                'Grade 9' => '11',
+                'Grade 10' => '12',
+                'Grade 11' => '13',
+                'Grade 12' => '14',
+            ];
 
-        $gradeLevel = $gradeLevelMap[$grade->name] ?? '99'; // Default to 99 for unknown grades
+            $gradeLevel = $gradeLevelMap[$grade->name] ?? '99'; // Default to 99 for unknown grades
 
-        // Create the prefix: YY + GG
-        $prefix = $year . $gradeLevel;
+            // Create the prefix: YY + GG
+            $prefix = $year.$gradeLevel;
 
-        // Find the latest student ID with this prefix
-        $lastStudent = Student::where('student_id_number', 'like', $prefix . '%')
-            ->orderBy('student_id_number', 'desc')
-            ->first();
+            // CRITICAL: Lock the table to prevent race conditions
+            // This ensures only one transaction can read and increment at a time
+            $lastStudent = Student::where('student_id_number', 'like', $prefix.'%')
+                ->lockForUpdate()
+                ->orderBy('student_id_number', 'desc')
+                ->first();
 
-        if ($lastStudent && strlen($lastStudent->student_id_number) >= 8) {
-            // Extract the sequential number from the last 4 digits
-            $lastSequential = (int) substr($lastStudent->student_id_number, -4);
-            $newSequential = $lastSequential + 1;
-        } else {
-            $newSequential = 1;
-        }
+            if ($lastStudent && strlen($lastStudent->student_id_number) >= 8) {
+                // Extract the sequential number from the last 4 digits
+                $lastSequential = (int) substr($lastStudent->student_id_number, -4);
+                $newSequential = $lastSequential + 1;
+            } else {
+                $newSequential = 1;
+            }
 
-        // Format the sequential number with leading zeros (4 digits)
-        $sequentialFormatted = str_pad($newSequential, 4, '0', STR_PAD_LEFT);
+            // Format the sequential number with leading zeros (4 digits)
+            $sequentialFormatted = str_pad($newSequential, 4, '0', STR_PAD_LEFT);
 
-        // Return the complete student ID: YYGGNNNN
-        return $prefix . $sequentialFormatted;
+            // Return the complete student ID: YYGGNNNN
+            return $prefix.$sequentialFormatted;
+        });
     }
 
     /**
@@ -1165,12 +1192,12 @@ class StudentResource extends Resource
 
         // If starting with 0, replace with country code
         if (substr($phoneNumber, 0, 1) === '0') {
-            return '260' . substr($phoneNumber, 1);
+            return '260'.substr($phoneNumber, 1);
         }
 
         // If number doesn't have country code, add it
         if (strlen($phoneNumber) === 9) {
-            return '260' . $phoneNumber;
+            return '260'.$phoneNumber;
         }
 
         return $phoneNumber;
@@ -1179,10 +1206,10 @@ class StudentResource extends Resource
     /**
      * Send a message via SMS and log it
      *
-     * @param string $message_string The message content
-     * @param string $phone_number The recipient's phone number
-     * @param string $message_type The type of message (general, student_notification, etc.)
-     * @param int|null $reference_id The ID of the related record (e.g., student ID)
+     * @param  string  $message_string  The message content
+     * @param  string  $phone_number  The recipient's phone number
+     * @param  string  $message_type  The type of message (general, student_notification, etc.)
+     * @param  int|null  $reference_id  The ID of the related record (e.g., student ID)
      * @return bool Whether the message was sent successfully
      */
     public static function sendMessage($message_string, $phone_number, $message_type = 'general', $reference_id = null)
@@ -1191,7 +1218,7 @@ class StudentResource extends Resource
             // Send the SMS
             $url_encoded_message = urlencode($message_string);
             $sendSenderSMS = Http::withoutVerifying()
-                ->post('https://www.cloudservicezm.com/smsservice/httpapi?username=Blessmore&password=Blessmore&msg=' . $url_encoded_message . '&shortcode=2343&sender_id=StFrancis&phone=' . $phone_number . '&api_key=121231313213123123');
+                ->post('https://www.cloudservicezm.com/smsservice/httpapi?username=Blessmore&password=Blessmore&msg='.$url_encoded_message.'&shortcode=2343&sender_id=StFrancis&phone='.$phone_number.'&api_key=121231313213123123');
 
             // Map custom message types to allowed enum values
             $allowedMessageTypes = [
@@ -1200,7 +1227,7 @@ class StudentResource extends Resource
                 'fee_reminder',
                 'event_notification',
                 'general',
-                'other'
+                'other',
             ];
 
             // Map your custom types to valid enum values
@@ -1208,7 +1235,7 @@ class StudentResource extends Resource
 
             if ($message_type === 'student_notification' || $message_type === 'student_bulk_notification') {
                 $mappedMessageType = 'general';
-            } else if (in_array($message_type, $allowedMessageTypes)) {
+            } elseif (in_array($message_type, $allowedMessageTypes)) {
                 $mappedMessageType = $message_type;
             }
 
@@ -1228,15 +1255,15 @@ class StudentResource extends Resource
                 'error_message' => $sendSenderSMS->successful() ? null : $sendSenderSMS->body(),
                 'sent_by' => Auth::id(),
                 'created_at' => now(),
-                'updated_at' => now()
+                'updated_at' => now(),
             ]);
 
             // Log the response
             Log::info('SMS API Response', [
                 'status' => $sendSenderSMS->status(),
                 'body' => $sendSenderSMS->body(),
-                'to' => substr($phone_number, 0, 6) . '****' . substr($phone_number, -3),
-                'successful' => $sendSenderSMS->successful()
+                'to' => substr($phone_number, 0, 6).'****'.substr($phone_number, -3),
+                'successful' => $sendSenderSMS->successful(),
             ]);
 
             return $sendSenderSMS->successful();
@@ -1244,7 +1271,7 @@ class StudentResource extends Resource
             // Log the error
             Log::error('SMS sending failed', [
                 'error' => $e->getMessage(),
-                'phone' => $phone_number
+                'phone' => $phone_number,
             ]);
 
             // Try to log the failure
@@ -1259,10 +1286,10 @@ class StudentResource extends Resource
                     'error_message' => $e->getMessage(),
                     'sent_by' => Auth::id(),
                     'created_at' => now(),
-                    'updated_at' => now()
+                    'updated_at' => now(),
                 ]);
             } catch (\Exception $logException) {
-                Log::critical('Could not log SMS failure: ' . $logException->getMessage());
+                Log::critical('Could not log SMS failure: '.$logException->getMessage());
             }
 
             throw $e; // Re-throw to be caught by the calling method
@@ -1273,7 +1300,7 @@ class StudentResource extends Resource
     {
         $user = Auth::user();
 
-        if (!$user) {
+        if (! $user) {
             return false;
         }
 
@@ -1282,7 +1309,7 @@ class StudentResource extends Resource
             RoleConstants::ADMIN,
             RoleConstants::TEACHER,
             RoleConstants::NURSE,
-            RoleConstants::PARENT
+            RoleConstants::PARENT,
         ])) {
             return true;
         }

@@ -13,6 +13,7 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use App\Constants\RoleConstants;
@@ -29,7 +30,12 @@ class TeacherAssignmentResource extends Resource
 
     public static function shouldRegisterNavigation(): bool
     {
-        return auth()->user()?->role_id === RoleConstants::ADMIN ?? false;
+        $user = auth()->user();
+        if (! $user) {
+            return false;
+        }
+
+        return $user->role_id === RoleConstants::ADMIN;
     }
 
     public static function form(Form $form): Form
@@ -302,14 +308,31 @@ class TeacherAssignmentResource extends Resource
                     ->icon('heroicon-o-academic-cap')
                     ->color('success')
                     ->action(function (Teacher $record) {
-                        $record->update(['is_class_teacher' => !$record->is_class_teacher]);
+                        $record->update(['is_class_teacher' => true]);
 
-                        Notification::make()
+                        \Filament\Notifications\Notification::make()
                             ->title('Class Teacher Status Updated')
-                            ->body("{$record->name} is now " . ($record->is_class_teacher ? 'a' : 'not a') . " class teacher.")
+                            ->body("{$record->name} is now a class teacher.")
                             ->success()
                             ->send();
                     })
+                    ->visible(fn (Teacher $record) => !$record->is_class_teacher)
+                    ->requiresConfirmation(),
+
+                Tables\Actions\Action::make('remove_class_teacher')
+                    ->label('Remove as Class Teacher')
+                    ->icon('heroicon-o-x-circle')
+                    ->color('danger')
+                    ->action(function (Teacher $record) {
+                        $record->update(['is_class_teacher' => false]);
+
+                        \Filament\Notifications\Notification::make()
+                            ->title('Class Teacher Status Updated')
+                            ->body("{$record->name} is no longer a class teacher.")
+                            ->success()
+                            ->send();
+                    })
+                    ->visible(fn (Teacher $record) => $record->is_class_teacher)
                     ->requiresConfirmation(),
 
                 Tables\Actions\Action::make('set_grade_teacher')
@@ -317,14 +340,31 @@ class TeacherAssignmentResource extends Resource
                     ->icon('heroicon-o-academic-cap')
                     ->color('warning')
                     ->action(function (Teacher $record) {
-                        $record->update(['is_grade_teacher' => !$record->is_grade_teacher]);
+                        $record->update(['is_grade_teacher' => true]);
 
-                        Notification::make()
+                        \Filament\Notifications\Notification::make()
                             ->title('Grade Teacher Status Updated')
-                            ->body("{$record->name} is now " . ($record->is_grade_teacher ? 'a' : 'not a') . " grade teacher.")
+                            ->body("{$record->name} is now a grade teacher.")
                             ->success()
                             ->send();
                     })
+                    ->visible(fn (Teacher $record) => !$record->is_grade_teacher)
+                    ->requiresConfirmation(),
+
+                Tables\Actions\Action::make('remove_grade_teacher')
+                    ->label('Remove as Grade Teacher')
+                    ->icon('heroicon-o-x-circle')
+                    ->color('danger')
+                    ->action(function (Teacher $record) {
+                        $record->update(['is_grade_teacher' => false]);
+
+                        \Filament\Notifications\Notification::make()
+                            ->title('Grade Teacher Status Updated')
+                            ->body("{$record->name} is no longer a grade teacher.")
+                            ->success()
+                            ->send();
+                    })
+                    ->visible(fn (Teacher $record) => $record->is_grade_teacher)
                     ->requiresConfirmation(),
             ])
             ->bulkActions([
@@ -339,7 +379,7 @@ class TeacherAssignmentResource extends Resource
                                 $count++;
                             }
 
-                            Notification::make()
+                            \Filament\Notifications\Notification::make()
                                 ->title('Updated Class Teachers')
                                 ->body("Set {$count} teachers as class teachers.")
                                 ->success()

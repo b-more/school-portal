@@ -27,12 +27,6 @@
                             </span>
                             <p class="text-xs text-gray-500 dark:text-gray-400">Students</p>
                         </div>
-                        <div class="ml-4">
-                            <a href="{{ route('filament.admin.resources.class-rooms.view', ['record' => $class->id]) }}"
-                               class="text-primary-600 hover:text-primary-500 dark:text-primary-500 dark:hover:text-primary-400">
-                                View Details
-                            </a>
-                        </div>
                     </div>
                 @empty
                     <div class="p-4 rounded-lg bg-gray-50 dark:bg-gray-800">
@@ -109,7 +103,7 @@
                         <span class="text-sm text-gray-500 dark:text-gray-400">
                             {{ $homework->submissions()->count() }} submissions
                         </span>
-                        <a href="{{ route('filament.admin.resources.teacher-homework.view', ['record' => $homework->id]) }}"
+                        <a href="{{ route('filament.admin.resources.teacher-homeworks.view', ['record' => $homework->id]) }}"
                            class="text-primary-600 hover:text-primary-500 text-sm">
                             View →
                         </a>

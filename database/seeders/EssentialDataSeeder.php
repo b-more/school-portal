@@ -2,23 +2,22 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
-use App\Models\Role;
-use App\Models\User;
-use App\Models\Employee;
-use App\Models\Teacher;
-use App\Models\Grade;
-use App\Models\Subject;
 use App\Models\AcademicYear;
-use App\Models\Term;
-use App\Models\FeeStructure;
-use App\Models\FeeComponent;
 use App\Models\ClassSection;
+use App\Models\Employee;
+use App\Models\FeeStructure;
+use App\Models\Grade;
+use App\Models\Role;
 use App\Models\SchoolClass;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Str;
-use Illuminate\Support\Facades\Schema;
+use App\Models\Subject;
+use App\Models\Teacher;
+use App\Models\Term;
+use App\Models\User;
+use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 
 class EssentialDataSeeder extends Seeder
 {
@@ -95,7 +94,7 @@ class EssentialDataSeeder extends Seeder
             );
         }
 
-        $this->command->info('✅ Roles created: ' . count($roles));
+        $this->command->info('✅ Roles created: '.count($roles));
     }
 
     /**
@@ -107,8 +106,9 @@ class EssentialDataSeeder extends Seeder
 
         $adminRole = Role::where('name', 'Admin')->first();
 
-        if (!$adminRole) {
+        if (! $adminRole) {
             $this->command->error('Admin role not found. Roles must be seeded first.');
+
             return;
         }
 
@@ -156,19 +156,19 @@ class EssentialDataSeeder extends Seeder
 
         $years = [
             [
-                'name' => '2024-2025',
+                'name' => '2024',
                 'start_date' => '2024-01-08',
                 'end_date' => '2024-12-20',
                 'is_active' => true,
             ],
             [
-                'name' => '2025-2026',
+                'name' => '2025',
                 'start_date' => '2025-01-06',
                 'end_date' => '2025-12-19',
                 'is_active' => false,
             ],
             [
-                'name' => '2023-2024',
+                'name' => '2023',
                 'start_date' => '2023-01-09',
                 'end_date' => '2023-12-15',
                 'is_active' => false,
@@ -182,7 +182,7 @@ class EssentialDataSeeder extends Seeder
             );
         }
 
-        $this->command->info('✅ Academic years created: ' . count($years));
+        $this->command->info('✅ Academic years created: '.count($years));
     }
 
     /**
@@ -192,10 +192,11 @@ class EssentialDataSeeder extends Seeder
     {
         $this->command->info('📚 Creating terms...');
 
-        $academicYear = AcademicYear::where('name', '2024-2025')->first();
+        $academicYear = AcademicYear::where('name', '2024')->first();
 
-        if (!$academicYear) {
+        if (! $academicYear) {
             $this->command->error('Academic year not found.');
+
             return;
         }
 
@@ -230,7 +231,7 @@ class EssentialDataSeeder extends Seeder
             );
         }
 
-        $this->command->info('✅ Terms created: ' . count($terms));
+        $this->command->info('✅ Terms created: '.count($terms));
     }
 
     /**
@@ -274,7 +275,7 @@ class EssentialDataSeeder extends Seeder
             );
         }
 
-        $this->command->info('✅ Grades created: ' . count($grades));
+        $this->command->info('✅ Grades created: '.count($grades));
     }
 
     /**
@@ -284,10 +285,11 @@ class EssentialDataSeeder extends Seeder
     {
         $this->command->info('🏫 Creating class sections...');
 
-        $academicYear = AcademicYear::where('name', '2024-2025')->first();
+        $academicYear = AcademicYear::where('name', '2024')->first();
 
-        if (!$academicYear) {
+        if (! $academicYear) {
             $this->command->error('Academic year not found.');
+
             return;
         }
 
@@ -321,7 +323,7 @@ class EssentialDataSeeder extends Seeder
             }
         }
 
-        $this->command->info('✅ Class sections created: ' . $createdSections);
+        $this->command->info('✅ Class sections created: '.$createdSections);
     }
 
     /**
@@ -378,7 +380,7 @@ class EssentialDataSeeder extends Seeder
 
             SchoolClass::updateOrCreate(
                 [
-                    'name' => $classSection->grade->name . ' ' . $classSection->name,
+                    'name' => $classSection->grade->name.' '.$classSection->name,
                     'grade' => $classSection->grade->name,
                     'section' => $classSection->name,
                 ],
@@ -391,7 +393,7 @@ class EssentialDataSeeder extends Seeder
             $createdClasses++;
         }
 
-        $this->command->info('✅ School classes created: ' . $createdClasses);
+        $this->command->info('✅ School classes created: '.$createdClasses);
     }
 
     /**
@@ -419,8 +421,9 @@ class EssentialDataSeeder extends Seeder
 
         $currentAcademicYear = AcademicYear::where('is_active', true)->first();
 
-        if (!$currentAcademicYear) {
+        if (! $currentAcademicYear) {
             $this->command->error('No active academic year found.');
+
             return;
         }
 
@@ -480,7 +483,7 @@ class EssentialDataSeeder extends Seeder
             $data = [
                 'name' => $name,
                 'code' => $details['code'],
-                'description' => $name . ' for Primary level',
+                'description' => $name.' for Primary level',
             ];
 
             // Add optional fields if they exist
@@ -520,7 +523,7 @@ class EssentialDataSeeder extends Seeder
             $data = [
                 'name' => $name,
                 'code' => $details['code'],
-                'description' => $name . ' for Secondary level',
+                'description' => $name.' for Secondary level',
             ];
 
             // Add optional fields if they exist
@@ -555,7 +558,7 @@ class EssentialDataSeeder extends Seeder
             $totalSubjects++;
         }
 
-        $this->command->info('✅ Subjects created: ' . $totalSubjects);
+        $this->command->info('✅ Subjects created: '.$totalSubjects);
     }
 
     /**
@@ -566,8 +569,9 @@ class EssentialDataSeeder extends Seeder
         $this->command->info('🔗 Assigning subjects to grades...');
 
         // Check if grades table has subjects relationship
-        if (!Schema::hasTable('grade_subject')) {
+        if (! Schema::hasTable('grade_subject')) {
             $this->command->warn('grade_subject pivot table not found. Skipping subject-grade assignments.');
+
             return;
         }
 
@@ -575,25 +579,25 @@ class EssentialDataSeeder extends Seeder
         $primaryGrades = Grade::whereIn('name', [
             'Baby Class', 'Middle Class', 'Reception',
             'Grade 1', 'Grade 2', 'Grade 3', 'Grade 4',
-            'Grade 5', 'Grade 6', 'Grade 7'
+            'Grade 5', 'Grade 6', 'Grade 7',
         ])->get();
 
         // Get secondary grades (Grades 8-12)
         $secondaryGrades = Grade::whereIn('name', [
-            'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11', 'Grade 12'
+            'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11', 'Grade 12',
         ])->get();
 
         // Get subjects
-        $primarySubjects = Subject::where(function($query) {
+        $primarySubjects = Subject::where(function ($query) {
             $query->where('grade_level', 'Primary')
-                  ->orWhere('name', 'like', '%Primary%')
-                  ->orWhereIn('code', ['ENGP', 'MATP', 'SCIP', 'SOCP', 'CTSP', 'ZAMP', 'PHEP', 'RELP', 'ARTP', 'MUSP']);
+                ->orWhere('name', 'like', '%Primary%')
+                ->orWhereIn('code', ['ENGP', 'MATP', 'SCIP', 'SOCP', 'CTSP', 'ZAMP', 'PHEP', 'RELP', 'ARTP', 'MUSP']);
         })->get();
 
-        $secondarySubjects = Subject::where(function($query) {
+        $secondarySubjects = Subject::where(function ($query) {
             $query->where('grade_level', 'Secondary')
-                  ->orWhere('name', 'like', '%Secondary%')
-                  ->orWhereIn('code', ['ENGS', 'MATS', 'SCIS', 'SOCS', 'PHYS', 'CHMS', 'BIOS', 'GEOS', 'HISS', 'CIVS', 'RELS', 'PHES', 'COMS', 'BUSS', 'ACCS', 'HOMS', 'ARTS', 'MUSS', 'FRNS', 'TEDS', 'AGRS']);
+                ->orWhere('name', 'like', '%Secondary%')
+                ->orWhereIn('code', ['ENGS', 'MATS', 'SCIS', 'SOCS', 'PHYS', 'CHMS', 'BIOS', 'GEOS', 'HISS', 'CIVS', 'RELS', 'PHES', 'COMS', 'BUSS', 'ACCS', 'HOMS', 'ARTS', 'MUSS', 'FRNS', 'TEDS', 'AGRS']);
         })->get();
 
         $totalAssignments = 0;
@@ -607,7 +611,7 @@ class EssentialDataSeeder extends Seeder
                     ->where('subject_id', $subject->id)
                     ->exists();
 
-                if (!$exists) {
+                if (! $exists) {
                     DB::table('grade_subject')->insert([
                         'grade_id' => $grade->id,
                         'subject_id' => $subject->id,
@@ -629,7 +633,7 @@ class EssentialDataSeeder extends Seeder
                     ->where('subject_id', $subject->id)
                     ->exists();
 
-                if (!$exists) {
+                if (! $exists) {
                     // Core subjects are mandatory for all secondary grades
                     $isMandatory = in_array($subject->code, ['ENGS', 'MATS', 'SCIS', 'SOCS']);
 
@@ -645,7 +649,7 @@ class EssentialDataSeeder extends Seeder
             }
         }
 
-        $this->command->info('✅ Subject-grade assignments: ' . $totalAssignments);
+        $this->command->info('✅ Subject-grade assignments: '.$totalAssignments);
     }
 
     /**
@@ -656,8 +660,9 @@ class EssentialDataSeeder extends Seeder
         $this->command->info('👩‍🏫 Creating sample teachers...');
 
         $teacherRole = Role::where('name', 'Teacher')->first();
-        if (!$teacherRole) {
+        if (! $teacherRole) {
             $this->command->warn('Teacher role not found. Skipping teacher creation.');
+
             return;
         }
 
@@ -787,7 +792,7 @@ class EssentialDataSeeder extends Seeder
             $createdTeachers++;
         }
 
-        $this->command->info('✅ Sample teachers created: ' . $createdTeachers);
+        $this->command->info('✅ Sample teachers created: '.$createdTeachers);
     }
 
     /**
@@ -805,6 +810,7 @@ class EssentialDataSeeder extends Seeder
 
         if ($schoolClasses->isEmpty() || $teachers->isEmpty()) {
             $this->command->warn('No active classes or teachers found. Skipping teacher assignments.');
+
             return;
         }
 
@@ -813,7 +819,7 @@ class EssentialDataSeeder extends Seeder
         });
 
         $secondaryTeachers = $teachers->filter(function ($teacher) {
-            return !empty($teacher->specialization);
+            return ! empty($teacher->specialization);
         });
 
         $assignments = 0;
@@ -867,7 +873,7 @@ class EssentialDataSeeder extends Seeder
         // Add some assistant teachers for variety
         $this->assignAssistantTeachers($schoolClasses, $teachers);
 
-        $this->command->info('✅ Total teacher assignments: ' . $assignments);
+        $this->command->info('✅ Total teacher assignments: '.$assignments);
     }
 
     /**
@@ -882,7 +888,7 @@ class EssentialDataSeeder extends Seeder
 
         $availableTeachers = $teachers->filter(function ($teacher) {
             // Don't assign teachers who are already primary class teachers
-            return !DB::table('class_teacher')
+            return ! DB::table('class_teacher')
                 ->where('teacher_id', $teacher->id)
                 ->where('is_primary', true)
                 ->exists();
@@ -913,12 +919,13 @@ class EssentialDataSeeder extends Seeder
     {
         $this->command->info('💰 Creating fee structures...');
 
-        $academicYear = AcademicYear::where('name', '2024-2025')->first();
+        $academicYear = AcademicYear::where('name', '2024')->first();
         $terms = Term::where('academic_year_id', $academicYear->id)->get();
         $grades = Grade::all();
 
-        if (!$academicYear || $terms->isEmpty()) {
+        if (! $academicYear || $terms->isEmpty()) {
             $this->command->error('Academic years or terms not found.');
+
             return;
         }
 
@@ -1003,7 +1010,7 @@ class EssentialDataSeeder extends Seeder
             }
         }
 
-        $this->command->info('✅ Fee structures created: ' . $totalFeeStructures);
+        $this->command->info('✅ Fee structures created: '.$totalFeeStructures);
     }
 
     /**

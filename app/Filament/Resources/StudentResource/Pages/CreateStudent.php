@@ -459,7 +459,7 @@ class CreateStudent extends CreateRecord
 
             // Send the message
             $url_encoded_message = urlencode($sms_message);
-            $url = 'https://www.cloudservicezm.com/smsservice/httpapi?username=Blessmore&password=Blessmore&msg=' . $url_encoded_message . '&shortcode=2343&sender_id=StFrancis&phone=' . $phone_number . '&api_key=121231313213123123';
+            $url = env('SMS_API_URL') . '?username=' . env('SMS_USERNAME') . '&password=' . env('SMS_PASSWORD') . '&msg=' . $url_encoded_message . '&shortcode=' . env('SMS_SHORTCODE') . '&sender_id=' . env('SMS_SENDER_ID') . '&phone=' . $phone_number . '&api_key=' . env('SMS_API_KEY');
 
             Log::debug('SMS API URL', [
                 'ref' => $messageRef,

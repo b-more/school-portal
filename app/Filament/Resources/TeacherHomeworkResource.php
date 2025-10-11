@@ -2,23 +2,19 @@
 
 namespace App\Filament\Resources;
 
+use App\Constants\RoleConstants;
 use App\Filament\Resources\TeacherHomeworkResource\Pages;
 use App\Models\Homework;
 use App\Models\Subject;
-use App\Models\Student;
-use App\Models\SmsLog;
 use App\Models\Teacher;
-use App\Services\SmsService;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Filament\Notifications\Notification;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
-use App\Constants\RoleConstants;
+use Illuminate\Support\Facades\Log;
 
 class TeacherHomeworkResource extends Resource
 {
@@ -32,7 +28,7 @@ class TeacherHomeworkResource extends Resource
 
     protected static ?int $navigationSort = 2;
 
-    // Only display records for the current teacher
+    // Only display records for the current teacher or student
     public static function getEloquentQuery(): Builder
     {
         $query = parent::getEloquentQuery();
@@ -45,15 +41,26 @@ class TeacherHomeworkResource extends Resource
             return $query;
         }
 
+        // If user is a student, show homework for their grade
+        if ($user->role_id === RoleConstants::STUDENT) {
+            $student = \App\Models\Student::where('user_id', $user->id)->first();
+            if ($student) {
+                return $query->where('grade_id', $student->grade_id)
+                    ->where('status', 'active');
+            }
+
+            return $query->where('id', 0); // Return empty if student not found
+        }
+
         // Get the teacher record
         $teacher = Teacher::where('user_id', $user->id)->first();
 
-        if (!$teacher) {
+        if (! $teacher) {
             return $query->where('id', 0); // Return empty result if not a teacher
         }
 
         // Get grades from class sections this teacher teaches
-        $gradeIds = $teacher->classSections()->pluck('grade_id')->unique()->toArray();
+        $gradeIds = $teacher->classSections()->pluck('class_sections.grade_id')->unique()->toArray();
 
         // Get subjects assigned to this teacher
         $subjectIds = $teacher->subjects()->pluck('subjects.id')->toArray();
@@ -61,12 +68,12 @@ class TeacherHomeworkResource extends Resource
         // Filter homework by:
         // 1. Homework created by this teacher OR
         // 2. Homework for grades and subjects this teacher is assigned to
-        return $query->where(function($query) use ($teacher, $gradeIds, $subjectIds) {
+        return $query->where(function ($query) use ($teacher, $gradeIds, $subjectIds) {
             $query->where('assigned_by', $teacher->id)
-                  ->orWhere(function($query) use ($gradeIds, $subjectIds) {
-                      $query->whereIn('grade_id', $gradeIds)
-                            ->whereIn('subject_id', $subjectIds);
-                  });
+                ->orWhere(function ($query) use ($gradeIds, $subjectIds) {
+                    $query->whereIn('grade_id', $gradeIds)
+                        ->whereIn('subject_id', $subjectIds);
+                });
         });
     }
 
@@ -80,10 +87,10 @@ class TeacherHomeworkResource extends Resource
 
         if ($teacher) {
             // Get the teacher's assigned subjects
-            $teacherSubjects = $teacher->subjects()->pluck('name', 'id')->toArray();
+            $teacherSubjects = $teacher->subjects()->pluck('name', 'subjects.id')->toArray();
 
             // If teacher has subjects assigned, use those
-            if (!empty($teacherSubjects)) {
+            if (! empty($teacherSubjects)) {
                 $subjectOptions = $teacherSubjects;
             }
 
@@ -92,9 +99,9 @@ class TeacherHomeworkResource extends Resource
                 'teacher_id' => $teacher->id,
                 'teacher_name' => $teacher->name,
                 'subject_count' => count($subjectOptions),
-                'subjects' => array_keys($subjectOptions)
+                'subjects' => array_keys($subjectOptions),
             ]);
-        } else if ($user->role_id === RoleConstants::ADMIN) {
+        } elseif ($user->role_id === RoleConstants::ADMIN) {
             $subjectOptions = Subject::pluck('name', 'id')->toArray();
         }
 
@@ -131,7 +138,7 @@ class TeacherHomeworkResource extends Resource
                             ->searchable()
                             ->required()
                             ->reactive()
-                            ->afterStateUpdated(function (Forms\Components\Select $component, $state) use ($teacher) {
+                            ->afterStateUpdated(function (Forms\Components\Select $component, $state) {
                                 // If a subject is selected, we might want to filter grades based on it
                                 if ($state) {
                                     $subject = Subject::find($state);
@@ -139,14 +146,14 @@ class TeacherHomeworkResource extends Resource
                                         Log::info('Subject selected', [
                                             'subject_id' => $state,
                                             'subject_name' => $subject->name,
-                                            'grade_level' => $subject->grade_level
+                                            'grade_level' => $subject->grade_level,
                                         ]);
                                     }
                                 }
                             }),
                         Forms\Components\Select::make('grade_id')
                             ->label('Grade')
-                            ->options(function() use ($teacher, $user) {
+                            ->options(function () use ($teacher, $user) {
                                 if ($teacher) {
                                     return $teacher->classSections()
                                         ->with('grade')
@@ -154,9 +161,10 @@ class TeacherHomeworkResource extends Resource
                                         ->pluck('grade.name', 'grade.id')
                                         ->unique()
                                         ->toArray();
-                                } else if ($user->role_id === RoleConstants::ADMIN) {
+                                } elseif ($user->role_id === RoleConstants::ADMIN) {
                                     return \App\Models\Grade::pluck('name', 'id')->toArray();
                                 }
+
                                 return [];
                             })
                             ->required(),
@@ -171,7 +179,7 @@ class TeacherHomeworkResource extends Resource
                             ->required()
                             ->default('active'),
                         Forms\Components\Hidden::make('assigned_by')
-                            ->default(function() use ($teacher) {
+                            ->default(function () use ($teacher) {
                                 return $teacher ? $teacher->id : null;
                             }),
                         Forms\Components\TextInput::make('max_score')
@@ -322,7 +330,7 @@ class TeacherHomeworkResource extends Resource
     {
         return [
             // Relation managers
-            //Pages\RelationManagers\SubmissionsRelationManager::class,
+            // Pages\RelationManagers\SubmissionsRelationManager::class,
         ];
     }
 
@@ -339,5 +347,35 @@ class TeacherHomeworkResource extends Resource
     public static function shouldRegisterNavigation(): bool
     {
         return in_array(auth()->user()?->role_id, [RoleConstants::ADMIN, RoleConstants::TEACHER]) ?? false;
+    }
+
+    public static function canCreate(): bool
+    {
+        // Only teachers and admins can create homework
+        return in_array(auth()->user()?->role_id, [RoleConstants::ADMIN, RoleConstants::TEACHER]) ?? false;
+    }
+
+    public static function canEdit($record): bool
+    {
+        // Only teachers and admins can edit homework
+        return in_array(auth()->user()?->role_id, [RoleConstants::ADMIN, RoleConstants::TEACHER]) ?? false;
+    }
+
+    public static function canDelete($record): bool
+    {
+        // Only teachers and admins can delete homework
+        return in_array(auth()->user()?->role_id, [RoleConstants::ADMIN, RoleConstants::TEACHER]) ?? false;
+    }
+
+    public static function canDeleteAny(): bool
+    {
+        // Only teachers and admins can bulk delete homework
+        return in_array(auth()->user()?->role_id, [RoleConstants::ADMIN, RoleConstants::TEACHER]) ?? false;
+    }
+
+    public static function canView($record): bool
+    {
+        // Allow admin, teachers, and students to view homework
+        return in_array(auth()->user()?->role_id, [RoleConstants::ADMIN, RoleConstants::TEACHER, RoleConstants::STUDENT]) ?? false;
     }
 }

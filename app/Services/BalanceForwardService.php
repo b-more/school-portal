@@ -8,14 +8,19 @@ use App\Models\Term;
 use App\Models\AcademicYear;
 use App\Models\FeeStructure;
 use App\Models\PaymentTransaction;
+use App\Models\User;
+use App\Constants\RoleConstants;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Filament\Notifications\Notification;
 use Carbon\Carbon;
 
 class BalanceForwardService
 {
     /**
      * Process overpayment and carry forward to next term
+     *
+     * Includes comprehensive error handling and admin notifications
      */
     public function processOverpayment(StudentFee $studentFee, float $overpaymentAmount): array
     {
@@ -30,6 +35,15 @@ class BalanceForwardService
                 $this->createCreditBalance($studentFee, $overpaymentAmount);
 
                 DB::commit();
+
+                // Log successful credit balance creation
+                Log::info('Credit balance created', [
+                    'student_fee_id' => $studentFee->id,
+                    'student_id' => $studentFee->student_id,
+                    'amount' => $overpaymentAmount,
+                    'term' => $studentFee->term->name ?? 'Unknown'
+                ]);
+
                 return [
                     'success' => true,
                     'message' => "Overpayment of ZMW " . number_format($overpaymentAmount, 2) . " has been recorded as credit balance.",
@@ -48,21 +62,57 @@ class BalanceForwardService
 
             DB::commit();
 
+            // Log successful balance forward
+            Log::info('Balance forwarded successfully', [
+                'from_fee_id' => $studentFee->id,
+                'to_fee_id' => $nextTermFee->id,
+                'amount' => $overpaymentAmount,
+                'from_term' => $studentFee->term->name ?? 'Unknown',
+                'to_term' => $nextTerm->name
+            ]);
+
             return [
                 'success' => true,
                 'message' => "Overpayment of ZMW " . number_format($overpaymentAmount, 2) . " has been carried forward to {$nextTerm->name}.",
                 'type' => 'balance_forward',
-                'next_term' => $nextTerm->name
+                'next_term' => $nextTerm->name,
+                'next_term_fee_id' => $nextTermFee->id
             ];
 
         } catch (\Exception $e) {
             DB::rollBack();
+
+            // Comprehensive error logging
             Log::error('Balance forward failed', [
                 'student_fee_id' => $studentFee->id,
+                'student_id' => $studentFee->student_id,
+                'student_name' => $studentFee->student->name ?? 'Unknown',
                 'overpayment' => $overpaymentAmount,
-                'error' => $e->getMessage()
+                'current_term' => $studentFee->term->name ?? 'Unknown',
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'timestamp' => now()->toISOString()
             ]);
 
+            // Notify administrators of the failure
+            try {
+                $admins = User::where('role_id', RoleConstants::ADMIN)->get();
+
+                Notification::make()
+                    ->title('Balance Forward Failed')
+                    ->body("Failed to forward balance for Student Fee #{$studentFee->id}. Amount: ZMW {$overpaymentAmount}. Error: {$e->getMessage()}")
+                    ->danger()
+                    ->persistent()
+                    ->sendToDatabase($admins);
+
+            } catch (\Exception $notificationError) {
+                // Log notification failure but don't throw
+                Log::error('Failed to send admin notification', [
+                    'error' => $notificationError->getMessage()
+                ]);
+            }
+
+            // Re-throw the original exception
             throw $e;
         }
     }

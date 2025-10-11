@@ -16,6 +16,11 @@ class CreateStudentFee extends CreateRecord
      */
     protected function mutateFormDataBeforeCreate(array $data): array
     {
+        // Generate auto-incremented receipt number if payment is being made
+        if (($data['payment_status'] ?? 'unpaid') !== 'unpaid') {
+            $data['receipt_number'] = $this->generateReceiptNumber();
+        }
+
         // Ensure fee structure is properly set and all related fields are populated
         if (isset($data['fee_structure_id'])) {
             $feeStructure = FeeStructure::find($data['fee_structure_id']);
@@ -47,10 +52,65 @@ class CreateStudentFee extends CreateRecord
     }
 
     /**
+     * Generate a unique sequential receipt number
+     */
+    protected function generateReceiptNumber(): string
+    {
+        $year = date('Y');
+        $prefix = "RCP-{$year}-";
+
+        // Get the last receipt number for this year
+        $lastReceipt = \App\Models\StudentFee::where('receipt_number', 'LIKE', "{$prefix}%")
+            ->orderBy('receipt_number', 'desc')
+            ->first();
+
+        if ($lastReceipt) {
+            // Extract the number from the last receipt and increment
+            $lastNumber = (int) substr($lastReceipt->receipt_number, -6);
+            $newNumber = $lastNumber + 1;
+        } else {
+            // First receipt of the year
+            $newNumber = 1;
+        }
+
+        // Format: RCP-2025-000001
+        return $prefix . str_pad($newNumber, 6, '0', STR_PAD_LEFT);
+    }
+
+    /**
      * Handle the record after creation
      */
     protected function handleRecordCreation(array $data): Model
     {
+        // Check for duplicate fee record before creation
+        if (isset($data['student_id']) && isset($data['fee_structure_id'])) {
+            $existingFee = \App\Models\StudentFee::where('student_id', $data['student_id'])
+                ->where('fee_structure_id', $data['fee_structure_id'])
+                ->first();
+
+            if ($existingFee) {
+                // Get the URL to edit the existing fee
+                $url = route('filament.admin.resources.student-fees.edit', ['record' => $existingFee->id]);
+
+                \Filament\Notifications\Notification::make()
+                    ->title('Duplicate Fee Record')
+                    ->body('This student already has a fee for this term/grade. You cannot create a duplicate. Please edit the existing record.')
+                    ->danger()
+                    ->actions([
+                        \Filament\Notifications\Actions\Action::make('edit')
+                            ->label('Edit Existing Record')
+                            ->url($url)
+                            ->button()
+                            ->color('primary'),
+                    ])
+                    ->persistent()
+                    ->send();
+
+                // Halt the creation process
+                $this->halt();
+            }
+        }
+
         // Create the record using the mutated data
         $record = static::getModel()::create($data);
 

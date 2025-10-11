@@ -36,14 +36,8 @@ class ListStudentFees extends ListRecords
                 ->label('Export Unpaid Fees')
                 ->icon('heroicon-o-arrow-down-tray')
                 ->color('info')
-                ->action(function () {
-                    // This could be implemented to export unpaid fees to Excel/CSV
-                    \Filament\Notifications\Notification::make()
-                        ->title('Export Started')
-                        ->body('Unpaid fees export has been initiated.')
-                        ->info()
-                        ->send();
-                }),
+                ->url(fn (): string => route('student-fees.export-unpaid'))
+                ->openUrlInNewTab(),
 
             Actions\Action::make('sendBulkReminders')
                 ->label('Send Payment Reminders')

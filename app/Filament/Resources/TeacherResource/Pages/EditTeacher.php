@@ -3,13 +3,11 @@
 namespace App\Filament\Resources\TeacherResource\Pages;
 
 use App\Filament\Resources\TeacherResource;
-use Filament\Resources\Pages\EditRecord;
-use App\Models\ClassSection;
-use App\Models\User;
 use App\Models\AcademicYear;
-use App\Constants\RoleConstants;
+use App\Models\ClassSection;
 use Filament\Actions;
 use Filament\Notifications\Notification;
+use Filament\Resources\Pages\EditRecord;
 
 class EditTeacher extends EditRecord
 {
@@ -23,114 +21,128 @@ class EditTeacher extends EditRecord
         ];
     }
 
+    /**
+     * Populate form data when loading the edit form
+     * This is crucial for determining teacher type and showing the right fields
+     */
+    protected function mutateFormDataBeforeFill(array $data): array
+    {
+        $teacher = $this->record;
+
+        // Determine teacher type based on specialization
+        if (empty($teacher->specialization)) {
+            $data['teacher_type'] = 'primary';
+        } else {
+            $data['teacher_type'] = 'secondary';
+
+            // Load existing subject-class assignments for secondary teachers
+            $subjectClasses = [];
+            $subjectTeachings = $teacher->subjectTeachings()
+                ->with(['subject', 'classSection'])
+                ->get();
+
+            foreach ($subjectTeachings as $teaching) {
+                $subjectClasses[] = [
+                    'subject_id' => $teaching->subject_id,
+                    'class_section_id' => $teaching->class_section_id,
+                ];
+            }
+
+            $data['subject_classes'] = $subjectClasses;
+        }
+
+        return $data;
+    }
+
+    /**
+     * Prepare data before saving to database
+     */
+    protected function mutateFormDataBeforeSave(array $data): array
+    {
+        // Handle the different teacher types
+        if (isset($data['teacher_type'])) {
+            if ($data['teacher_type'] === 'primary') {
+                // For primary teachers - ensure all required fields are set
+                $data['is_grade_teacher'] = true;
+                $data['is_class_teacher'] = true;
+                $data['specialization'] = null; // Primary teachers don't have specialization
+            } elseif ($data['teacher_type'] === 'secondary') {
+                // For secondary teachers
+                $data['is_class_teacher'] = false;
+                $data['class_section_id'] = null; // Secondary teachers aren't assigned to specific class sections
+
+                // Only set grade_id if they are a grade teacher
+                if (! ($data['is_grade_teacher'] ?? false)) {
+                    $data['grade_id'] = null;
+                }
+            }
+        }
+
+        // Remove form-specific fields before saving
+        unset($data['teacher_type']);
+        unset($data['subject_classes']);
+        unset($data['auto_assigned_subjects']);
+
+        return $data;
+    }
+
     protected function afterSave(): void
     {
         $teacher = $this->record;
-        $data = $this->data;
+        $data = $this->form->getRawState();
 
-        // Handle primary teachers
-        if (isset($data['teacher_type']) && $data['teacher_type'] === 'primary' && isset($data['primary_class_section_id'])) {
-            $this->handlePrimaryTeacher($teacher, $data);
+        // Handle primary teachers - assign all grade subjects
+        if (isset($data['teacher_type']) && $data['teacher_type'] === 'primary') {
+            if ($teacher->grade_id && $teacher->class_section_id) {
+                $this->assignAllSubjectsToGrade($teacher);
+            }
         }
 
-        // Handle secondary teachers
+        // Handle secondary teachers - assign specific subjects to specific classes
         if (isset($data['teacher_type']) && $data['teacher_type'] === 'secondary' && isset($data['subject_classes'])) {
             $this->handleSecondaryTeacher($teacher, $data);
         }
     }
 
     /**
-     * Handle primary teacher assignment - automatically assign all grade subjects
+     * Assign all subjects to a primary teacher's grade
      */
-    private function handlePrimaryTeacher($teacher, $data): void
+    private function assignAllSubjectsToGrade($teacher): void
     {
-        $classSection = ClassSection::find($data['primary_class_section_id']);
-
-        if (!$classSection) {
-            Notification::make()
-                ->title('Error: Class section not found')
-                ->danger()
-                ->send();
+        if (! $teacher->grade || ! $teacher->classSection) {
             return;
         }
 
-        // Update class section with teacher
-        $classSection->update(['class_teacher_id' => $teacher->id]);
-        $teacher->update(['class_section_id' => $data['primary_class_section_id']]);
+        // Update the class section to set this teacher as the class teacher
+        $teacher->classSection->update([
+            'class_teacher_id' => $teacher->id,
+        ]);
 
-        // Get the current academic year
         $currentAcademicYear = AcademicYear::where('is_active', true)->first();
+        $subjects = $teacher->grade->subjects()->where('is_active', true)->get();
 
-        if (!$currentAcademicYear) {
-            Notification::make()
-                ->title('Warning: No active academic year found')
-                ->warning()
-                ->send();
-            return;
+        // Clear existing assignments for this teacher in current academic year
+        $teacher->subjectTeachings()
+            ->where('academic_year_id', $currentAcademicYear?->id)
+            ->delete();
+
+        // Assign all subjects
+        foreach ($subjects as $subject) {
+            $teacher->subjectTeachings()->create([
+                'subject_id' => $subject->id,
+                'class_section_id' => $teacher->class_section_id,
+                'academic_year_id' => $currentAcademicYear?->id,
+            ]);
         }
 
-        // Get all subjects for this grade
-        $grade = $classSection->grade;
-        if (!$grade) {
-            Notification::make()
-                ->title('Error: Grade not found for class section')
-                ->danger()
-                ->send();
-            return;
-        }
+        // Sync the subjects relationship
+        $teacher->subjects()->sync($subjects->pluck('id')->toArray());
 
-        // Check if class section or grade changed - if so, reassign subjects
-        $existingTeachings = $teacher->subjectTeachings()
-            ->where('class_section_id', $classSection->id)
-            ->where('academic_year_id', $currentAcademicYear->id)
-            ->count();
-
-        $gradeSubjects = $grade->subjects()->where('is_active', true)->get();
-
-        // Only reassign if number of subjects doesn't match or if it's a new assignment
-        if ($existingTeachings !== $gradeSubjects->count() || $existingTeachings === 0) {
-
-            // Clear existing subject teachings for this teacher in current academic year
-            $teacher->subjectTeachings()
-                ->where('academic_year_id', $currentAcademicYear->id)
-                ->delete();
-
-            if ($gradeSubjects->isEmpty()) {
-                Notification::make()
-                    ->title('Warning: No subjects found for grade ' . $grade->name)
-                    ->body('Please assign subjects to this grade first.')
-                    ->warning()
-                    ->send();
-                return;
-            }
-
-            // Create subject teaching records for each subject
-            $assignedSubjects = [];
-            foreach ($gradeSubjects as $subject) {
-                $teacher->subjectTeachings()->create([
-                    'subject_id' => $subject->id,
-                    'class_section_id' => $classSection->id,
-                    'academic_year_id' => $currentAcademicYear->id,
-                ]);
-                $assignedSubjects[] = $subject->name;
-            }
-
-            // Sync the subjects relationship
-            $subjectIds = $gradeSubjects->pluck('id')->toArray();
-            $teacher->subjects()->sync($subjectIds);
-
-            Notification::make()
-                ->title('Primary Teacher Updated')
-                ->body('Reassigned to all subjects: ' . implode(', ', $assignedSubjects))
-                ->success()
-                ->send();
-        } else {
-            Notification::make()
-                ->title('Primary Teacher Updated')
-                ->body('Subject assignments remain unchanged')
-                ->success()
-                ->send();
-        }
+        Notification::make()
+            ->title('Teacher Updated Successfully')
+            ->body('Assigned to '.$subjects->count().' subjects for '.$teacher->grade->name)
+            ->success()
+            ->send();
     }
 
     /**
@@ -161,7 +173,7 @@ class EditTeacher extends EditRecord
                     'academic_year_id' => $academicYearId,
                 ]);
 
-                $assignedCombinations[] = $subject->name . ' (' . $classSection->grade->name . ' ' . $classSection->name . ')';
+                $assignedCombinations[] = $subject->name.' ('.$classSection->grade->name.' '.$classSection->name.')';
             }
         }
 
@@ -171,7 +183,7 @@ class EditTeacher extends EditRecord
 
         Notification::make()
             ->title('Secondary Teacher Updated')
-            ->body('Updated assignments: ' . implode(', ', $assignedCombinations))
+            ->body('Updated assignments: '.implode(', ', $assignedCombinations))
             ->success()
             ->send();
     }

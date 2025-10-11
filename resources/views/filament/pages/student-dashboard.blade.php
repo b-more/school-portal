@@ -62,7 +62,7 @@
                             </div>
                         </div>
                         <div class="mt-3">
-                            <a href="{{ route('filament.admin.resources.teacher-homework.view', ['record' => $homework->id]) }}"
+                            <a href="{{ route('filament.admin.resources.teacher-homeworks.view', ['record' => $homework->id]) }}"
                                class="text-primary-600 hover:text-primary-500 text-sm">
                                 View Homework →
                             </a>

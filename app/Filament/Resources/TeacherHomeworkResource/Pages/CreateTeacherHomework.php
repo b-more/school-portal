@@ -3,9 +3,9 @@
 namespace App\Filament\Resources\TeacherHomeworkResource\Pages;
 
 use App\Filament\Resources\TeacherHomeworkResource;
-use Filament\Resources\Pages\CreateRecord;
-use Illuminate\Database\Eloquent\Model;
 use App\Models\Teacher;
+use Filament\Notifications\Notification;
+use Filament\Resources\Pages\CreateRecord;
 
 class CreateTeacherHomework extends CreateRecord
 {
@@ -21,7 +21,7 @@ class CreateTeacherHomework extends CreateRecord
         }
 
         // Set default status if not provided
-        if (!isset($data['status'])) {
+        if (! isset($data['status'])) {
             $data['status'] = 'active';
         }
 
@@ -60,6 +60,6 @@ class CreateTeacherHomework extends CreateRecord
 
     protected function getRedirectUrl(): string
     {
-        return route('filament.admin.resources.teacher-homework.index');
+        return $this->getResource()::getUrl('index');
     }
 }

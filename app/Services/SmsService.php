@@ -75,14 +75,14 @@ class SmsService
             try {
                 // Send the SMS with increased timeout
                 $response = Http::timeout($this->timeout)->withoutVerifying()
-                    ->post('https://www.cloudservicezm.com/smsservice/httpapi', [
-                        'username' => 'Blessmore',
-                        'password' => 'Blessmore',
+                    ->post(config('services.sms.api_url', env('SMS_API_URL')), [
+                        'username' => config('services.sms.username', env('SMS_USERNAME')),
+                        'password' => config('services.sms.password', env('SMS_PASSWORD')),
                         'msg' => $urlEncodedMessage,
-                        'shortcode' => '2343',
-                        'sender_id' => 'StFrancis',
+                        'shortcode' => config('services.sms.shortcode', env('SMS_SHORTCODE')),
+                        'sender_id' => config('services.sms.sender_id', env('SMS_SENDER_ID')),
                         'phone' => $formattedPhone,
-                        'api_key' => '121231313213123123'
+                        'api_key' => config('services.sms.api_key', env('SMS_API_KEY'))
                     ]);
 
                 // Update the SMS log with the result
@@ -337,14 +337,14 @@ class SmsService
 
                 // Send the SMS with increased timeout
                 $response = Http::timeout($this->timeout)->withoutVerifying()
-                    ->post('https://www.cloudservicezm.com/smsservice/httpapi', [
-                        'username' => 'Blessmore',
-                        'password' => 'Blessmore',
+                    ->post(config('services.sms.api_url', env('SMS_API_URL')), [
+                        'username' => config('services.sms.username', env('SMS_USERNAME')),
+                        'password' => config('services.sms.password', env('SMS_PASSWORD')),
                         'msg' => $urlEncodedMessage,
-                        'shortcode' => '2343',
-                        'sender_id' => 'StFrancis',
+                        'shortcode' => config('services.sms.shortcode', env('SMS_SHORTCODE')),
+                        'sender_id' => config('services.sms.sender_id', env('SMS_SENDER_ID')),
                         'phone' => $formattedPhone,
-                        'api_key' => '121231313213123123'
+                        'api_key' => config('services.sms.api_key', env('SMS_API_KEY'))
                     ]);
 
                 // Update the message status

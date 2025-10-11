@@ -6,6 +6,7 @@ use App\Filament\Pages\Dashboard;  // Your custom admin dashboard
 use App\Filament\Pages\TeacherDashboard;
 use App\Filament\Pages\ParentDashboard;
 use App\Filament\Pages\StudentDashboard;
+use App\Filament\Pages\MarkAttendance;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
@@ -41,6 +42,8 @@ class AdminPanelProvider extends PanelProvider
                 TeacherDashboard::class,
                 ParentDashboard::class,
                 StudentDashboard::class,
+                // Register custom pages (hidden from nav, accessed via buttons)
+                MarkAttendance::class,
             ])
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
             ->middleware([

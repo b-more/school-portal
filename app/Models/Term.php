@@ -49,6 +49,22 @@ class Term extends Model
                     ->update(['is_active' => false]);
             }
         });
+
+        // Clear cache when term is saved or deleted
+        static::saved(function ($model) {
+            app(\App\Services\CacheService::class)->clearTermCache();
+            // Also clear fee structure cache for this term
+            if ($model->id) {
+                app(\App\Services\CacheService::class)->clearFeeStructureCache($model->id);
+            }
+        });
+
+        static::deleted(function ($model) {
+            app(\App\Services\CacheService::class)->clearTermCache();
+            if ($model->id) {
+                app(\App\Services\CacheService::class)->clearFeeStructureCache($model->id);
+            }
+        });
     }
 
     // Get current term

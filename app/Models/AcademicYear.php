@@ -48,6 +48,15 @@ class AcademicYear extends Model
                     ->update(['is_active' => false]);
             }
         });
+
+        // Clear cache when academic year is saved or deleted
+        static::saved(function ($model) {
+            app(\App\Services\CacheService::class)->clearAcademicYearCache();
+        });
+
+        static::deleted(function ($model) {
+            app(\App\Services\CacheService::class)->clearAcademicYearCache();
+        });
     }
 
     // Automatically create terms when creating academic year

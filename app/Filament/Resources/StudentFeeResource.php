@@ -40,6 +40,23 @@ class StudentFeeResource extends Resource
     }
 
     /**
+     * Optimize query performance with eager loading
+     */
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()
+            ->with([
+                'student:id,name,student_id_number,parent_guardian_id',
+                'student.parentGuardian:id,name,phone',
+                'feeStructure:id,grade_id,term_id,academic_year_id,total_fee,basic_fee,additional_charges',
+                'feeStructure.grade:id,name',
+                'feeStructure.term:id,name',
+                'feeStructure.academicYear:id,name',
+                'paymentTransactions:id,student_fee_id,amount,type,transaction_date,payment_method',
+            ]);
+    }
+
+    /**
      * Check if there is an existing fee record for the student and fee structure
      */
     protected static function checkForDuplicateFee($studentId, $feeStructureId, $academicYearId, $termId, $editing = false, $recordId = null)
@@ -190,6 +207,7 @@ class StudentFeeResource extends Resource
                                             });
                                     })
                                     ->disabled() // Auto-selected, just shown for visibility
+                                    ->dehydrated() // Ensure value is included in form data even when disabled
                                     ->required()
                                     ->live()
                                     ->afterStateUpdated(function ($state, callable $set) {
@@ -277,17 +295,21 @@ class StudentFeeResource extends Resource
                                                 $url = route('filament.admin.resources.student-fees.edit', ['record' => $existingFee->id]);
 
                                                 Notification::make()
-                                                    ->title('Fee Already Assigned')
-                                                    ->body('This student already has fees assigned for this term/grade. Please edit the existing record instead.')
-                                                    ->warning()
+                                                    ->title('Duplicate Fee Record')
+                                                    ->body('This student already has a fee for this term/grade. You cannot create a duplicate. Please edit the existing record.')
+                                                    ->danger()
                                                     ->actions([
                                                         \Filament\Notifications\Actions\Action::make('edit')
                                                             ->label('Edit Existing Record')
                                                             ->url($url)
-                                                            ->openUrlInNewTab(),
+                                                            ->button()
+                                                            ->color('primary'),
                                                     ])
                                                     ->persistent()
                                                     ->send();
+
+                                                // Clear the student selection to prevent accidental creation
+                                                $set('student_id', null);
                                             }
                                         }
                                     })
@@ -350,20 +372,41 @@ class StudentFeeResource extends Resource
                                     ->default(now()),
 
                                 Forms\Components\TextInput::make('receipt_number')
-                                    ->required()
+                                    ->label('Receipt Number (Auto-generated)')
+                                    ->disabled()
+                                    ->dehydrated()
                                     ->visible(fn (callable $get) => $get('payment_status') !== 'unpaid')
+                                    ->placeholder('Will be auto-generated')
+                                    ->helperText('Receipt number will be automatically generated')
                                     ->maxLength(255),
 
                                 Forms\Components\Select::make('payment_method')
                                     ->options([
                                         'cash' => 'Cash',
-                                        'bank_transfer' => 'Bank Transfer',
                                         'mobile_money' => 'Mobile Money',
+                                        'bank_transfer' => 'Bank Transfer',
                                         'cheque' => 'Cheque',
                                         'other' => 'Other',
                                     ])
                                     ->required()
+                                    ->live()
                                     ->visible(fn (callable $get) => $get('payment_status') !== 'unpaid'),
+
+                                Forms\Components\TextInput::make('payment_reference')
+                                    ->label('Mobile Money Reference Number')
+                                    ->required()
+                                    ->maxLength(255)
+                                    ->helperText('Enter the unique payment reference from your mobile money transaction')
+                                    ->visible(fn (callable $get) => $get('payment_method') === 'mobile_money'),
+
+                                Forms\Components\FileUpload::make('proof_of_payment')
+                                    ->label('Proof of Payment')
+                                    ->image()
+                                    ->acceptedFileTypes(['image/*', 'application/pdf'])
+                                    ->maxSize(5120) // 5MB
+                                    ->directory('payment-proofs')
+                                    ->helperText('Upload bank transfer receipt, cheque image, or other proof (Max 5MB)')
+                                    ->visible(fn (callable $get) => in_array($get('payment_method'), ['bank_transfer', 'cheque', 'other'])),
 
                                 Forms\Components\Toggle::make('send_sms_notification')
                                     ->label('Send SMS Notification')
@@ -560,51 +603,153 @@ class StudentFeeResource extends Resource
             ->actions([
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
                 Tables\Actions\Action::make('recordPayment')
                     ->label('Record Payment')
                     ->icon('heroicon-o-currency-dollar')
                     ->color('success')
-                    ->form([
-                        Forms\Components\TextInput::make('amount_paid')
-                            ->numeric()
-                            ->required()
-                            ->prefix('ZMW')
-                            ->step(0.01),
-                        Forms\Components\DatePicker::make('payment_date')
-                            ->required()
-                            ->default(now()),
-                        Forms\Components\TextInput::make('receipt_number')
-                            ->required()
-                            ->maxLength(255),
-                        Forms\Components\Select::make('payment_method')
-                            ->options([
-                                'cash' => 'Cash',
-                                'bank_transfer' => 'Bank Transfer',
-                                'mobile_money' => 'Mobile Money',
-                                'cheque' => 'Cheque',
-                                'other' => 'Other',
-                            ])
-                            ->required(),
-                        Forms\Components\Textarea::make('notes')
-                            ->maxLength(65535),
-                        Forms\Components\Toggle::make('send_sms_notification')
-                            ->label('Send SMS Notification')
-                            ->helperText('Send an SMS notification to the parent/guardian about this payment')
-                            ->default(true),
-                    ])
+                    ->modalWidth('4xl')
+                    ->form(function ($record) {
+                        $totalFee = $record->feeStructure->total_fee ?? 0;
+                        $amountPaid = $record->amount_paid ?? 0;
+                        $balance = $record->balance ?? $totalFee;
+
+                        // Get payment history
+                        $transactions = $record->paymentTransactions()
+                            ->orderBy('transaction_date', 'desc')
+                            ->get();
+
+                        $paymentHistory = '';
+                        if ($transactions->isNotEmpty()) {
+                            $paymentHistory .= '<div class="space-y-2">';
+                            foreach ($transactions as $transaction) {
+                                $date = $transaction->transaction_date->format('d M Y');
+                                $amount = number_format($transaction->amount, 2);
+                                $method = ucfirst(str_replace('_', ' ', $transaction->payment_method ?? 'N/A'));
+
+                                $paymentHistory .= '<div class="flex justify-between items-center p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">';
+                                $paymentHistory .= '<div>';
+                                $paymentHistory .= '<div class="font-medium text-gray-900 dark:text-white">' . $date . '</div>';
+                                $paymentHistory .= '<div class="text-sm text-gray-500 dark:text-gray-400">' . $method . '</div>';
+                                $paymentHistory .= '</div>';
+                                $paymentHistory .= '<div class="text-right">';
+                                $paymentHistory .= '<div class="font-semibold text-green-600 dark:text-green-400">ZMW ' . $amount . '</div>';
+                                $paymentHistory .= '</div>';
+                                $paymentHistory .= '</div>';
+                            }
+                            $paymentHistory .= '</div>';
+                        } else {
+                            $paymentHistory = '<p class="text-gray-500 dark:text-gray-400 text-center py-4">No previous payments recorded</p>';
+                        }
+
+                        return [
+                            Forms\Components\Section::make('Fee Summary')
+                                ->schema([
+                                    Forms\Components\Grid::make(3)
+                                        ->schema([
+                                            Forms\Components\Placeholder::make('total_fee_display')
+                                                ->label('Total Fee')
+                                                ->content(fn () => 'ZMW ' . number_format($totalFee, 2))
+                                                ->extraAttributes(['class' => 'text-lg font-bold text-blue-600']),
+
+                                            Forms\Components\Placeholder::make('amount_paid_display')
+                                                ->label('Amount Paid')
+                                                ->content(fn () => 'ZMW ' . number_format($amountPaid, 2))
+                                                ->extraAttributes(['class' => 'text-lg font-bold text-green-600']),
+
+                                            Forms\Components\Placeholder::make('balance_display')
+                                                ->label('Outstanding Balance')
+                                                ->content(fn () => 'ZMW ' . number_format($balance, 2))
+                                                ->extraAttributes(['class' => 'text-lg font-bold text-orange-600']),
+                                        ]),
+                                ])
+                                ->columnSpan('full'),
+
+                            Forms\Components\Section::make('Payment History')
+                                ->schema([
+                                    Forms\Components\Placeholder::make('previous_payments')
+                                        ->label('')
+                                        ->content(new \Illuminate\Support\HtmlString($paymentHistory)),
+                                ])
+                                ->collapsible()
+                                ->collapsed(false)
+                                ->visible(fn () => $transactions->isNotEmpty())
+                                ->columnSpan('full'),
+
+                            Forms\Components\Section::make('New Payment Details')
+                                ->schema([
+                                    Forms\Components\Grid::make(2)
+                                        ->schema([
+                                            Forms\Components\TextInput::make('amount_paid')
+                                                ->label('Payment Amount')
+                                                ->numeric()
+                                                ->required()
+                                                ->prefix('ZMW')
+                                                ->step(0.01)
+                                                ->suffix('Remaining: ZMW ' . number_format($balance, 2))
+                                                ->helperText('Enter the amount being paid today')
+                                                ->autofocus(),
+
+                                            Forms\Components\DatePicker::make('payment_date')
+                                                ->label('Payment Date')
+                                                ->required()
+                                                ->default(now())
+                                                ->maxDate(now())
+                                                ->native(false)
+                                                ->displayFormat('d/m/Y'),
+                                        ]),
+
+                                    Forms\Components\Grid::make(2)
+                                        ->schema([
+                                            Forms\Components\TextInput::make('receipt_number')
+                                                ->label('Receipt Number')
+                                                ->required()
+                                                ->maxLength(255)
+                                                ->default(fn () => 'RCP-' . date('Y') . '-' . str_pad(mt_rand(1, 99999), 6, '0', STR_PAD_LEFT))
+                                                ->helperText('Auto-generated, can be modified'),
+
+                                            Forms\Components\Select::make('payment_method')
+                                                ->label('Payment Method')
+                                                ->options([
+                                                    'cash' => 'Cash',
+                                                    'mobile_money' => 'Mobile Money',
+                                                    'bank_transfer' => 'Bank Transfer',
+                                                    'cheque' => 'Cheque',
+                                                    'other' => 'Other',
+                                                ])
+                                                ->required()
+                                                ->native(false),
+                                        ]),
+
+                                    Forms\Components\Textarea::make('notes')
+                                        ->label('Payment Notes')
+                                        ->rows(2)
+                                        ->maxLength(500)
+                                        ->placeholder('Optional: Add any notes about this payment'),
+
+                                    Forms\Components\Toggle::make('send_sms_notification')
+                                        ->label('Send SMS Notification to Parent')
+                                        ->helperText('Notify parent/guardian about this payment via SMS')
+                                        ->default(true)
+                                        ->inline(false),
+                                ])
+                                ->columnSpan('full'),
+                        ];
+                    })
                     ->action(function ($record, array $data): void {
                         $paymentAmount = (float) $data['amount_paid'];
                         $newAmountPaid = (float) $record->amount_paid + $paymentAmount;
                         $totalFee = (float) $record->feeStructure->total_fee;
-                        $newBalance = $totalFee - $newAmountPaid;
+                        $newBalance = max(0, $totalFee - $newAmountPaid);
                         $status = 'partial';
 
                         if ($newBalance <= 0) {
                             $status = 'paid';
                             $newBalance = 0;
+                        } elseif ($newAmountPaid <= 0) {
+                            $status = 'unpaid';
                         }
 
+                        // Update the main fee record
                         $record->update([
                             'amount_paid' => $newAmountPaid,
                             'balance' => $newBalance,
@@ -612,7 +757,17 @@ class StudentFeeResource extends Resource
                             'payment_date' => $data['payment_date'],
                             'receipt_number' => $data['receipt_number'],
                             'payment_method' => $data['payment_method'],
-                            'notes' => $data['notes'] ?? $record->notes,
+                        ]);
+
+                        // Create payment transaction record
+                        $record->paymentTransactions()->create([
+                            'amount' => $paymentAmount,
+                            'type' => 'payment',
+                            'payment_method' => $data['payment_method'],
+                            'transaction_date' => $data['payment_date'],
+                            'notes' => $data['notes'] ?? null,
+                            'processed_by' => Auth::id(),
+                            'reference_number' => $data['receipt_number'],
                         ]);
 
                         // Debug log for fee collection dashboard
@@ -622,25 +777,174 @@ class StudentFeeResource extends Resource
                             'amount' => $paymentAmount,
                             'total_paid' => $newAmountPaid,
                             'balance' => $newBalance,
-                            'status' => $status
+                            'status' => $status,
+                            'receipt' => $data['receipt_number']
                         ]);
 
                         // Send SMS notification if requested
                         if (isset($data['send_sms_notification']) && $data['send_sms_notification']) {
-                            self::sendPaymentSMS($record, $paymentAmount);
+                            try {
+                                self::sendPaymentSMS($record, $paymentAmount);
+                            } catch (\Exception $e) {
+                                // SMS failed but payment was recorded
+                                Log::warning('Payment recorded but SMS failed', [
+                                    'fee_id' => $record->id,
+                                    'error' => $e->getMessage()
+                                ]);
+                            }
                         }
 
                         Notification::make()
-                            ->title('Payment Recorded')
-                            ->body("Payment of ZMW {$paymentAmount} has been recorded successfully.")
+                            ->title('Payment Recorded Successfully')
+                            ->body("Payment of ZMW " . number_format($paymentAmount, 2) . " recorded. New balance: ZMW " . number_format($newBalance, 2))
                             ->success()
+                            ->duration(5000)
                             ->send();
                     })
                     ->visible(fn ($record) => $record->payment_status !== 'paid'),
+                Tables\Actions\Action::make('viewTransactions')
+                    ->label('View Transactions')
+                    ->icon('heroicon-o-rectangle-stack')
+                    ->color('info')
+                    ->modalWidth('6xl')
+                    ->modalHeading(fn ($record) => 'Payment Transactions - ' . $record->student->name)
+                    ->modalDescription(fn ($record) => $record->feeStructure->grade->name . ' | ' . $record->feeStructure->term->name . ' | ' . $record->feeStructure->academicYear->name)
+                    ->modalContent(function ($record) {
+                        $transactions = $record->paymentTransactions()
+                            ->orderBy('transaction_date', 'asc')
+                            ->get();
+
+                        $totalFee = $record->feeStructure->total_fee;
+                        $totalPaid = $record->amount_paid;
+                        $balance = $record->balance;
+
+                        $html = '<div class="space-y-6">';
+
+                        // Summary Cards
+                        $html .= '<div class="grid grid-cols-4 gap-4">';
+                        $html .= '<div class="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">';
+                        $html .= '<div class="text-sm text-blue-600 dark:text-blue-400 font-medium">Total Fee</div>';
+                        $html .= '<div class="text-2xl font-bold text-blue-900 dark:text-blue-100">ZMW ' . number_format($totalFee, 2) . '</div>';
+                        $html .= '</div>';
+
+                        $html .= '<div class="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg border border-green-200 dark:border-green-800">';
+                        $html .= '<div class="text-sm text-green-600 dark:text-green-400 font-medium">Total Paid</div>';
+                        $html .= '<div class="text-2xl font-bold text-green-900 dark:text-green-100">ZMW ' . number_format($totalPaid, 2) . '</div>';
+                        $html .= '</div>';
+
+                        $html .= '<div class="bg-orange-50 dark:bg-orange-900/20 p-4 rounded-lg border border-orange-200 dark:border-orange-800">';
+                        $html .= '<div class="text-sm text-orange-600 dark:text-orange-400 font-medium">Balance</div>';
+                        $html .= '<div class="text-2xl font-bold text-orange-900 dark:text-orange-100">ZMW ' . number_format($balance, 2) . '</div>';
+                        $html .= '</div>';
+
+                        $html .= '<div class="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg border border-purple-200 dark:border-purple-800">';
+                        $html .= '<div class="text-sm text-purple-600 dark:text-purple-400 font-medium">Transactions</div>';
+                        $html .= '<div class="text-2xl font-bold text-purple-900 dark:text-purple-100">' . $transactions->count() . '</div>';
+                        $html .= '</div>';
+                        $html .= '</div>';
+
+                        // Transactions Timeline
+                        $html .= '<div class="mt-6">';
+                        $html .= '<h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Payment Timeline</h3>';
+
+                        if ($transactions->isEmpty()) {
+                            $html .= '<div class="text-center py-12 bg-gray-50 dark:bg-gray-800 rounded-lg">';
+                            $html .= '<svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">';
+                            $html .= '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>';
+                            $html .= '</svg>';
+                            $html .= '<p class="mt-2 text-sm text-gray-500 dark:text-gray-400">No payment transactions recorded yet</p>';
+                            $html .= '</div>';
+                        } else {
+                            $html .= '<div class="relative">';
+                            $html .= '<div class="absolute left-8 top-0 bottom-0 w-0.5 bg-gray-200 dark:bg-gray-700"></div>';
+                            $html .= '<div class="space-y-4">';
+
+                            $runningBalance = $totalFee;
+                            foreach ($transactions as $index => $transaction) {
+                                $runningBalance -= $transaction->amount;
+                                $transactionNum = $index + 1;
+
+                                $html .= '<div class="relative pl-16">';
+                                $html .= '<div class="absolute left-6 w-4 h-4 bg-green-500 rounded-full border-4 border-white dark:border-gray-900"></div>';
+                                $html .= '<div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow">';
+
+                                // Header
+                                $html .= '<div class="flex justify-between items-start mb-3">';
+                                $html .= '<div>';
+                                $html .= '<div class="flex items-center gap-2">';
+                                $html .= '<span class="text-xs font-semibold text-gray-500 dark:text-gray-400">#' . $transactionNum . '</span>';
+                                $html .= '<h4 class="text-sm font-semibold text-gray-900 dark:text-white">' . $transaction->transaction_date->format('D, d M Y') . '</h4>';
+                                $html .= '</div>';
+                                $html .= '<div class="text-xs text-gray-500 dark:text-gray-400">' . $transaction->transaction_date->format('h:i A') . '</div>';
+                                $html .= '</div>';
+                                $html .= '<div class="text-right">';
+                                $html .= '<div class="text-2xl font-bold text-green-600 dark:text-green-400">ZMW ' . number_format($transaction->amount, 2) . '</div>';
+                                $html .= '<div class="text-xs text-gray-500 dark:text-gray-400">Balance: ZMW ' . number_format(max(0, $runningBalance), 2) . '</div>';
+                                $html .= '</div>';
+                                $html .= '</div>';
+
+                                // Details Grid
+                                $html .= '<div class="grid grid-cols-2 gap-4 text-sm">';
+                                $html .= '<div>';
+                                $html .= '<span class="text-gray-500 dark:text-gray-400">Receipt No:</span> ';
+                                $html .= '<span class="font-medium text-gray-900 dark:text-white">' . ($transaction->reference_number ?? 'N/A') . '</span>';
+                                $html .= '</div>';
+                                $html .= '<div>';
+                                $html .= '<span class="text-gray-500 dark:text-gray-400">Payment Method:</span> ';
+                                $paymentMethod = ucfirst(str_replace('_', ' ', $transaction->payment_method ?? 'N/A'));
+                                $html .= '<span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200">' . $paymentMethod . '</span>';
+                                $html .= '</div>';
+                                $html .= '</div>';
+
+                                if ($transaction->notes) {
+                                    $html .= '<div class="mt-2 text-sm text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-gray-900 p-2 rounded">';
+                                    $html .= '<span class="font-medium">Notes:</span> ' . htmlspecialchars($transaction->notes);
+                                    $html .= '</div>';
+                                }
+
+                                // Action Buttons
+                                $html .= '<div class="mt-3 flex gap-2">';
+                                $html .= '<a href="' . route('student-fees.transaction-receipt', ['fee' => $record->id, 'transaction' => $transaction->id]) . '" target="_blank" class="inline-flex items-center px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-md transition-colors">';
+                                $html .= '<svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>';
+                                $html .= 'Print Receipt';
+                                $html .= '</a>';
+                                $html .= '</div>';
+
+                                $html .= '</div>';
+                                $html .= '</div>';
+                            }
+
+                            $html .= '</div>';
+                            $html .= '</div>';
+                        }
+
+                        $html .= '</div>';
+                        $html .= '</div>';
+
+                        return new \Illuminate\Support\HtmlString($html);
+                    })
+                    ->modalFooterActions([
+                        Tables\Actions\Action::make('downloadFullHistory')
+                            ->label('Download Complete History')
+                            ->icon('heroicon-o-arrow-down-tray')
+                            ->color('success')
+                            ->url(fn ($record) => route('student-fees.full-history', $record))
+                            ->openUrlInNewTab(),
+
+                        Tables\Actions\Action::make('downloadStatement')
+                            ->label('Download Statement')
+                            ->icon('heroicon-o-document-text')
+                            ->color('primary')
+                            ->url(fn ($record) => route('student-fees.receipt', $record))
+                            ->openUrlInNewTab(),
+                    ])
+                    ->modalCancelActionLabel('Close')
+                    ->visible(fn ($record) => $record->payment_status !== 'unpaid'),
+
                 Tables\Actions\Action::make('printReceipt')
-                    ->label('Print Receipt')
+                    ->label('Print Statement')
                     ->icon('heroicon-o-printer')
-                    ->color('primary')
+                    ->color('gray')
                     ->url(fn (StudentFee $record) => route('student-fees.receipt', $record))
                     ->openUrlInNewTab()
                     ->visible(fn ($record) => $record->payment_status !== 'unpaid'),
@@ -950,7 +1254,7 @@ class StudentFeeResource extends Resource
            $url_encoded_message = urlencode($message_string);
 
            $sendSenderSMS = Http::withoutVerifying()
-               ->post('https://www.cloudservicezm.com/smsservice/httpapi?username=Blessmore&password=Blessmore&msg=' . $url_encoded_message . '&shortcode=2343&sender_id=StFrancis&phone=' . $phone_number . '&api_key=121231313213123123');
+               ->post(env('SMS_API_URL') . '?username=' . env('SMS_USERNAME') . '&password=' . env('SMS_PASSWORD') . '&msg=' . $url_encoded_message . '&shortcode=' . env('SMS_SHORTCODE') . '&sender_id=' . env('SMS_SENDER_ID') . '&phone=' . $phone_number . '&api_key=' . env('SMS_API_KEY'));
 
            // Log the response
            Log::info('SMS API Response for fee payment', [

@@ -91,6 +91,19 @@ class FeeStructure extends Model
                 $feeStructure->total_fee = $feeStructure->calculateTotalFee();
             }
         });
+
+        // Clear cache when fee structure is saved or deleted
+        static::saved(function ($feeStructure) {
+            if ($feeStructure->term_id) {
+                app(\App\Services\CacheService::class)->clearFeeStructureCache($feeStructure->term_id);
+            }
+        });
+
+        static::deleted(function ($feeStructure) {
+            if ($feeStructure->term_id) {
+                app(\App\Services\CacheService::class)->clearFeeStructureCache($feeStructure->term_id);
+            }
+        });
     }
 
     public function studentFees(): HasMany

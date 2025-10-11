@@ -227,6 +227,69 @@
         </div>
 
         <div class="payment-info">
+            @php
+                $totalFee = 0;
+                $totalPaid = $studentFee->amount_paid ?? 0;
+                $balance = $studentFee->balance ?? 0;
+
+                // Try to get total fee from various sources
+                if ($studentFee->feeStructure && $studentFee->feeStructure->total_fee) {
+                    $totalFee = $studentFee->feeStructure->total_fee;
+                } else {
+                    // Calculate from payment data if fee structure is missing
+                    $totalFee = $totalPaid + $balance;
+                }
+
+                // Get all payment transactions
+                $transactions = $studentFee->paymentTransactions()
+                    ->orderBy('transaction_date', 'asc')
+                    ->get();
+            @endphp
+
+            <!-- Payment Transactions History -->
+            @if($transactions->isNotEmpty())
+            <h3 style="font-size: 13px; margin: 10px 0 5px 0; color: #003366; border-bottom: 1px solid #4a7fb5; padding-bottom: 3px;">Payment Transaction History</h3>
+            <table class="payment-table">
+                <thead>
+                    <tr>
+                        <th width="5%" style="text-align: center;">#</th>
+                        <th width="20%">Date</th>
+                        <th width="25%">Receipt No.</th>
+                        <th width="20%">Method</th>
+                        <th width="15%" style="text-align: right;">Amount</th>
+                        <th width="15%" style="text-align: right;">Balance</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @php
+                        $runningBalance = $totalFee;
+                    @endphp
+                    @foreach($transactions as $index => $transaction)
+                        @php
+                            $runningBalance -= $transaction->amount;
+                        @endphp
+                        <tr>
+                            <td style="text-align: center; font-weight: bold; color: #4a7fb5;">{{ $index + 1 }}</td>
+                            <td>{{ $transaction->transaction_date->format('d M Y') }}</td>
+                            <td>{{ $transaction->reference_number }}</td>
+                            <td>{{ ucfirst(str_replace('_', ' ', $transaction->payment_method ?? 'N/A')) }}</td>
+                            <td style="text-align: right; font-weight: bold; color: #28a745;">{{ number_format($transaction->amount, 2) }}</td>
+                            <td style="text-align: right; font-weight: bold; color: #dc3545;">{{ number_format(max(0, $runningBalance), 2) }}</td>
+                        </tr>
+                        @if($transaction->notes && !str_contains($transaction->notes, 'Historical payment'))
+                        <tr>
+                            <td colspan="6" style="font-size: 10px; font-style: italic; padding: 2px 6px; background-color: #f8f9fa; border: none;">
+                                <strong>Note:</strong> {{ $transaction->notes }}
+                            </td>
+                        </tr>
+                        @endif
+                    @endforeach
+                </tbody>
+            </table>
+            @endif
+
+            <!-- Payment Summary -->
+            <h3 style="font-size: 13px; margin: 15px 0 5px 0; color: #003366; border-bottom: 1px solid #4a7fb5; padding-bottom: 3px;">Payment Summary</h3>
             <table class="payment-table">
                 <thead>
                     <tr>
@@ -235,44 +298,22 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @php
-                        $totalFee = 0;
-                        $thisPayment = $lastPaymentAmount ?? $studentFee->amount_paid ?? 0;
-                        $totalPaid = $studentFee->amount_paid ?? 0;
-                        $previouslyPaid = $totalPaid - $thisPayment;
-                        $balance = $studentFee->balance ?? 0;
-
-                        // Try to get total fee from various sources
-                        if ($studentFee->feeStructure && $studentFee->feeStructure->total_fee) {
-                            $totalFee = $studentFee->feeStructure->total_fee;
-                        } else {
-                            // Calculate from payment data if fee structure is missing
-                            $totalFee = $totalPaid + $balance;
-                        }
-                    @endphp
-
                     <tr>
                         <td>Total Term Fee</td>
                         <td>{{ number_format($totalFee, 2) }}</td>
                     </tr>
-                    <tr>
-                        <td>Previously Paid</td>
-                        <td>{{ number_format(max(0, $previouslyPaid), 2) }}</td>
+                    <tr class="amount-row" style="background-color: #d4edda;">
+                        <td><strong>Total Paid</strong></td>
+                        <td><strong>{{ number_format($totalPaid, 2) }}</strong></td>
                     </tr>
-                    <tr class="amount-row">
-                        <td>This Payment</td>
-                        <td>{{ number_format($thisPayment, 2) }}</td>
-                    </tr>
-                    <tr>
+                    <tr class="amount-row" style="background-color: {{ $balance > 0 ? '#fff3cd' : '#d4edda' }};">
                         <td><strong>Outstanding Balance</strong></td>
                         <td><strong>{{ number_format($balance, 2) }}</strong></td>
                     </tr>
-                    @if($studentFee->payment_method)
                     <tr>
-                        <td>Payment Method</td>
-                        <td>{{ ucfirst(str_replace('_', ' ', $studentFee->payment_method)) }}</td>
+                        <td>Number of Transactions</td>
+                        <td>{{ $transactions->count() }}</td>
                     </tr>
-                    @endif
                 </tbody>
             </table>
         </div>

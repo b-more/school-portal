@@ -2,21 +2,21 @@
 
 namespace App\Filament\Resources;
 
+use App\Constants\RoleConstants;
 use App\Filament\Resources\TeacherHomeworkSubmissionResource\Pages;
-use App\Models\HomeworkSubmission;
 use App\Models\Homework;
+use App\Models\HomeworkSubmission;
+use App\Models\Result;
 use App\Models\Student;
 use App\Models\Teacher;
-use App\Models\Result;
-use App\Constants\RoleConstants;
+use Carbon\Carbon;
 use Filament\Forms;
 use Filament\Forms\Form;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Filament\Notifications\Notification;
-use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 
 class TeacherHomeworkSubmissionResource extends Resource
@@ -46,41 +46,42 @@ class TeacherHomeworkSubmissionResource extends Resource
         if ($user->role_id === RoleConstants::TEACHER) {
             $teacher = Teacher::where('user_id', $user->id)->first();
 
-            if (!$teacher) {
+            if (! $teacher) {
                 return $query->where('id', 0); // Return empty result if not a teacher
             }
 
             // Get grades this teacher teaches
-            $gradeIds = $teacher->classSections()->pluck('grade_id')->unique()->toArray();
+            $gradeIds = $teacher->classSections()->pluck('class_sections.grade_id')->unique()->toArray();
 
             // Get subjects this teacher teaches
             $subjectIds = $teacher->subjects()->pluck('subjects.id')->toArray();
 
             // Get students in teacher's classes
             $studentIds = Student::whereIn('class_section_id',
-                $teacher->classSections()->pluck('id')
+                $teacher->classSections()->pluck('class_sections.id')
             )->pluck('id')->toArray();
 
             // Get homework created by this teacher or for teacher's subjects/grades
-            $homeworkIds = Homework::where(function($query) use ($teacher, $gradeIds, $subjectIds) {
+            $homeworkIds = Homework::where(function ($query) use ($teacher, $gradeIds, $subjectIds) {
                 $query->where('assigned_by', $teacher->id)
-                      ->orWhere(function($q) use ($gradeIds, $subjectIds) {
-                          $q->whereIn('grade_id', $gradeIds)
+                    ->orWhere(function ($q) use ($gradeIds, $subjectIds) {
+                        $q->whereIn('grade_id', $gradeIds)
                             ->whereIn('subject_id', $subjectIds);
-                      });
+                    });
             })->pluck('id')->toArray();
 
             // Return submissions from teacher's students for relevant homework
-            return $query->where(function($query) use ($studentIds, $homeworkIds, $teacher) {
+            return $query->where(function ($query) use ($studentIds, $homeworkIds, $teacher) {
                 $query->whereIn('student_id', $studentIds)
-                      ->whereIn('homework_id', $homeworkIds)
-                      ->orWhere('graded_by', $teacher->id);
+                    ->whereIn('homework_id', $homeworkIds)
+                    ->orWhere('graded_by', $teacher->id);
             });
         }
 
         // Students can only see their own submissions
         if ($user->role_id === RoleConstants::STUDENT) {
             $student = Student::where('user_id', $user->id)->first();
+
             return $student ? $query->where('student_id', $student->id) : $query->where('id', 0);
         }
 
@@ -88,6 +89,7 @@ class TeacherHomeworkSubmissionResource extends Resource
         if ($user->role_id === RoleConstants::PARENT) {
             $parent = $user->parentGuardian;
             $studentIds = $parent ? $parent->students()->pluck('id')->toArray() : [];
+
             return $query->whereIn('student_id', $studentIds);
         }
 
@@ -99,33 +101,38 @@ class TeacherHomeworkSubmissionResource extends Resource
         $user = Auth::user();
         $isTeacher = $user->role_id === RoleConstants::TEACHER;
         $isAdmin = $user->role_id === RoleConstants::ADMIN;
-
-        // Students and parents shouldn't create submissions through admin panel
-        if ($user->role_id === RoleConstants::STUDENT || $user->role_id === RoleConstants::PARENT) {
-            return $form->schema([
-                Forms\Components\Placeholder::make('notice')
-                    ->content('You can submit homework through the student portal.')
-            ]);
-        }
+        $isStudent = $user->role_id === RoleConstants::STUDENT;
 
         $teacher = $isTeacher ? Teacher::where('user_id', $user->id)->first() : null;
+        $student = $isStudent ? Student::where('user_id', $user->id)->first() : null;
 
         return $form
             ->schema([
                 Forms\Components\Section::make('Submission Details')
                     ->schema([
                         Forms\Components\Select::make('homework_id')
-                            ->relationship('homework', 'title')
+                            ->relationship('homework', 'title', function (Builder $query) use ($student) {
+                                if ($student) {
+                                    // Students only see active homework for their grade
+                                    $query->where('grade_id', $student->grade_id)
+                                        ->where('status', 'active');
+                                }
+                            })
                             ->searchable()
                             ->preload()
                             ->required()
                             ->reactive()
-                            ->afterStateUpdated(fn (callable $set) => $set('marks', null)),
+                            ->afterStateUpdated(fn (callable $set) => $set('marks', null))
+                            ->disabled(fn ($livewire) => $livewire instanceof \Filament\Resources\Pages\EditRecord),
                         Forms\Components\Select::make('student_id')
                             ->relationship('student', 'name')
                             ->searchable()
                             ->preload()
-                            ->required(),
+                            ->required()
+                            ->default($student?->id)
+                            ->disabled($isStudent)
+                            ->dehydrated(true)
+                            ->hidden($isStudent),
                         Forms\Components\Textarea::make('content')
                             ->label('Student Comments')
                             ->maxLength(65535)
@@ -139,10 +146,21 @@ class TeacherHomeworkSubmissionResource extends Resource
                             ->columnSpanFull(),
                         Forms\Components\DateTimePicker::make('submitted_at')
                             ->required()
-                            ->default(now()),
+                            ->default(now())
+                            ->disabled($isStudent)
+                            ->dehydrated(true),
                         Forms\Components\Toggle::make('is_late')
                             ->label('Mark as Late Submission')
-                            ->default(false),
+                            ->default(false)
+                            ->hidden($isStudent),
+                        Forms\Components\Hidden::make('student_id_hidden')
+                            ->default($student?->id)
+                            ->afterStateHydrated(function ($component, $state, callable $set) use ($student) {
+                                if ($student && ! $state) {
+                                    $set('student_id', $student->id);
+                                }
+                            })
+                            ->visible($isStudent),
                     ])->columns(2),
 
                 Forms\Components\Section::make('Grading')
@@ -161,11 +179,11 @@ class TeacherHomeworkSubmissionResource extends Resource
                                 if ($state) {
                                     $set('status', 'graded');
 
-                                    if (!$get('graded_at')) {
+                                    if (! $get('graded_at')) {
                                         $set('graded_at', Carbon::now());
                                     }
 
-                                    if (!$get('graded_by')) {
+                                    if (! $get('graded_by')) {
                                         $set('graded_by', auth()->user()->teacher->id ?? null);
                                     }
                                 }
@@ -189,7 +207,7 @@ class TeacherHomeworkSubmissionResource extends Resource
                             ->columnSpanFull()
                             ->hidden(fn () => $user->role_id !== RoleConstants::TEACHER && $user->role_id !== RoleConstants::ADMIN),
                         Forms\Components\Hidden::make('graded_by')
-                            ->default(function() use ($teacher) {
+                            ->default(function () use ($teacher) {
                                 return $teacher ? $teacher->id : null;
                             }),
                         Forms\Components\DateTimePicker::make('graded_at')
@@ -201,7 +219,7 @@ class TeacherHomeworkSubmissionResource extends Resource
                     ->schema([
                         Forms\Components\Placeholder::make('result_info')
                             ->content(function ($record) {
-                                if (!$record || !$record->id) {
+                                if (! $record || ! $record->id) {
                                     return 'Save this submission first to check for associated results.';
                                 }
 
@@ -210,12 +228,12 @@ class TeacherHomeworkSubmissionResource extends Resource
                                     ->where('exam_type', 'assignment')
                                     ->first();
 
-                                if (!$result) {
+                                if (! $result) {
                                     return 'No result record has been created for this submission yet. After grading, you can create a result record from the actions menu.';
                                 }
 
-                                return "Result Record: {$result->grade} ({$result->marks}%) - Created on " . $result->created_at->format('M d, Y H:i');
-                            })
+                                return "Result Record: {$result->grade} ({$result->marks}%) - Created on ".$result->created_at->format('M d, Y H:i');
+                            }),
                     ])
                     ->visible(function ($record) {
                         return $record && $record->id;
@@ -237,6 +255,12 @@ class TeacherHomeworkSubmissionResource extends Resource
                     ->searchable()
                     ->limit(30)
                     ->sortable(),
+                Tables\Columns\TextColumn::make('homework.subject.name')
+                    ->label('Subject')
+                    ->searchable()
+                    ->sortable()
+                    ->badge()
+                    ->color('primary'),
                 Tables\Columns\TextColumn::make('student.name')
                     ->label('Student')
                     ->searchable()
@@ -262,16 +286,17 @@ class TeacherHomeworkSubmissionResource extends Resource
                         }
 
                         $maxScore = $record->homework?->max_score ?? 100;
-                        return "{$record->marks}/{$maxScore} (" . round(($record->marks / $maxScore) * 100) . "%)";
+
+                        return "{$record->marks}/{$maxScore} (".round(($record->marks / $maxScore) * 100).'%)';
                     })
                     ->sortable(),
                 Tables\Columns\IconColumn::make('file_attachment')
                     ->label('Files')
                     ->boolean()
-                    ->getStateUsing(fn ($record) => !empty($record->file_attachment)),
+                    ->getStateUsing(fn ($record) => ! empty($record->file_attachment)),
                 Tables\Columns\TextColumn::make('feedback')
                     ->limit(50)
-                    ->hidden(!$isStudent && !$isParent),
+                    ->hidden(! $isStudent && ! $isParent),
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('homework')
@@ -338,9 +363,32 @@ class TeacherHomeworkSubmissionResource extends Resource
                     ->label('Download Files')
                     ->icon('heroicon-o-arrow-down-tray')
                     ->color('primary')
-                    ->url(fn ($record) => route('filament.resources.teacher-homework-submissions.download', $record))
-                    ->openUrlInNewTab()
-                    ->visible(fn ($record) => !empty($record->file_attachment)),
+                    ->action(function ($record) {
+                        if (empty($record->file_attachment)) {
+                            Notification::make()
+                                ->title('No files to download')
+                                ->warning()
+                                ->send();
+
+                            return;
+                        }
+
+                        // If single file, download it directly
+                        if (is_string($record->file_attachment)) {
+                            return response()->download(
+                                storage_path('app/public/'.$record->file_attachment)
+                            );
+                        }
+
+                        // If multiple files, download the first one
+                        // TODO: Implement ZIP download for multiple files
+                        $firstFile = is_array($record->file_attachment) ? $record->file_attachment[0] : $record->file_attachment;
+
+                        return response()->download(
+                            storage_path('app/public/'.$firstFile)
+                        );
+                    })
+                    ->visible(fn ($record) => ! empty($record->file_attachment)),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
@@ -363,7 +411,7 @@ class TeacherHomeworkSubmissionResource extends Resource
                         })
                         ->visible($canGrade),
                 ])
-                ->visible($canGrade),
+                    ->visible($canGrade),
             ]);
     }
 
@@ -379,7 +427,7 @@ class TeacherHomeworkSubmissionResource extends Resource
         return [
             'index' => Pages\ListTeacherHomeworkSubmissions::route('/'),
             'create' => Pages\CreateTeacherHomeworkSubmission::route('/create'),
-            //'view' => Pages\ViewTeacherHomeworkSubmission::route('/{record}'),
+            // 'view' => Pages\ViewTeacherHomeworkSubmission::route('/{record}'),
             'edit' => Pages\EditTeacherHomeworkSubmission::route('/{record}/edit'),
         ];
     }
@@ -390,14 +438,14 @@ class TeacherHomeworkSubmissionResource extends Resource
             RoleConstants::ADMIN,
             RoleConstants::TEACHER,
             RoleConstants::STUDENT,
-            RoleConstants::PARENT
+            RoleConstants::PARENT,
         ]) ?? false;
     }
 
     public static function canCreate(): bool
     {
-        // Only teachers and admins can create submissions through admin panel
-        return in_array(auth()->user()?->role_id, [RoleConstants::ADMIN, RoleConstants::TEACHER]) ?? false;
+        // Allow students, teachers and admins to create submissions
+        return in_array(auth()->user()?->role_id, [RoleConstants::ADMIN, RoleConstants::TEACHER, RoleConstants::STUDENT]) ?? false;
     }
 
     public static function canEditAny(): bool

@@ -2,24 +2,24 @@
 
 namespace App\Filament\Resources;
 
+use App\Constants\RoleConstants;
 use App\Filament\Resources\TeacherResultResource\Pages;
+use App\Models\Homework;
 use App\Models\Result;
+use App\Models\SmsLog;
 use App\Models\Student;
 use App\Models\Subject;
 use App\Models\Teacher;
-use App\Models\Homework;
-use App\Models\SmsLog;
 use App\Services\SmsService;
-use App\Constants\RoleConstants;
 use Filament\Forms;
 use Filament\Forms\Form;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Filament\Notifications\Notification;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class TeacherResultResource extends Resource
 {
@@ -48,12 +48,12 @@ class TeacherResultResource extends Resource
         if ($user->role_id === RoleConstants::TEACHER) {
             $teacher = Teacher::where('user_id', $user->id)->first();
 
-            if (!$teacher) {
+            if (! $teacher) {
                 return $query->where('id', 0); // Return empty result if not a teacher
             }
 
             // Get class sections assigned to this teacher
-            $classSectionIds = $teacher->classSections()->pluck('id')->toArray();
+            $classSectionIds = $teacher->classSections()->pluck('class_sections.id')->toArray();
 
             // Get subjects assigned to this teacher
             $subjectIds = $teacher->subjects()->pluck('subjects.id')->toArray();
@@ -66,18 +66,19 @@ class TeacherResultResource extends Resource
             // Filter results by:
             // 1. Results recorded by this teacher OR
             // 2. Results for students in teacher's classes AND for subjects taught by this teacher
-            return $query->where(function($query) use ($teacher, $studentIds, $subjectIds) {
+            return $query->where(function ($query) use ($teacher, $studentIds, $subjectIds) {
                 $query->where('recorded_by', $teacher->id)
-                      ->orWhere(function($q) use ($studentIds, $subjectIds) {
-                          $q->whereIn('student_id', $studentIds)
+                    ->orWhere(function ($q) use ($studentIds, $subjectIds) {
+                        $q->whereIn('student_id', $studentIds)
                             ->whereIn('subject_id', $subjectIds);
-                      });
+                    });
             });
         }
 
         // Students can only see their own results
         if ($user->role_id === RoleConstants::STUDENT) {
             $student = Student::where('user_id', $user->id)->first();
+
             return $student ? $query->where('student_id', $student->id) : $query->where('id', 0);
         }
 
@@ -85,6 +86,7 @@ class TeacherResultResource extends Resource
         if ($user->role_id === RoleConstants::PARENT) {
             $parent = $user->parentGuardian;
             $studentIds = $parent ? $parent->students()->pluck('id')->toArray() : [];
+
             return $query->whereIn('student_id', $studentIds);
         }
 
@@ -105,31 +107,33 @@ class TeacherResultResource extends Resource
         if ($isStudent || $isParent) {
             return $form->schema([
                 Forms\Components\Placeholder::make('notice')
-                    ->content('Results can only be created by teachers.')
+                    ->content('Results can only be created by teachers.'),
             ]);
         }
 
         // Get teacher's class sections
         $classSectionIds = [];
         if ($teacher) {
-            $classSectionIds = $teacher->classSections()->pluck('id')->toArray();
+            $classSectionIds = $teacher->classSections()->pluck('class_sections.id')->toArray();
         }
 
         // Get students in teacher's classes
         $studentOptions = [];
-        if (!empty($classSectionIds)) {
+        if (! empty($classSectionIds)) {
             $studentOptions = Student::whereIn('class_section_id', $classSectionIds)
                 ->get()
                 ->mapWithKeys(function ($student) {
                     $grade = $student->grade ? $student->grade->name : 'Unknown';
+
                     return [$student->id => "{$student->name} ({$grade})"];
                 })
                 ->toArray();
-        } else if ($isAdmin) {
+        } elseif ($isAdmin) {
             $studentOptions = Student::with('grade')
                 ->get()
                 ->mapWithKeys(function ($student) {
                     $grade = $student->grade ? $student->grade->name : 'Unknown';
+
                     return [$student->id => "{$student->name} ({$grade})"];
                 })
                 ->toArray();
@@ -138,8 +142,8 @@ class TeacherResultResource extends Resource
         // Get subject options
         $subjectOptions = [];
         if ($teacher) {
-            $subjectOptions = $teacher->subjects()->pluck('name', 'id')->toArray();
-        } else if ($isAdmin) {
+            $subjectOptions = $teacher->subjects()->pluck('name', 'subjects.id')->toArray();
+        } elseif ($isAdmin) {
             $subjectOptions = Subject::pluck('name', 'id')->toArray();
         }
 
@@ -181,13 +185,13 @@ class TeacherResultResource extends Resource
                                 $studentId = $get('student_id');
                                 $subjectId = $get('subject_id');
 
-                                if (!$studentId || !$subjectId) {
+                                if (! $studentId || ! $subjectId) {
                                     return [];
                                 }
 
                                 // Get student grade
                                 $student = Student::find($studentId);
-                                if (!$student || !$student->grade_id) {
+                                if (! $student || ! $student->grade_id) {
                                     return [];
                                 }
 
@@ -196,9 +200,9 @@ class TeacherResultResource extends Resource
                                     ->where('grade_id', $student->grade_id);
 
                                 if ($teacher) {
-                                    $homeworkQuery->where(function($query) use ($teacher) {
+                                    $homeworkQuery->where(function ($query) use ($teacher) {
                                         $query->where('assigned_by', $teacher->id)
-                                              ->orWhereIn('subject_id', $teacher->subjects()->pluck('subjects.id'));
+                                            ->orWhereIn('subject_id', $teacher->subjects()->pluck('subjects.id'));
                                     });
                                 }
 
@@ -244,7 +248,7 @@ class TeacherResultResource extends Resource
                             ->columnSpanFull(),
 
                         Forms\Components\Hidden::make('recorded_by')
-                            ->default(function() use ($teacher) {
+                            ->default(function () use ($teacher) {
                                 return $teacher ? $teacher->id : null;
                             }),
 
@@ -299,7 +303,6 @@ class TeacherResultResource extends Resource
                     ->searchable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('year')
-                    ->numeric()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('comment')
                     ->limit(50)
@@ -329,8 +332,7 @@ class TeacherResultResource extends Resource
                     ->form([
                         Forms\Components\TextInput::make('year'),
                     ])
-                    ->query(fn (Builder $query, array $data): Builder =>
-                        $query->when($data['year'], fn($q) => $q->where('year', $data['year']))
+                    ->query(fn (Builder $query, array $data): Builder => $query->when($data['year'], fn ($q) => $q->where('year', $data['year']))
                     ),
                 Tables\Filters\Filter::make('homework')
                     ->label('Has Linked Homework')
@@ -346,7 +348,7 @@ class TeacherResultResource extends Resource
                     ->icon('heroicon-o-document-text')
                     ->color('success')
                     ->url(fn (Result $record) => $record && $record->homework_id
-                        ? route('filament.admin.resources.teacher-homework.view', ['record' => $record->homework_id])
+                        ? route('filament.admin.resources.teacher-homeworks.view', ['record' => $record->homework_id])
                         : null)
                     ->visible(fn (Result $record) => $record && $record->exam_type === 'assignment' && $record->homework_id)
                     ->openUrlInNewTab(),
@@ -382,7 +384,7 @@ class TeacherResultResource extends Resource
                                     $failCount++;
                                     Log::error('Failed to send result notification', [
                                         'result_id' => $result->id,
-                                        'error' => $e->getMessage()
+                                        'error' => $e->getMessage(),
                                     ]);
                                 }
                             }
@@ -399,7 +401,7 @@ class TeacherResultResource extends Resource
                         ->modalDescription('This will send SMS notifications for all selected results. Are you sure you want to continue?')
                         ->modalSubmitActionLabel('Yes, Send All Notifications'),
                 ])
-                ->visible($canEdit),
+                    ->visible($canEdit),
             ]);
     }
 
@@ -415,7 +417,7 @@ class TeacherResultResource extends Resource
         return [
             'index' => Pages\ListTeacherResults::route('/'),
             'create' => Pages\CreateTeacherResult::route('/create'),
-            //'view' => Pages\ViewTeacherResult::route('/{record}'),
+            // 'view' => Pages\ViewTeacherResult::route('/{record}'),
             'edit' => Pages\EditTeacherResult::route('/{record}/edit'),
         ];
     }
@@ -426,7 +428,7 @@ class TeacherResultResource extends Resource
             RoleConstants::ADMIN,
             RoleConstants::TEACHER,
             RoleConstants::STUDENT,
-            RoleConstants::PARENT
+            RoleConstants::PARENT,
         ]) ?? false;
     }
 
@@ -456,12 +458,12 @@ class TeacherResultResource extends Resource
         try {
             // Get student and parent information
             $student = $result->student;
-            if (!$student) {
+            if (! $student) {
                 throw new \Exception('Student not found');
             }
 
             $parent = $student->parentGuardian;
-            if (!$parent || !$parent->phone) {
+            if (! $parent || ! $parent->phone) {
                 throw new \Exception('Parent or phone number not found');
             }
 
@@ -498,7 +500,7 @@ class TeacherResultResource extends Resource
 
             Log::error('Failed to send result SMS', [
                 'result_id' => $result->id,
-                'error' => $e->getMessage()
+                'error' => $e->getMessage(),
             ]);
 
             return false;

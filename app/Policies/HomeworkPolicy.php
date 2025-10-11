@@ -2,9 +2,10 @@
 
 namespace App\Policies;
 
+use App\Constants\RoleConstants;
 use App\Models\Homework;
+use App\Models\Teacher;
 use App\Models\User;
-use App\Models\Employee;
 use Illuminate\Auth\Access\HandlesAuthorization;
 
 class HomeworkPolicy
@@ -25,37 +26,37 @@ class HomeworkPolicy
     public function view(User $user, Homework $homework)
     {
         // Admin can view all homework
-        if ($user->hasRole('admin')) {
+        if ($user->role_id === RoleConstants::ADMIN) {
             return true;
         }
 
-        // Get the employee record for this user
-        $employee = Employee::where('user_id', $user->id)->first();
+        // Get the teacher record for this user
+        $teacher = Teacher::where('user_id', $user->id)->first();
 
-        if (!$employee) {
+        if (! $teacher) {
             return false;
         }
 
         // Teachers can view homework they created
-        if ($homework->assigned_by === $employee->id) {
+        if ($homework->assigned_by === $teacher->id) {
             return true;
         }
 
         // Teachers can view homework for their classes and subjects
-        if ($employee->role === 'teacher') {
-            // Get the classes and subjects assigned to this teacher
-            $teacherClasses = $employee->classes()->pluck('id')->toArray();
-            $teacherSubjects = $employee->subjects()->pluck('id')->toArray();
+        if ($user->role_id === RoleConstants::TEACHER) {
+            // Get the class sections and subjects assigned to this teacher
+            $teacherClassSectionIds = $teacher->classSections()->pluck('class_sections.id')->toArray();
+            $teacherSubjectIds = $teacher->subjects()->pluck('subjects.id')->toArray();
 
-            // Get the grade levels for the teacher's classes
-            $teacherGrades = \DB::table('classes')
-                ->whereIn('id', $teacherClasses)
-                ->pluck('grade')
+            // Get the grade IDs for the teacher's classes
+            $teacherGradeIds = $teacher->classSections()
+                ->pluck('class_sections.grade_id')
+                ->unique()
                 ->toArray();
 
             // Teacher can access if the homework is for their grade and subject
-            return in_array($homework->grade, $teacherGrades) &&
-                   in_array($homework->subject_id, $teacherSubjects);
+            return in_array($homework->grade_id, $teacherGradeIds) &&
+                in_array($homework->subject_id, $teacherSubjectIds);
         }
 
         return false;
@@ -66,14 +67,8 @@ class HomeworkPolicy
      */
     public function create(User $user)
     {
-        // Admin can create homework
-        if ($user->hasRole('admin')) {
-            return true;
-        }
-
-        // Teachers can create homework
-        $employee = Employee::where('user_id', $user->id)->first();
-        return $employee && $employee->role === 'teacher';
+        // Admin and teachers can create homework
+        return in_array($user->role_id, [RoleConstants::ADMIN, RoleConstants::TEACHER]);
     }
 
     /**
@@ -82,19 +77,19 @@ class HomeworkPolicy
     public function update(User $user, Homework $homework)
     {
         // Admin can update any homework
-        if ($user->hasRole('admin')) {
+        if ($user->role_id === RoleConstants::ADMIN) {
             return true;
         }
 
-        // Get the employee record
-        $employee = Employee::where('user_id', $user->id)->first();
+        // Get the teacher record
+        $teacher = Teacher::where('user_id', $user->id)->first();
 
-        if (!$employee) {
+        if (! $teacher) {
             return false;
         }
 
         // Teachers can only update homework they created
-        return $homework->assigned_by === $employee->id;
+        return $homework->assigned_by === $teacher->id;
     }
 
     /**
@@ -103,18 +98,18 @@ class HomeworkPolicy
     public function delete(User $user, Homework $homework)
     {
         // Admin can delete any homework
-        if ($user->hasRole('admin')) {
+        if ($user->role_id === RoleConstants::ADMIN) {
             return true;
         }
 
-        // Get the employee record
-        $employee = Employee::where('user_id', $user->id)->first();
+        // Get the teacher record
+        $teacher = Teacher::where('user_id', $user->id)->first();
 
-        if (!$employee) {
+        if (! $teacher) {
             return false;
         }
 
         // Teachers can only delete homework they created
-        return $homework->assigned_by === $employee->id;
+        return $homework->assigned_by === $teacher->id;
     }
 }

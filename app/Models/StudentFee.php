@@ -23,6 +23,8 @@ class StudentFee extends Model
         'payment_date',
         'receipt_number',
         'payment_method',
+        'payment_reference',
+        'proof_of_payment',
         'notes',
         'send_sms_notification',
     ];

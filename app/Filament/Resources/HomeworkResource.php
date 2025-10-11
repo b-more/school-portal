@@ -2,42 +2,47 @@
 
 namespace App\Filament\Resources;
 
+use App\Constants\RoleConstants;
 use App\Filament\Resources\HomeworkResource\Pages;
-use App\Models\Homework;
-use App\Models\Subject;
 use App\Models\Grade;
-use App\Models\Student;
+use App\Models\Homework;
 use App\Models\ParentGuardian;
+use App\Models\Student;
+use App\Models\Subject;
 use App\Models\Teacher;
-use App\Models\AcademicYear;
 use App\Traits\HasTeacherAccess;
 use Filament\Forms;
 use Filament\Forms\Form;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Filament\Notifications\Notification;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
-use App\Constants\RoleConstants;
 
 class HomeworkResource extends Resource
 {
     use HasTeacherAccess;
 
     protected static ?string $model = Homework::class;
+
     protected static ?string $navigationIcon = 'heroicon-o-document-text';
+
     protected static ?string $navigationGroup = 'Teaching';
+
     protected static ?string $navigationLabel = 'Homework';
+
     protected static ?int $navigationSort = 1;
 
     public static function shouldRegisterNavigation(): bool
     {
         $user = Auth::user();
-        if (!$user) return false;
+        if (! $user) {
+            return false;
+        }
 
         return in_array($user->role_id, [RoleConstants::ADMIN, RoleConstants::TEACHER, RoleConstants::PARENT]);
     }
@@ -45,6 +50,7 @@ class HomeworkResource extends Resource
     public static function canCreate(): bool
     {
         $user = Auth::user();
+
         return $user && in_array($user->role_id, [RoleConstants::ADMIN, RoleConstants::TEACHER]);
     }
 
@@ -58,6 +64,7 @@ class HomeworkResource extends Resource
 
         if ($user->role_id === RoleConstants::TEACHER) {
             $teacher = Teacher::where('user_id', $user->id)->first();
+
             return $teacher && $record->assigned_by === $teacher->id;
         }
 
@@ -81,7 +88,7 @@ class HomeworkResource extends Resource
         // Get subjects for the teacher or all subjects for admin
         $subjectOptions = [];
         if ($teacher) {
-            $subjectOptions = $teacher->subjects()->pluck('name', 'id')->toArray();
+            $subjectOptions = $teacher->subjects()->pluck('name', 'subjects.id')->toArray();
         } elseif ($user && $user->role_id === RoleConstants::ADMIN) {
             $subjectOptions = Subject::where('is_active', true)->pluck('name', 'id')->toArray();
         }
@@ -177,7 +184,7 @@ class HomeworkResource extends Resource
                             ->helperText('Final deadline for late submissions'),
 
                         Forms\Components\Hidden::make('assigned_by')
-                            ->default(function() use ($teacher) {
+                            ->default(function () use ($teacher) {
                                 return $teacher ? $teacher->id : null;
                             }),
 
@@ -207,13 +214,13 @@ class HomeworkResource extends Resource
                         // Show homework assigned by this teacher or for grades they teach
                         $query->where(function ($q) use ($teacher) {
                             $q->where('assigned_by', $teacher->id)
-                              ->orWhereHas('grade', function ($gradeQuery) use ($teacher) {
-                                  $gradeQuery->whereHas('classSections', function ($classQuery) use ($teacher) {
-                                      $classQuery->whereHas('subjectTeachings', function ($teachingQuery) use ($teacher) {
-                                          $teachingQuery->where('teacher_id', $teacher->id);
-                                      });
-                                  });
-                              });
+                                ->orWhereHas('grade', function ($gradeQuery) use ($teacher) {
+                                    $gradeQuery->whereHas('classSections', function ($classQuery) use ($teacher) {
+                                        $classQuery->whereHas('subjectTeachings', function ($teachingQuery) use ($teacher) {
+                                            $teachingQuery->where('teacher_id', $teacher->id);
+                                        });
+                                    });
+                                });
                         });
                     }
                 } elseif ($user && $user->role_id === RoleConstants::PARENT) {
@@ -263,6 +270,7 @@ class HomeworkResource extends Resource
                         } elseif ($record->due_date->diffInDays() <= 2) {
                             return 'warning';
                         }
+
                         return 'success';
                     })
                     ->icon(function ($record) {
@@ -271,6 +279,7 @@ class HomeworkResource extends Resource
                         } elseif ($record->due_date->diffInDays() <= 2) {
                             return 'heroicon-o-clock';
                         }
+
                         return 'heroicon-o-calendar';
                     }),
 
@@ -282,7 +291,7 @@ class HomeworkResource extends Resource
                 Tables\Columns\IconColumn::make('homework_file')
                     ->label('File')
                     ->boolean()
-                    ->getStateUsing(fn ($record) => !empty($record->homework_file))
+                    ->getStateUsing(fn ($record) => ! empty($record->homework_file))
                     ->icon('heroicon-o-document')
                     ->color('primary'),
 
@@ -312,9 +321,10 @@ class HomeworkResource extends Resource
                         if ($user && $user->role_id === RoleConstants::TEACHER) {
                             $teacher = Teacher::where('user_id', $user->id)->first();
                             if ($teacher) {
-                                return $teacher->subjects()->pluck('name', 'id')->toArray();
+                                return $teacher->subjects()->pluck('name', 'subjects.id')->toArray();
                             }
                         }
+
                         return Subject::where('is_active', true)->pluck('name', 'id')->toArray();
                     }),
 
@@ -344,46 +354,49 @@ class HomeworkResource extends Resource
                     ->icon('heroicon-o-arrow-down-tray')
                     ->color('primary')
                     ->action(function (Homework $record) {
-                        if (!$record->homework_file) {
+                        if (! $record->homework_file) {
                             Notification::make()
                                 ->title('No file available')
                                 ->warning()
                                 ->send();
+
                             return;
                         }
 
-                        $filePath = storage_path('app/public/' . $record->homework_file);
+                        $filePath = storage_path('app/public/'.$record->homework_file);
 
-                        if (!file_exists($filePath)) {
+                        if (! file_exists($filePath)) {
                             Notification::make()
                                 ->title('File not found')
                                 ->body('The homework file could not be found on the server.')
                                 ->danger()
                                 ->send();
+
                             return;
                         }
 
                         // Get file extension and name
-                        $fileName = $record->title . '_' . $record->subject->name . '_' . $record->grade->name;
+                        $fileName = $record->title.'_'.$record->subject->name.'_'.$record->grade->name;
                         $extension = pathinfo($record->homework_file, PATHINFO_EXTENSION);
-                        $downloadName = $fileName . '.' . $extension;
+                        $downloadName = $fileName.'.'.$extension;
 
                         return response()->download($filePath, $downloadName);
                     })
-                    ->visible(fn (Homework $record) => !empty($record->homework_file)),
+                    ->visible(fn (Homework $record) => ! empty($record->homework_file)),
 
                 Tables\Actions\Action::make('view_file')
                     ->label('View')
                     ->icon('heroicon-o-eye')
                     ->color('info')
                     ->url(function (Homework $record) {
-                        if (!$record->homework_file) {
+                        if (! $record->homework_file) {
                             return null;
                         }
+
                         return Storage::url($record->homework_file);
                     })
                     ->openUrlInNewTab()
-                    ->visible(fn (Homework $record) => !empty($record->homework_file)),
+                    ->visible(fn (Homework $record) => ! empty($record->homework_file)),
 
                 Tables\Actions\ViewAction::make(),
 
@@ -403,6 +416,7 @@ class HomeworkResource extends Resource
                     ->modalSubmitActionLabel('Yes, Send Notifications')
                     ->visible(function (Homework $record) {
                         $user = Auth::user();
+
                         return $user && in_array($user->role_id, [RoleConstants::ADMIN, RoleConstants::TEACHER]);
                     }),
 
@@ -414,6 +428,7 @@ class HomeworkResource extends Resource
                     Tables\Actions\DeleteBulkAction::make()
                         ->visible(function () {
                             $user = Auth::user();
+
                             return $user && in_array($user->role_id, [RoleConstants::ADMIN, RoleConstants::TEACHER]);
                         }),
                 ]),
@@ -438,6 +453,7 @@ class HomeworkResource extends Resource
                 ->body('No active students found in this grade.')
                 ->warning()
                 ->send();
+
             return;
         }
 
@@ -448,8 +464,9 @@ class HomeworkResource extends Resource
         foreach ($students as $student) {
             $parentGuardian = $student->parentGuardian;
 
-            if (!$parentGuardian || !$parentGuardian->phone) {
+            if (! $parentGuardian || ! $parentGuardian->phone) {
                 $noPhoneCount++;
+
                 continue;
             }
 
@@ -474,7 +491,7 @@ class HomeworkResource extends Resource
                 }
 
                 $message .= "\n📱 Please check the parent portal to download the homework file.\n\n";
-                $message .= "St. Francis of Assisi School";
+                $message .= 'St. Francis of Assisi School';
 
                 // Format and send SMS
                 $formattedPhone = static::formatPhoneNumber($parentGuardian->phone);
@@ -491,7 +508,7 @@ class HomeworkResource extends Resource
                         'student_name' => $student->name,
                         'parent_guardian_id' => $parentGuardian->id,
                         'parent_name' => $parentGuardian->name,
-                        'phone' => substr($formattedPhone, 0, 6) . '****' . substr($formattedPhone, -3),
+                        'phone' => substr($formattedPhone, 0, 6).'****'.substr($formattedPhone, -3),
                     ]);
                 } else {
                     $failCount++;
@@ -509,7 +526,7 @@ class HomeworkResource extends Resource
                     'parent_guardian_id' => $parentGuardian->id,
                     'parent_name' => $parentGuardian->name,
                     'error' => $e->getMessage(),
-                    'trace' => $e->getTraceAsString()
+                    'trace' => $e->getTraceAsString(),
                 ]);
             }
         }
@@ -519,7 +536,7 @@ class HomeworkResource extends Resource
         $message .= "✅ Successfully sent: {$successCount}\n";
         $message .= "❌ Failed to send: {$failCount}\n";
         $message .= "📱 No phone number: {$noPhoneCount}\n";
-        $message .= "👥 Total students: " . $students->count();
+        $message .= '👥 Total students: '.$students->count();
 
         Notification::make()
             ->title('SMS Notifications Complete')
@@ -545,12 +562,12 @@ class HomeworkResource extends Resource
 
         // If starting with 0, replace with country code
         if (substr($phoneNumber, 0, 1) === '0') {
-            return '260' . substr($phoneNumber, 1);
+            return '260'.substr($phoneNumber, 1);
         }
 
         // If number doesn't have country code, add it
         if (strlen($phoneNumber) === 9) {
-            return '260' . $phoneNumber;
+            return '260'.$phoneNumber;
         }
 
         return $phoneNumber;
@@ -564,9 +581,9 @@ class HomeworkResource extends Resource
         try {
             // Log the sending attempt
             Log::info('Sending homework SMS notification', [
-                'phone' => substr($phone_number, 0, 6) . '****' . substr($phone_number, -3),
+                'phone' => substr($phone_number, 0, 6).'****'.substr($phone_number, -3),
                 'message_length' => strlen($message_string),
-                'message_preview' => substr($message_string, 0, 100) . '...'
+                'message_preview' => substr($message_string, 0, 100).'...',
             ]);
 
             // Replace @ with (at) for SMS compatibility
@@ -576,14 +593,14 @@ class HomeworkResource extends Resource
             $sendSenderSMS = Http::withoutVerifying()
                 ->timeout(30)
                 ->retry(3, 2000)
-                ->post('https://www.cloudservicezm.com/smsservice/httpapi?username=Blessmore&password=Blessmore&msg=' . $url_encoded_message . '&shortcode=2343&sender_id=StFrancis&phone=' . $phone_number . '&api_key=121231313213123123');
+                ->post('https://www.cloudservicezm.com/smsservice/httpapi?username=Blessmore&password=Blessmore&msg='.$url_encoded_message.'&shortcode=2343&sender_id=StFrancis&phone='.$phone_number.'&api_key=121231313213123123');
 
             // Log the response
             Log::info('SMS API Response', [
                 'status' => $sendSenderSMS->status(),
                 'successful' => $sendSenderSMS->successful(),
                 'body' => $sendSenderSMS->body(),
-                'to' => substr($phone_number, 0, 6) . '****' . substr($phone_number, -3),
+                'to' => substr($phone_number, 0, 6).'****'.substr($phone_number, -3),
             ]);
 
             return $sendSenderSMS->successful();
@@ -591,9 +608,10 @@ class HomeworkResource extends Resource
         } catch (\Exception $e) {
             Log::error('SMS sending failed with exception', [
                 'error' => $e->getMessage(),
-                'phone' => substr($phone_number, 0, 6) . '****' . substr($phone_number, -3),
-                'trace' => $e->getTraceAsString()
+                'phone' => substr($phone_number, 0, 6).'****'.substr($phone_number, -3),
+                'trace' => $e->getTraceAsString(),
             ]);
+
             return false;
         }
     }
@@ -625,13 +643,13 @@ class HomeworkResource extends Resource
             // Homework assigned by this teacher
             $q->where('assigned_by', $teacher->id)
               // Or homework for grades where teacher has class sections
-              ->orWhereHas('grade', function ($gradeQuery) use ($teacher) {
-                  $gradeQuery->whereHas('classSections', function ($classQuery) use ($teacher) {
-                      $classQuery->whereHas('subjectTeachings', function ($teachingQuery) use ($teacher) {
-                          $teachingQuery->where('teacher_id', $teacher->id);
-                      });
-                  });
-              });
+                ->orWhereHas('grade', function ($gradeQuery) use ($teacher) {
+                    $gradeQuery->whereHas('classSections', function ($classQuery) use ($teacher) {
+                        $classQuery->whereHas('subjectTeachings', function ($teachingQuery) use ($teacher) {
+                            $teachingQuery->where('teacher_id', $teacher->id);
+                        });
+                    });
+                });
         });
     }
 
@@ -642,7 +660,7 @@ class HomeworkResource extends Resource
     {
         $parentGuardian = ParentGuardian::where('user_id', $user->id)->first();
 
-        if (!$parentGuardian) {
+        if (! $parentGuardian) {
             return $query->whereRaw('1 = 0'); // Return no results if parent not found
         }
 

@@ -2,23 +2,25 @@
 
 namespace App\Filament\Resources;
 
+use App\Constants\RoleConstants;
 use App\Filament\Resources\AcademicYearResource\Pages;
 use App\Models\AcademicYear;
 use App\Models\Term;
 use Filament\Forms;
 use Filament\Forms\Form;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Filament\Notifications\Notification;
-use App\Constants\RoleConstants;
-use Illuminate\Support\Facades\Auth;
 
 class AcademicYearResource extends Resource
 {
     protected static ?string $model = AcademicYear::class;
+
     protected static ?string $navigationIcon = 'heroicon-o-calendar';
+
     protected static ?string $navigationGroup = 'Academic Configuration';
+
     protected static ?int $navigationSort = 1;
 
     public static function shouldRegisterNavigation(): bool
@@ -33,11 +35,31 @@ class AcademicYearResource extends Resource
                 Forms\Components\TextInput::make('name')
                     ->required()
                     ->maxLength(255)
-                    ->placeholder('e.g. 2025-2026'),
+                    ->placeholder('e.g. 2025')
+                    ->helperText('Will be auto-generated from start date if left empty')
+                    ->dehydrateStateUsing(function ($state, callable $get) {
+                        // If name is empty, generate from start_date year
+                        if (empty($state)) {
+                            $startDate = $get('start_date');
+                            if ($startDate) {
+                                return \Carbon\Carbon::parse($startDate)->format('Y');
+                            }
+                        }
+
+                        return $state;
+                    }),
 
                 Forms\Components\DatePicker::make('start_date')
                     ->required()
-                    ->default(now()->startOfYear()),
+                    ->default(now()->startOfYear())
+                    ->live()
+                    ->afterStateUpdated(function ($state, callable $set, callable $get) {
+                        // Auto-populate name field with year from start_date if name is empty
+                        if ($state && empty($get('name'))) {
+                            $year = \Carbon\Carbon::parse($state)->format('Y');
+                            $set('name', $year);
+                        }
+                    }),
 
                 Forms\Components\DatePicker::make('end_date')
                     ->required()
@@ -75,7 +97,7 @@ class AcademicYearResource extends Resource
                                 $endDate = $get('end_date');
                                 $termCount = $get('number_of_terms') ?: 3;
 
-                                if (!$startDate || !$endDate) {
+                                if (! $startDate || ! $endDate) {
                                     return 'Please select start and end dates to preview term dates.';
                                 }
 
@@ -85,7 +107,7 @@ class AcademicYearResource extends Resource
 
                                 $preview = '';
                                 for ($i = 1; $i <= $termCount; $i++) {
-                                    $termStartDate = $startDate->copy()->addDays(($i-1) * $interval);
+                                    $termStartDate = $startDate->copy()->addDays(($i - 1) * $interval);
                                     $termEndDate = $startDate->copy()->addDays($i * $interval)->subDay();
 
                                     if ($i === $termCount) {
@@ -148,6 +170,7 @@ class AcademicYearResource extends Resource
                                 ->send();
 
                             $record->refresh();
+
                             return;
                         }
                     }),
@@ -160,7 +183,7 @@ class AcademicYearResource extends Resource
 
                         // Also activate the first term if not already active
                         $firstTerm = $record->terms()->orderBy('start_date')->first();
-                        if ($firstTerm && !$firstTerm->is_active) {
+                        if ($firstTerm && ! $firstTerm->is_active) {
                             $firstTerm->update(['is_active' => true]);
                         }
 
@@ -169,7 +192,7 @@ class AcademicYearResource extends Resource
                             ->success()
                             ->send();
                     })
-                    ->visible(fn (AcademicYear $record) => !$record->is_active),
+                    ->visible(fn (AcademicYear $record) => ! $record->is_active),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([

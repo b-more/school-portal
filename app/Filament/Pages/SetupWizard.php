@@ -6,31 +6,39 @@ use App\Models\AcademicYear;
 use App\Models\SchoolSection;
 use App\Models\SchoolSettings;
 use App\Models\SystemConfiguration;
-use Filament\Pages\Page;
-use Filament\Forms\Contracts\HasForms;
-use Filament\Forms\Concerns\InteractsWithForms;
-use Filament\Forms\Form;
 use Filament\Forms\Components;
-use Illuminate\Support\Facades\DB;
+use Filament\Forms\Concerns\InteractsWithForms;
+use Filament\Forms\Contracts\HasForms;
+use Filament\Forms\Form;
 use Filament\Notifications\Notification;
+use Filament\Pages\Page;
+use Illuminate\Support\Facades\DB;
 
 class SetupWizard extends Page implements HasForms
 {
     use InteractsWithForms;
 
     protected static ?string $navigationIcon = 'heroicon-o-rocket-launch';
+
     protected static ?string $navigationLabel = 'Setup Wizard';
+
     protected static ?string $navigationGroup = 'System Configuration';
+
     protected static ?int $navigationSort = 0;
+
     protected static string $view = 'filament.pages.setup-wizard';
 
     public $currentStep = 1;
+
     public $totalSteps = 4;
 
     // Form data for each step
     public $schoolData = [];
+
     public $academicYearData = [];
+
     public $sectionsData = [];
+
     public $termsData = [];
 
     public function mount(): void
@@ -39,6 +47,7 @@ class SetupWizard extends Page implements HasForms
         if ($this->isSetupComplete()) {
             // Redirect to dashboard with a message
             redirect()->route('filament.admin.pages.dashboard')->with('message', 'System setup has already been completed.');
+
             return;
         }
 
@@ -152,7 +161,9 @@ class SetupWizard extends Page implements HasForms
                             ->label('Academic Year Name')
                             ->required()
                             ->maxLength(255)
-                            ->placeholder('e.g. 2025-2026'),
+                            ->placeholder('e.g. 2025')
+                            ->helperText('Will be auto-generated from start date if left empty')
+                            ->default(fn () => now()->format('Y')),
 
                         Components\DatePicker::make('start_date')
                             ->label('Start Date')
@@ -251,7 +262,7 @@ class SetupWizard extends Page implements HasForms
                                     ->label('Term Name')
                                     ->required()
                                     ->maxLength(255)
-                                    ->default(fn ($state, $context) => 'Term ' . ($context + 1)),
+                                    ->default(fn ($state, $context) => 'Term '.($context + 1)),
 
                                 Components\DatePicker::make('start_date')
                                     ->label('Start Date')
@@ -273,9 +284,9 @@ class SetupWizard extends Page implements HasForms
                             ])
                             ->columns(2)
                             ->itemLabel(fn (array $state): ?string => $state['name'] ?? null)
-                            ->minItems(fn () => (int)($this->academicYearData['number_of_terms'] ?? 3))
-                            ->maxItems(fn () => (int)($this->academicYearData['number_of_terms'] ?? 3))
-                            ->defaultItems(fn () => (int)($this->academicYearData['number_of_terms'] ?? 3)),
+                            ->minItems(fn () => (int) ($this->academicYearData['number_of_terms'] ?? 3))
+                            ->maxItems(fn () => (int) ($this->academicYearData['number_of_terms'] ?? 3))
+                            ->defaultItems(fn () => (int) ($this->academicYearData['number_of_terms'] ?? 3)),
                     ]),
             ])
             ->statePath('termsData');
@@ -333,14 +344,14 @@ class SetupWizard extends Page implements HasForms
 
         $startDate = \Carbon\Carbon::parse($this->academicYearData['start_date']);
         $endDate = \Carbon\Carbon::parse($this->academicYearData['end_date']);
-        $termCount = (int)$this->academicYearData['number_of_terms'];
+        $termCount = (int) $this->academicYearData['number_of_terms'];
 
         // Calculate date ranges for terms
         $interval = $startDate->diffInDays($endDate) / $termCount;
 
         $terms = [];
         for ($i = 1; $i <= $termCount; $i++) {
-            $termStartDate = $startDate->copy()->addDays(($i-1) * $interval);
+            $termStartDate = $startDate->copy()->addDays(($i - 1) * $interval);
             $termEndDate = $startDate->copy()->addDays($i * $interval)->subDay();
 
             if ($i === $termCount) {
@@ -348,7 +359,7 @@ class SetupWizard extends Page implements HasForms
             }
 
             $terms[] = [
-                'name' => 'Term ' . $i,
+                'name' => 'Term '.$i,
                 'start_date' => $termStartDate->format('Y-m-d'),
                 'end_date' => $termEndDate->format('Y-m-d'),
                 'description' => '',
@@ -435,7 +446,7 @@ class SetupWizard extends Page implements HasForms
 
             Notification::make()
                 ->title('Setup failed')
-                ->body('An error occurred during setup: ' . $e->getMessage())
+                ->body('An error occurred during setup: '.$e->getMessage())
                 ->danger()
                 ->send();
         }

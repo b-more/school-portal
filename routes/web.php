@@ -4,6 +4,7 @@ use App\Http\Controllers\StudentFeeController;
 use App\Http\Controllers\HomeworkController;
 use App\Http\Controllers\FeeStatementsController;
 use App\Http\Controllers\PaymentStatementController;
+use App\Http\Controllers\PublicPaymentController;
 use App\Constants\RoleConstants;
 use Illuminate\Support\Facades\Route;
 
@@ -69,6 +70,15 @@ Route::middleware(['auth'])->group(function () {
 
     // NEW: Explicit PDF download route
     Route::get('/student-fees/{studentFee}/receipt/pdf', [StudentFeeController::class, 'generateReceipt'])->name('student-fees.receipt.pdf');
+
+    // NEW: Individual transaction receipt
+    Route::get('/student-fees/{fee}/transaction/{transaction}/receipt', [StudentFeeController::class, 'generateTransactionReceipt'])->name('student-fees.transaction-receipt');
+
+    // NEW: Complete payment history
+    Route::get('/student-fees/{studentFee}/full-history', [StudentFeeController::class, 'generateFullHistory'])->name('student-fees.full-history');
+
+    // NEW: Export unpaid fees report
+    Route::get('/student-fees/export-unpaid', [StudentFeeController::class, 'exportUnpaid'])->name('student-fees.export-unpaid');
 
     // Existing bulk receipts route (keep unchanged)
     Route::post('/student-fees/bulk-receipts', [StudentFeeController::class, 'generateBulkReceipts'])->name('student-fees.bulk-receipts');
@@ -140,4 +150,18 @@ Route::middleware(['auth'])->group(function () {
     // Bulk statement generation (for multiple students)
     Route::post('/payment-statements/bulk', [PaymentStatementController::class, 'generateBulkStatements'])
         ->name('payment-statements.bulk');
+});
+
+// Public Payment Routes (no authentication required)
+Route::prefix('pay')->group(function () {
+    Route::get('/', [PublicPaymentController::class, 'index'])->name('payment.index');
+    Route::post('/search-student', [PublicPaymentController::class, 'searchStudent'])->name('payment.search-student');
+    Route::post('/process', [PublicPaymentController::class, 'processPayment'])->name('payment.process');
+    Route::post('/check-status', [PublicPaymentController::class, 'checkPaymentStatus'])->name('payment.check-status');
+});
+
+// Attendance Routes
+Route::middleware(['auth'])->group(function () {
+    Route::get('/attendance/export', [\App\Http\Controllers\AttendanceController::class, 'export'])
+        ->name('attendance.export');
 });

@@ -31,21 +31,44 @@ class StudentDashboard extends Page
 
     public function getPendingHomework()
     {
-        $student = $this->getStudent();
+        try {
+            $student = $this->getStudent();
 
-        if (!$student) {
+            if (!$student) {
+                \Log::error('StudentDashboard: No student found for user ' . auth()->id());
+                return collect();
+            }
+
+            \Log::info('StudentDashboard: Getting homework for student', [
+                'student_id' => $student->id,
+                'student_name' => $student->name,
+                'grade_id' => $student->grade_id,
+            ]);
+
+            // Get homework for student's grade that hasn't been submitted yet
+            $homework = Homework::where('grade_id', $student->grade_id)
+                ->where('status', 'active')
+                ->whereDoesntHave('submissions', function ($query) use ($student) {
+                    $query->where('student_id', $student->id);
+                })
+                ->with(['subject', 'assignedBy'])
+                ->orderBy('due_date')
+                ->get();
+
+            \Log::info('StudentDashboard: Found pending homework', [
+                'count' => $homework->count(),
+                'homework_ids' => $homework->pluck('id')->toArray(),
+                'homework_titles' => $homework->pluck('title')->toArray(),
+            ]);
+
+            return $homework;
+        } catch (\Exception $e) {
+            \Log::error('StudentDashboard: Error in getPendingHomework', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
             return collect();
         }
-
-        // Get homework for student's grade that hasn't been submitted yet
-        return Homework::where('grade_id', $student->grade_id)
-            ->where('status', 'active')
-            ->whereDoesntHave('submissions', function ($query) use ($student) {
-                $query->where('student_id', $student->id);
-            })
-            ->with(['subject', 'assignedBy'])
-            ->orderBy('due_date')
-            ->get();
     }
 
     public function getRecentHomeworkSubmissions()
