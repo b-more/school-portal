@@ -4,8 +4,10 @@ namespace App\Filament\Resources\PaymentTransactionResource\Widgets;
 
 use App\Models\PaymentTransaction;
 use App\Models\AcademicYear;
+use App\Constants\RoleConstants;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
+use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
 
 class WeekPaymentsWidget extends BaseWidget
@@ -14,6 +16,13 @@ class WeekPaymentsWidget extends BaseWidget
 
     protected function getStats(): array
     {
+        $user = Auth::user();
+
+        // Hide from students
+        if (!$user || $user->role_id === RoleConstants::STUDENT) {
+            return [];
+        }
+
         $startOfWeek = Carbon::now()->startOfWeek();
         $endOfWeek = Carbon::now()->endOfWeek();
 
@@ -54,21 +63,14 @@ class WeekPaymentsWidget extends BaseWidget
                 ->description(
                     abs($percentageChange) > 0
                         ? number_format(abs($percentageChange), 1) . '% ' . ($percentageChange >= 0 ? 'increase' : 'decrease') . ' from last week'
-                        : 'No change from last week'
+                        : 'Same as last week'
                 )
                 ->descriptionIcon($percentageChange >= 0 ? 'heroicon-m-arrow-trending-up' : 'heroicon-m-arrow-trending-down')
-                ->color($percentageChange >= 0 ? 'success' : 'danger')
-                ->chart($this->getWeeklyDailyData()),
-
-            Stat::make('Weekly Transactions', $transactionCount)
-                ->description('Payments this week')
-                ->descriptionIcon('heroicon-m-document-text')
-                ->color('info'),
-
-            Stat::make('Daily Average', 'ZMW ' . number_format($totalAmount / 7, 2))
-                ->description('Average per day this week')
-                ->descriptionIcon('heroicon-m-calculator')
-                ->color('primary'),
+                ->color($percentageChange >= 0 ? 'success' : ($percentageChange < 0 ? 'warning' : 'info'))
+                ->chart($this->getWeeklyDailyData())
+                ->extraAttributes([
+                    'class' => 'relative',
+                ]),
         ];
     }
 

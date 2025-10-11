@@ -44,7 +44,7 @@ class HomeworkResource extends Resource
             return false;
         }
 
-        return in_array($user->role_id, [RoleConstants::ADMIN, RoleConstants::TEACHER, RoleConstants::PARENT]);
+        return in_array($user->role_id, [RoleConstants::ADMIN, RoleConstants::TEACHER, RoleConstants::PARENT, RoleConstants::STUDENT]);
     }
 
     public static function canCreate(): bool
@@ -629,6 +629,8 @@ class HomeworkResource extends Resource
             }
         } elseif ($user && $user->role_id === RoleConstants::PARENT) {
             return static::filterHomeworkForParent($query, $user);
+        } elseif ($user && $user->role_id === RoleConstants::STUDENT) {
+            return static::filterHomeworkForStudent($query, $user);
         }
 
         return $query;
@@ -671,6 +673,22 @@ class HomeworkResource extends Resource
             ->unique();
 
         return $query->whereIn('grade_id', $childrenGradeIds);
+    }
+
+    /**
+     * Filter homework query for student access
+     */
+    protected static function filterHomeworkForStudent(Builder $query, $user): Builder
+    {
+        $student = Student::where('user_id', $user->id)->first();
+
+        if (! $student) {
+            return $query->whereRaw('1 = 0'); // Return no results if student not found
+        }
+
+        // Show only active homework for student's grade
+        return $query->where('grade_id', $student->grade_id)
+            ->where('status', 'active');
     }
 
     public static function getPages(): array

@@ -19,6 +19,8 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
+use App\Constants\RoleConstants;
 
 class ResultResource extends Resource
 {
@@ -215,7 +217,7 @@ class ResultResource extends Resource
                     ->icon('heroicon-o-document-text')
                     ->color('success')
                     ->url(fn (Result $record) => $record && $record->homework_id
-                        ? route('filament.admin.resources.homeworks.view', ['record' => $record->homework_id])
+                        ? route('filament.admin.resources.homework.view', ['record' => $record->homework_id])
                         : null)
                     ->visible(fn (Result $record) => $record && $record->exam_type === 'assignment' && $record->homework_id)
                     ->openUrlInNewTab(),
@@ -335,9 +337,14 @@ class ResultResource extends Resource
     }
 
     public static function shouldRegisterNavigation(): bool
-{
-    return false;
-}
+    {
+        $user = Auth::user();
+        if (! $user) {
+            return false;
+        }
+
+        return in_array($user->role_id, [RoleConstants::ADMIN, RoleConstants::TEACHER, RoleConstants::STUDENT, RoleConstants::PARENT]);
+    }
 
     /**
      * Format phone number to ensure it has the country code

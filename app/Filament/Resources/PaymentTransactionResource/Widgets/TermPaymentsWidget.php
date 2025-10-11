@@ -5,8 +5,10 @@ namespace App\Filament\Resources\PaymentTransactionResource\Widgets;
 use App\Models\PaymentTransaction;
 use App\Models\AcademicYear;
 use App\Models\Term;
+use App\Constants\RoleConstants;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
+use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
 
 class TermPaymentsWidget extends BaseWidget
@@ -15,6 +17,13 @@ class TermPaymentsWidget extends BaseWidget
 
     protected function getStats(): array
     {
+        $user = Auth::user();
+
+        // Hide from students
+        if (!$user || $user->role_id === RoleConstants::STUDENT) {
+            return [];
+        }
+
         $currentTerm = Term::where('is_current', true)->first();
         $currentYear = AcademicYear::where('is_current', true)->first();
 
@@ -62,22 +71,17 @@ class TermPaymentsWidget extends BaseWidget
         $totalDays = $termEnd->diffInDays($termStart);
         $progressPercentage = $totalDays > 0 ? ($daysElapsed / $totalDays) * 100 : 0;
 
+        $outstanding = max(0, $expectedFees - $totalAmount);
+
         return [
-            Stat::make('This Term\'s Payments', 'ZMW ' . number_format($totalAmount, 2))
-                ->description($currentTerm->name . ' - ' . number_format($collectionRate, 1) . '% of expected fees')
-                ->descriptionIcon('heroicon-m-banknotes')
-                ->color('success')
-                ->chart($this->getTermMonthlyData()),
-
-            Stat::make('Term Transactions', $transactionCount)
-                ->description('Total payments this term')
-                ->descriptionIcon('heroicon-m-document-text')
-                ->color('info'),
-
-            Stat::make('Expected Fees', 'ZMW ' . number_format($expectedFees, 2))
-                ->description('Outstanding: ZMW ' . number_format(max(0, $expectedFees - $totalAmount), 2))
-                ->descriptionIcon('heroicon-m-currency-dollar')
-                ->color('warning'),
+            Stat::make($currentTerm->name . ' Payments', 'ZMW ' . number_format($totalAmount, 2))
+                ->description(number_format($collectionRate, 1) . '% collection rate • Outstanding: ZMW ' . number_format($outstanding, 2))
+                ->descriptionIcon('heroicon-m-check-circle')
+                ->color($collectionRate >= 75 ? 'success' : ($collectionRate >= 50 ? 'warning' : 'danger'))
+                ->chart($this->getTermMonthlyData())
+                ->extraAttributes([
+                    'class' => 'relative',
+                ]),
         ];
     }
 

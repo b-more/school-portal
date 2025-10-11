@@ -33,7 +33,7 @@ class Student extends Model
         'profile_photo',
         'medical_information',
         'notes',
-        'role'
+        'role',
     ];
 
     protected $casts = [
@@ -89,5 +89,10 @@ class Student extends Model
     public function attendances(): HasMany
     {
         return $this->hasMany(Attendance::class);
+    }
+
+    public function bookLoans(): HasMany
+    {
+        return $this->hasMany(BookLoan::class);
     }
 }

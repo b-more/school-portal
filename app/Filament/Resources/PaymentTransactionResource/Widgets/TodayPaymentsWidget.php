@@ -4,8 +4,10 @@ namespace App\Filament\Resources\PaymentTransactionResource\Widgets;
 
 use App\Models\PaymentTransaction;
 use App\Models\AcademicYear;
+use App\Constants\RoleConstants;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
+use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
 
 class TodayPaymentsWidget extends BaseWidget
@@ -14,6 +16,13 @@ class TodayPaymentsWidget extends BaseWidget
 
     protected function getStats(): array
     {
+        $user = Auth::user();
+
+        // Hide from students
+        if (!$user || $user->role_id === RoleConstants::STUDENT) {
+            return [];
+        }
+
         $today = Carbon::today();
 
         $currentYear = AcademicYear::where('is_current', true)->first();
@@ -29,24 +38,17 @@ class TodayPaymentsWidget extends BaseWidget
 
         $totalAmount = $query->sum('amount');
         $transactionCount = $query->count();
-        $averageAmount = $transactionCount > 0 ? $totalAmount / $transactionCount : 0;
+        $currentYear = AcademicYear::where('is_current', true)->first();
 
         return [
             Stat::make('Today\'s Payments', 'ZMW ' . number_format($totalAmount, 2))
-                ->description($transactionCount . ' transaction' . ($transactionCount !== 1 ? 's' : ''))
-                ->descriptionIcon('heroicon-m-arrow-trending-up')
+                ->description($transactionCount . ' payment' . ($transactionCount !== 1 ? 's' : '') . ' received today')
+                ->descriptionIcon('heroicon-m-banknotes')
                 ->color('success')
-                ->chart($this->getTodayHourlyData()),
-
-            Stat::make('Average Payment', 'ZMW ' . number_format($averageAmount, 2))
-                ->description('Per transaction today')
-                ->descriptionIcon('heroicon-m-calculator')
-                ->color('info'),
-
-            Stat::make('Transactions Today', $transactionCount)
-                ->description('Payments recorded')
-                ->descriptionIcon('heroicon-m-document-text')
-                ->color('primary'),
+                ->chart($this->getTodayHourlyData())
+                ->extraAttributes([
+                    'class' => 'relative',
+                ]),
         ];
     }
 

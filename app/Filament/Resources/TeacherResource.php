@@ -303,45 +303,12 @@ class TeacherResource extends Resource
                                     ->columns(2),
                             ]),
 
-                        Forms\Components\Section::make('Account Information')
+                        Forms\Components\Section::make('Login Credentials')
                             ->schema([
-                                Forms\Components\Select::make('user_id')
-                                    ->relationship('user', 'name')
-                                    ->label('User Account')
-                                    ->searchable()
-                                    ->preload()
-                                    ->createOptionForm([
-                                        Forms\Components\TextInput::make('name')
-                                            ->required()
-                                            ->maxLength(255),
-                                        Forms\Components\TextInput::make('email')
-                                            ->email()
-                                            ->required()
-                                            ->unique(table: User::class, column: 'email')
-                                            ->maxLength(255),
-                                        Forms\Components\TextInput::make('password')
-                                            ->password()
-                                            ->required(function ($record) {
-                                                return $record === null;
-                                            })
-                                            ->rule(Password::default())
-                                            ->dehydrateStateUsing(function ($state) {
-                                                return filled($state) ? Hash::make($state) : null;
-                                            })
-                                            ->visible(function ($record) {
-                                                return $record === null;
-                                            })
-                                            ->dehydrated(function ($state) {
-                                                return filled($state);
-                                            }),
-                                        Forms\Components\TextInput::make('phone')
-                                            ->tel()
-                                            ->maxLength(20),
-                                        Forms\Components\Hidden::make('role_id')
-                                            ->default(RoleConstants::TEACHER),
-                                        Forms\Components\Hidden::make('status')
-                                            ->default('active'),
-                                    ]),
+                                Forms\Components\Placeholder::make('auto_account_info')
+                                    ->label('Automatic Account Creation')
+                                    ->content('A user account will be created automatically when you save this teacher. Login credentials will be sent via email to the address provided above. If no email is provided, one will be generated automatically.')
+                                    ->columnSpanFull(),
                             ]),
                     ])
                     ->columnSpan(['lg' => 2]),

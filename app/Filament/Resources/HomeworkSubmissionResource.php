@@ -25,14 +25,19 @@ class HomeworkSubmissionResource extends Resource
 
     protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-check';
 
-    protected static ?string $navigationGroup = 'Academic Management';
+    protected static ?string $navigationGroup = 'Teaching';
 
-    protected static ?int $navigationSort = 3;
+    protected static ?int $navigationSort = 2;
 
     public static function shouldRegisterNavigation(): bool
-{
-    return false;
-}
+    {
+        $user = Auth::user();
+        if (! $user) {
+            return false;
+        }
+
+        return in_array($user->role_id, [RoleConstants::ADMIN, RoleConstants::TEACHER, RoleConstants::STUDENT, RoleConstants::PARENT]);
+    }
 
     public static function form(Form $form): Form
     {
@@ -162,7 +167,7 @@ class HomeworkSubmissionResource extends Resource
                     ->label('Student')
                     ->searchable()
                     ->sortable(),
-                Tables\Columns\TextColumn::make('student.grade')
+                Tables\Columns\TextColumn::make('student.grade.name')
                     ->label('Grade')
                     ->sortable(),
                 Tables\Columns\TextColumn::make('submitted_at')

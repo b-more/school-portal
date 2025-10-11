@@ -154,12 +154,12 @@ class StudentDashboard extends Page
             Action::make('view_homework')
                 ->label('My Homework')
                 ->icon('heroicon-o-document-text')
-                ->url(route('filament.admin.resources.teacher-homework-submissions.index')),
+                ->url(route('filament.admin.resources.homework-submissions.index')),
 
             Action::make('view_results')
                 ->label('My Results')
                 ->icon('heroicon-o-clipboard-document-check')
-                ->url(route('filament.admin.resources.teacher-results.index')),
+                ->url(route('filament.admin.resources.results.index')),
 
             Action::make('view_schedule')
                 ->label('Class Schedule')

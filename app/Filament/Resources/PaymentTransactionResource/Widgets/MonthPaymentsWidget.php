@@ -4,8 +4,10 @@ namespace App\Filament\Resources\PaymentTransactionResource\Widgets;
 
 use App\Models\PaymentTransaction;
 use App\Models\AcademicYear;
+use App\Constants\RoleConstants;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
+use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
 
 class MonthPaymentsWidget extends BaseWidget
@@ -14,6 +16,13 @@ class MonthPaymentsWidget extends BaseWidget
 
     protected function getStats(): array
     {
+        $user = Auth::user();
+
+        // Hide from students
+        if (!$user || $user->role_id === RoleConstants::STUDENT) {
+            return [];
+        }
+
         $startOfMonth = Carbon::now()->startOfMonth();
         $endOfMonth = Carbon::now()->endOfMonth();
 
@@ -54,21 +63,14 @@ class MonthPaymentsWidget extends BaseWidget
                 ->description(
                     abs($percentageChange) > 0
                         ? number_format(abs($percentageChange), 1) . '% ' . ($percentageChange >= 0 ? 'increase' : 'decrease') . ' from last month'
-                        : 'No change from last month'
+                        : 'Same as last month'
                 )
                 ->descriptionIcon($percentageChange >= 0 ? 'heroicon-m-arrow-trending-up' : 'heroicon-m-arrow-trending-down')
-                ->color($percentageChange >= 0 ? 'success' : 'danger')
-                ->chart($this->getMonthlyWeeklyData()),
-
-            Stat::make('Monthly Transactions', $transactionCount)
-                ->description('Payments this month')
-                ->descriptionIcon('heroicon-m-document-text')
-                ->color('info'),
-
-            Stat::make('Daily Average', 'ZMW ' . number_format($totalAmount / Carbon::now()->day, 2))
-                ->description('Average per day this month')
-                ->descriptionIcon('heroicon-m-calculator')
-                ->color('primary'),
+                ->color($percentageChange >= 0 ? 'success' : ($percentageChange < 0 ? 'warning' : 'info'))
+                ->chart($this->getMonthlyWeeklyData())
+                ->extraAttributes([
+                    'class' => 'relative',
+                ]),
         ];
     }
 
