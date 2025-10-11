@@ -313,6 +313,7 @@ class BookResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()
+            ->withCount(['loans', 'activeLoans'])
             ->withoutGlobalScopes([
                 SoftDeletingScope::class,
             ]);

@@ -13,6 +13,7 @@ use Carbon\Carbon;
 class MonthPaymentsWidget extends BaseWidget
 {
     protected static ?int $sort = 3;
+    protected static bool $isLazy = true;
 
     protected function getStats(): array
     {

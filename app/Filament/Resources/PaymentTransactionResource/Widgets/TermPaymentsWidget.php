@@ -14,6 +14,7 @@ use Carbon\Carbon;
 class TermPaymentsWidget extends BaseWidget
 {
     protected static ?int $sort = 4;
+    protected static bool $isLazy = true;
 
     protected function getStats(): array
     {

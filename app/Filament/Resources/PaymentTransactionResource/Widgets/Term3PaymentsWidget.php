@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Auth;
 class Term3PaymentsWidget extends BaseWidget
 {
     protected static ?int $sort = 3;
+    protected static bool $isLazy = true;
 
     protected function getStats(): array
     {

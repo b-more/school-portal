@@ -2,20 +2,21 @@
 
 namespace App\Filament\Resources\StudentFeeResource\Widgets;
 
-use App\Models\StudentFee;
 use App\Models\AcademicYear;
+use App\Models\StudentFee;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
-use Illuminate\Support\Facades\DB;
 
 class StudentFeeStatsWidget extends BaseWidget
 {
+    protected static bool $isLazy = true;
+
     protected function getStats(): array
     {
         // Get current academic year
         $currentAcademicYear = AcademicYear::where('is_active', true)->first();
 
-        if (!$currentAcademicYear) {
+        if (! $currentAcademicYear) {
             return [
                 Stat::make('No Active Academic Year', 'Please set an active academic year')
                     ->color('danger'),
@@ -53,17 +54,17 @@ class StudentFeeStatsWidget extends BaseWidget
         $collectionRate = $totalFees > 0 ? round(($totalPaid / $totalFees) * 100, 1) : 0;
 
         return [
-            Stat::make('Total Expected Fees', 'ZMW ' . number_format($totalFees, 2))
+            Stat::make('Total Expected Fees', 'ZMW '.number_format($totalFees, 2))
                 ->description($currentAcademicYear->name)
                 ->descriptionIcon('heroicon-m-banknotes')
                 ->color('primary'),
 
-            Stat::make('Total Collected', 'ZMW ' . number_format($totalPaid, 2))
+            Stat::make('Total Collected', 'ZMW '.number_format($totalPaid, 2))
                 ->description("Collection Rate: {$collectionRate}%")
                 ->descriptionIcon('heroicon-m-currency-dollar')
                 ->color('success'),
 
-            Stat::make('Outstanding Balance', 'ZMW ' . number_format($totalBalance, 2))
+            Stat::make('Outstanding Balance', 'ZMW '.number_format($totalBalance, 2))
                 ->description('Amount pending collection')
                 ->descriptionIcon('heroicon-m-exclamation-triangle')
                 ->color($totalBalance > 0 ? 'warning' : 'success'),

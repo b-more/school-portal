@@ -22,6 +22,7 @@ class FeeGenerationWidget extends Widget
     protected int | string | array $columnSpan = 'full';
 
     protected static ?int $sort = 1;
+    protected static bool $isLazy = true;
 
     public function getActions(): array
     {

@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Auth;
 class Term2PaymentsWidget extends BaseWidget
 {
     protected static ?int $sort = 2;
+    protected static bool $isLazy = true;
 
     protected function getStats(): array
     {

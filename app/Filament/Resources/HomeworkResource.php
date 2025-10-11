@@ -618,7 +618,15 @@ class HomeworkResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        $query = parent::getEloquentQuery();
+        $query = parent::getEloquentQuery()
+            ->with([
+                'subject:id,name',
+                'grade:id,name',
+                'assignedBy:id,name',
+                'classSection:id,name',
+            ])
+            ->withCount('submissions');
+
         $user = Auth::user();
 
         // Apply role-based filtering

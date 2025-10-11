@@ -15,6 +15,8 @@ class Term1PaymentsWidget extends BaseWidget
 {
     protected static ?int $sort = 1;
 
+    protected static bool $isLazy = true;
+
     protected function getStats(): array
     {
         $user = Auth::user();

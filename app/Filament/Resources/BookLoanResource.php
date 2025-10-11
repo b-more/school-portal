@@ -311,6 +311,14 @@ class BookLoanResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()
+            ->with([
+                'student:id,name,student_id,grade_id,class_section_id',
+                'student.grade:id,name',
+                'student.classSection:id,name',
+                'book:id,title,author',
+                'lentBy:id,name',
+                'returnedTo:id,name',
+            ])
             ->withoutGlobalScopes([
                 SoftDeletingScope::class,
             ]);
