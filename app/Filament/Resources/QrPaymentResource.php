@@ -2,17 +2,17 @@
 
 namespace App\Filament\Resources;
 
+use App\Constants\RoleConstants;
 use App\Filament\Resources\QrPaymentResource\Pages;
 use App\Models\QrPayment;
 use App\Models\Student;
 use App\Services\CGrateService;
 use Filament\Forms;
 use Filament\Forms\Form;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Filament\Notifications\Notification;
-use SimpleSoftwareIO\QrCode\Facades\QrCode;
 use Illuminate\Support\Str;
 
 class QrPaymentResource extends Resource
@@ -26,6 +26,11 @@ class QrPaymentResource extends Resource
     protected static ?string $navigationLabel = 'QR Code Payments';
 
     protected static ?int $navigationSort = 3;
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return ! in_array(auth()->user()?->role_id, [RoleConstants::LIBRARIAN]) ?? false;
+    }
 
     public static function form(Form $form): Form
     {
@@ -74,7 +79,7 @@ class QrPaymentResource extends Resource
 
                         Forms\Components\TextInput::make('payment_reference')
                             ->label('Payment Reference')
-                            ->default(fn() => 'QR-' . strtoupper(Str::random(10)))
+                            ->default(fn () => 'QR-'.strtoupper(Str::random(10)))
                             ->required()
                             ->disabled()
                             ->dehydrated()
@@ -158,7 +163,7 @@ class QrPaymentResource extends Resource
                     ->color('info')
                     ->visible(fn (QrPayment $record) => $record->status === 'pending' || $record->status === 'processing')
                     ->action(function (QrPayment $record) {
-                        $cgrateService = new CGrateService();
+                        $cgrateService = new CGrateService;
                         $result = $cgrateService->queryCustomerPayment($record->payment_reference);
 
                         if ($result['payment_complete']) {
@@ -207,7 +212,7 @@ class QrPaymentResource extends Resource
      */
     protected static function processPayment(QrPayment $payment): void
     {
-        if (!$payment->student_id || $payment->status !== 'completed') {
+        if (! $payment->student_id || $payment->status !== 'completed') {
             return;
         }
 

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Constants\RoleConstants;
 use App\Filament\Resources\ClassSectionResource\Pages;
 use App\Models\ClassSection;
 use App\Models\AcademicYear;
@@ -21,6 +22,11 @@ class ClassSectionResource extends Resource
     protected static ?string $navigationIcon = 'heroicon-o-academic-cap';
     protected static ?string $navigationGroup = 'Academic Management';
     protected static ?int $navigationSort = 2;
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return ! in_array(auth()->user()?->role_id, [RoleConstants::LIBRARIAN]) ?? false;
+    }
 
     public static function form(Form $form): Form
     {

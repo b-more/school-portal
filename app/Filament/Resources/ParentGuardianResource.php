@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Constants\RoleConstants;
 use App\Filament\Resources\ParentGuardianResource\Pages;
 use App\Models\ParentGuardian;
 use Filament\Forms;
@@ -23,6 +24,11 @@ class ParentGuardianResource extends Resource
     protected static ?string $navigationLabel = 'Parents & Guardians';
 
     protected static ?int $navigationSort = 2;
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return ! in_array(auth()->user()?->role_id, [RoleConstants::LIBRARIAN]) ?? false;
+    }
 
     public static function form(Form $form): Form
     {
@@ -72,7 +78,6 @@ class ParentGuardianResource extends Resource
                     ->columns(2)
                     ->schema([
 
-
                         Forms\Components\TextInput::make('phone')
                             ->required()
                             ->tel()
@@ -86,9 +91,8 @@ class ParentGuardianResource extends Resource
                             ->placeholder('e.g. 260972266218')
                             ->helperText('Alternative contact number (optional)'),
 
-                            Forms\Components\TextInput::make('email')
+                        Forms\Components\TextInput::make('email')
                             ->email()
-
                             ->maxLength(255)
                             ->placeholder('email@example.com'),
 
