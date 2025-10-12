@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Constants\RoleConstants;
 use App\Filament\Resources\GalleryImageResource\Pages;
 use App\Models\GalleryImage;
 use Filament\Forms;
@@ -10,9 +11,6 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use App\Constants\RoleConstants;
-use Illuminate\Support\Facades\Auth;
-
 
 class GalleryImageResource extends Resource
 {
@@ -22,7 +20,7 @@ class GalleryImageResource extends Resource
 
     protected static ?string $navigationGroup = 'Website Management';
 
-     public static function shouldRegisterNavigation(): bool
+    public static function shouldRegisterNavigation(): bool
     {
         return auth()->user()?->role_id === RoleConstants::ADMIN ?? false;
     }
@@ -160,5 +158,11 @@ class GalleryImageResource extends Resource
             'view' => Pages\ViewGalleryImage::route('/{record}'),
             'edit' => Pages\EditGalleryImage::route('/{record}/edit'),
         ];
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()
+            ->with(['uploader:id,name']);
     }
 }

@@ -20,6 +20,7 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 
 class PaymentTransactionResource extends Resource
 {
@@ -228,9 +229,9 @@ class PaymentTransactionResource extends Resource
                     ->native(false)
                     ->indicator('Year')
                     ->default(function () {
-                        $currentYear = AcademicYear::where('is_current', true)->first();
-
-                        return $currentYear?->id;
+                        return Cache::remember('current_academic_year_id', 3600, function () {
+                            return AcademicYear::where('is_current', true)->value('id');
+                        });
                     }),
 
                 SelectFilter::make('term')
@@ -240,9 +241,9 @@ class PaymentTransactionResource extends Resource
                     ->native(false)
                     ->indicator('Term')
                     ->default(function () {
-                        $currentTerm = Term::where('is_current', true)->first();
-
-                        return $currentTerm?->id;
+                        return Cache::remember('current_term_id', 3600, function () {
+                            return Term::where('is_current', true)->value('id');
+                        });
                     }),
 
                 SelectFilter::make('grade')
@@ -367,10 +368,13 @@ class PaymentTransactionResource extends Resource
         }
 
         // Default to current academic year if no filters applied (for all users)
-        $currentYear = AcademicYear::where('is_current', true)->first();
-        if ($currentYear) {
-            $query->whereHas('studentFee.feeStructure.academicYear', function (Builder $query) use ($currentYear) {
-                $query->where('id', $currentYear->id);
+        $currentYearId = Cache::remember('current_academic_year_id', 3600, function () {
+            return AcademicYear::where('is_current', true)->value('id');
+        });
+
+        if ($currentYearId) {
+            $query->whereHas('studentFee.feeStructure.academicYear', function (Builder $query) use ($currentYearId) {
+                $query->where('id', $currentYearId);
             });
         }
 

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Constants\RoleConstants;
 use App\Filament\Resources\EmployeeResource\Pages;
 use App\Models\Employee;
 use App\Models\Role;
@@ -10,8 +11,6 @@ use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use App\Constants\RoleConstants;
-use Illuminate\Support\Facades\Auth;
 
 class EmployeeResource extends Resource
 {
@@ -42,7 +41,7 @@ class EmployeeResource extends Resource
                         Forms\Components\TextInput::make('phone')
                             ->tel()
                             ->required()
-                            ->placeholder("260xxxxxxxx")
+                            ->placeholder('260xxxxxxxx')
                             ->maxLength(255),
                         Forms\Components\FileUpload::make('profile_photo')
                             ->image()
@@ -60,7 +59,7 @@ class EmployeeResource extends Resource
                         Forms\Components\Select::make('role_id')  // Changed from 'role' to 'role_id'
                             ->relationship('role', 'name')  // Use relationship to get role names
                             ->required()
-                            //->searchable()
+                            // ->searchable()
                             ->preload(),
                         Forms\Components\Select::make('department')
                             ->options([
@@ -86,7 +85,7 @@ class EmployeeResource extends Resource
                         Forms\Components\TextInput::make('basic_salary')
                             ->numeric()
                             ->prefix('ZMW'),
-                            //->required(),
+                        // ->required(),
                     ])->columns(2),
             ]);
     }
@@ -178,8 +177,14 @@ class EmployeeResource extends Resource
         return [
             'index' => Pages\ListEmployees::route('/'),
             'create' => Pages\CreateEmployee::route('/create'),
-            //'view' => Pages\ViewEmployee::route('/{record}'),
+            // 'view' => Pages\ViewEmployee::route('/{record}'),
             'edit' => Pages\EditEmployee::route('/{record}/edit'),
         ];
+    }
+
+    public static function getEloquentQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        return parent::getEloquentQuery()
+            ->with(['role:id,name']);
     }
 }
