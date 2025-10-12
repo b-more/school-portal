@@ -623,7 +623,6 @@ class HomeworkResource extends Resource
                 'subject:id,name',
                 'grade:id,name',
                 'assignedBy:id,name',
-                'classSection:id,name',
             ])
             ->withCount('submissions');
 
