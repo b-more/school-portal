@@ -4,6 +4,7 @@ use App\Constants\RoleConstants;
 use App\Http\Controllers\FeeStatementsController;
 use App\Http\Controllers\HomeworkController;
 use App\Http\Controllers\PaymentStatementController;
+use App\Http\Controllers\PayslipController;
 use App\Http\Controllers\PublicPaymentController;
 use App\Http\Controllers\StudentFeeController;
 use Illuminate\Support\Facades\Route;
@@ -152,6 +153,21 @@ Route::middleware(['auth'])->group(function () {
     // Bulk statement generation (for multiple students)
     Route::post('/payment-statements/bulk', [PaymentStatementController::class, 'generateBulkStatements'])
         ->name('payment-statements.bulk');
+});
+
+// Payslip Routes
+Route::middleware(['auth'])->group(function () {
+    // View payslip in browser
+    Route::get('/payslips/{payroll}', [PayslipController::class, 'view'])
+        ->name('payslips.view');
+
+    // Print payslip
+    Route::get('/payslips/{payroll}/print', [PayslipController::class, 'print'])
+        ->name('payslips.print');
+
+    // Download payslip as PDF
+    Route::get('/payslips/{payroll}/download', [PayslipController::class, 'download'])
+        ->name('payslips.download');
 });
 
 // Public Payment Routes (no authentication required)

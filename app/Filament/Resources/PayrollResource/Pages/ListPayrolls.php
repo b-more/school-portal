@@ -5,6 +5,7 @@ namespace App\Filament\Resources\PayrollResource\Pages;
 use App\Filament\Resources\PayrollResource;
 use App\Models\Employee;
 use App\Models\Payroll;
+use App\Services\PayrollCalculationService;
 use Filament\Actions;
 use Filament\Forms;
 use Filament\Notifications\Notification;
@@ -129,7 +130,11 @@ class ListPayrolls extends ListRecords
                         }
 
                         try {
-                            // Create basic payroll with just basic salary
+                            // Calculate statutory deductions
+                            $payrollService = new PayrollCalculationService;
+                            $calculation = $payrollService->calculatePayroll($employee->basic_salary);
+
+                            // Create payroll with statutory deductions
                             Payroll::create([
                                 'employee_id' => $employee->id,
                                 'month' => $month,
@@ -137,11 +142,11 @@ class ListPayrolls extends ListRecords
                                 'department' => $employee->department,
                                 'basic_salary' => $employee->basic_salary,
                                 'allowances' => [],
-                                'deductions' => [],
-                                'gross_salary' => $employee->basic_salary,
-                                'net_salary' => $employee->basic_salary,
+                                'deductions' => $calculation['deductions'],
+                                'gross_salary' => $calculation['gross_salary'],
+                                'net_salary' => $calculation['net_salary'],
                                 'payment_status' => 'pending',
-                                'notes' => 'Generated via bulk payroll creation',
+                                'notes' => 'Generated via bulk payroll creation with statutory deductions',
                             ]);
 
                             $created++;

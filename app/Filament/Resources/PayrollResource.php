@@ -6,6 +6,7 @@ use App\Constants\RoleConstants;
 use App\Filament\Resources\PayrollResource\Pages;
 use App\Models\Employee;
 use App\Models\Payroll;
+use App\Services\PayrollCalculationService;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
@@ -47,13 +48,29 @@ class PayrollResource extends Resource
                             ->preload()
                             ->required()
                             ->live()
-                            ->afterStateUpdated(function (Set $set, $state) {
+                            ->afterStateUpdated(function (Set $set, Get $get, $state) {
                                 if ($state) {
                                     $employee = Employee::find($state);
                                     if ($employee && $employee->basic_salary) {
                                         $set('basic_salary', $employee->basic_salary);
                                         $set('department', $employee->department);
-                                        static::calculateSalaries($set);
+
+                                        // Auto-calculate statutory deductions
+                                        $payrollService = new PayrollCalculationService;
+                                        $allowances = $get('allowances') ?? [];
+                                        $statutoryDeductions = $payrollService->calculateStatutoryDeductions($employee->basic_salary, $allowances);
+
+                                        // Set statutory deductions
+                                        $deductions = [];
+                                        foreach ($statutoryDeductions as $deduction) {
+                                            $deductions[] = [
+                                                'type' => $deduction['type'],
+                                                'amount' => $deduction['amount'],
+                                            ];
+                                        }
+                                        $set('deductions', $deductions);
+
+                                        static::calculateSalaries($set, $get);
                                     }
                                 }
                             }),
@@ -96,7 +113,7 @@ class PayrollResource extends Resource
                             ->required()
                             ->prefix('ZMW')
                             ->live(onBlur: true)
-                            ->afterStateUpdated(fn (Set $set) => static::calculateSalaries($set))
+                            ->afterStateUpdated(fn (Set $set, Get $get) => static::recalculateStatutory($set, $get))
                             ->helperText('Base salary for the month'),
 
                         Forms\Components\Repeater::make('allowances')
@@ -119,12 +136,12 @@ class PayrollResource extends Resource
                                     ->required()
                                     ->prefix('ZMW')
                                     ->live(onBlur: true)
-                                    ->afterStateUpdated(fn (Set $set) => static::calculateSalaries($set)),
+                                    ->afterStateUpdated(fn (Set $set, Get $get) => static::recalculateStatutory($set, $get)),
                             ])
                             ->columns(2)
                             ->defaultItems(0)
                             ->live()
-                            ->afterStateUpdated(fn (Set $set) => static::calculateSalaries($set))
+                            ->afterStateUpdated(fn (Set $set, Get $get) => static::recalculateStatutory($set, $get))
                             ->addActionLabel('Add Allowance')
                             ->columnSpanFull()
                             ->collapsible(),
@@ -149,12 +166,12 @@ class PayrollResource extends Resource
                                     ->required()
                                     ->prefix('ZMW')
                                     ->live(onBlur: true)
-                                    ->afterStateUpdated(fn (Set $set) => static::calculateSalaries($set)),
+                                    ->afterStateUpdated(fn (Set $set, Get $get) => static::calculateSalaries($set, $get)),
                             ])
                             ->columns(2)
                             ->defaultItems(0)
                             ->live()
-                            ->afterStateUpdated(fn (Set $set) => static::calculateSalaries($set))
+                            ->afterStateUpdated(fn (Set $set, Get $get) => static::calculateSalaries($set, $get))
                             ->addActionLabel('Add Deduction')
                             ->columnSpanFull()
                             ->collapsible(),
@@ -206,23 +223,50 @@ class PayrollResource extends Resource
     }
 
     /**
+     * Recalculate statutory deductions when basic salary or allowances change
+     */
+    protected static function recalculateStatutory(Set $set, Get $get): void
+    {
+        $basicSalary = (float) ($get('basic_salary') ?? 0);
+        $allowances = $get('allowances') ?? [];
+
+        if ($basicSalary > 0) {
+            $payrollService = new PayrollCalculationService;
+            $statutoryDeductions = $payrollService->calculateStatutoryDeductions($basicSalary, $allowances);
+
+            // Get existing non-statutory deductions
+            $currentDeductions = $get('deductions') ?? [];
+            $nonStatutoryTypes = ['NAPSA', 'PAYE', 'NHIMA'];
+            $nonStatutory = collect($currentDeductions)->filter(function ($deduction) use ($nonStatutoryTypes) {
+                return ! in_array($deduction['type'] ?? '', $nonStatutoryTypes);
+            })->values()->toArray();
+
+            // Merge statutory + non-statutory deductions
+            $allDeductions = array_merge(
+                array_map(fn ($d) => ['type' => $d['type'], 'amount' => $d['amount']], $statutoryDeductions),
+                $nonStatutory
+            );
+
+            $set('deductions', $allDeductions);
+        }
+
+        static::calculateSalaries($set, $get);
+    }
+
+    /**
      * Calculate gross and net salaries based on allowances and deductions
      */
-    protected static function calculateSalaries(Set $set): void
+    protected static function calculateSalaries(Set $set, Get $get): void
     {
-        // Get all form values through closure
-        $set('gross_salary', function (Get $get) use ($set) {
-            $basicSalary = (float) ($get('basic_salary') ?? 0);
-            $allowances = collect($get('allowances') ?? [])->sum('amount');
-            $gross = $basicSalary + $allowances;
+        $basicSalary = (float) ($get('basic_salary') ?? 0);
+        $allowances = collect($get('allowances') ?? [])->sum('amount');
+        $gross = $basicSalary + $allowances;
 
-            // Also calculate net salary
-            $deductions = collect($get('deductions') ?? [])->sum('amount');
-            $net = $gross - $deductions;
-            $set('net_salary', $net);
+        $deductions = collect($get('deductions') ?? [])->sum('amount');
+        $net = $gross - $deductions;
 
-            return $gross;
-        });
+        $set('gross_salary', $gross);
+        $set('net_salary', $net);
     }
 
     public static function table(Table $table): Table
@@ -340,6 +384,13 @@ class PayrollResource extends Resource
                     ->native(false),
             ], layout: Tables\Enums\FiltersLayout::AboveContentCollapsible)
             ->actions([
+                Tables\Actions\Action::make('view_payslip')
+                    ->label('View Payslip')
+                    ->icon('heroicon-o-document-text')
+                    ->color('info')
+                    ->url(fn (Payroll $record) => route('payslips.view', $record))
+                    ->openUrlInNewTab(),
+
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),
 
