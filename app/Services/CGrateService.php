@@ -2,9 +2,9 @@
 
 namespace App\Services;
 
+use Exception;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Exception;
 
 /**
  * CGrate Mobile Money Payment Service
@@ -13,10 +13,15 @@ use Exception;
 class CGrateService
 {
     protected string $soapUrl;
+
     protected string $username;
+
     protected string $password;
+
     protected int $timeout;
+
     protected int $retryAttempts;
+
     protected bool $mockMode;
 
     public function __construct()
@@ -30,7 +35,7 @@ class CGrateService
 
         Log::info('CGrate service initialized', [
             'mode' => $this->mockMode ? 'mock' : 'live',
-            'url' => $this->soapUrl
+            'url' => $this->soapUrl,
         ]);
     }
 
@@ -42,16 +47,16 @@ class CGrateService
         return [
             'available' => true,
             'mode' => $this->mockMode ? 'mock' : 'live',
-            'url' => $this->soapUrl
+            'url' => $this->soapUrl,
         ];
     }
 
     /**
      * Process customer payment request
      *
-     * @param float $amount Payment amount
-     * @param string $customerMobile Customer mobile number
-     * @param string $paymentReference Unique payment reference
+     * @param  float  $amount  Payment amount
+     * @param  string  $customerMobile  Customer mobile number
+     * @param  string  $paymentReference  Unique payment reference
      * @return array Payment result
      */
     public function processCustomerPayment(float $amount, string $customerMobile, string $paymentReference): array
@@ -59,7 +64,7 @@ class CGrateService
         Log::info('Processing CGrate payment', [
             'amount' => $amount,
             'mobile' => $this->maskPhone($customerMobile),
-            'reference' => $paymentReference
+            'reference' => $paymentReference,
         ]);
 
         if ($this->mockMode) {
@@ -72,12 +77,13 @@ class CGrateService
             $result = $this->parsePaymentResponse($response);
 
             Log::info('CGrate payment result', $result);
+
             return $result;
 
         } catch (Exception $e) {
             Log::error('CGrate payment error', [
                 'error' => $e->getMessage(),
-                'reference' => $paymentReference
+                'reference' => $paymentReference,
             ]);
 
             // Format user-friendly error messages
@@ -86,7 +92,7 @@ class CGrateService
             return [
                 'success' => false,
                 'message' => $errorMessage,
-                'error_code' => $this->getErrorCode($e->getMessage())
+                'error_code' => $this->getErrorCode($e->getMessage()),
             ];
         }
     }
@@ -94,7 +100,7 @@ class CGrateService
     /**
      * Query customer payment status
      *
-     * @param string $paymentReference Payment reference to query
+     * @param  string  $paymentReference  Payment reference to query
      * @return array Payment status
      */
     public function queryCustomerPayment(string $paymentReference): array
@@ -111,12 +117,13 @@ class CGrateService
             $result = $this->parseStatusResponse($response);
 
             Log::info('CGrate status result', $result);
+
             return $result;
 
         } catch (Exception $e) {
             Log::error('CGrate status query error', [
                 'error' => $e->getMessage(),
-                'reference' => $paymentReference
+                'reference' => $paymentReference,
             ]);
 
             // Format user-friendly error messages
@@ -126,7 +133,7 @@ class CGrateService
                 'payment_complete' => false,
                 'payment_status' => 'error',
                 'message' => $errorMessage,
-                'error_code' => $this->getErrorCode($e->getMessage())
+                'error_code' => $this->getErrorCode($e->getMessage()),
             ];
         }
     }
@@ -144,7 +151,7 @@ class CGrateService
             return [
                 'success' => true,
                 'balance' => 10000.0,
-                'currency' => 'ZMW'
+                'currency' => 'ZMW',
             ];
         }
 
@@ -154,6 +161,7 @@ class CGrateService
             $result = $this->parseBalanceResponse($response);
 
             Log::info('CGrate balance result', $result);
+
             return $result;
 
         } catch (Exception $e) {
@@ -161,7 +169,7 @@ class CGrateService
 
             return [
                 'success' => false,
-                'message' => $e->getMessage()
+                'message' => $e->getMessage(),
             ];
         }
     }
@@ -180,7 +188,7 @@ class CGrateService
         Log::debug('Formatted payment request', [
             'amount' => $formattedAmount,
             'mobile' => $mobile,
-            'reference' => $paymentReference
+            'reference' => $paymentReference,
         ]);
 
         return <<<XML
@@ -260,7 +268,7 @@ XML;
     {
         $headers = [
             'Content-Type' => 'application/soap+xml',
-            'SOAPAction' => '""'
+            'SOAPAction' => '""',
         ];
 
         Log::debug('Sending SOAP request to CGrate', ['url' => $this->soapUrl]);
@@ -269,12 +277,12 @@ XML;
             ->timeout($this->timeout)
             ->withoutVerifying()
             ->send('POST', $this->soapUrl, [
-                'body' => $soapBody
+                'body' => $soapBody,
             ]);
 
         Log::debug('CGrate response received', ['status' => $response->status()]);
 
-        if (!$response->successful()) {
+        if (! $response->successful()) {
             throw new Exception("CGrate API returned status {$response->status()}");
         }
 
@@ -292,7 +300,7 @@ XML;
 
             $responseElem = $xml->xpath('//ns2:processCustomerPaymentResponse/return');
 
-            if (!empty($responseElem)) {
+            if (! empty($responseElem)) {
                 $return = $responseElem[0];
                 $responseCode = (string) $return->responseCode;
                 $responseMessage = (string) $return->responseMessage;
@@ -302,14 +310,14 @@ XML;
                     'success' => $responseCode === '0',
                     'message' => $responseMessage,
                     'paymentID' => $paymentID,
-                    'responseCode' => $responseCode
+                    'responseCode' => $responseCode,
                 ];
             }
 
             return [
                 'success' => false,
                 'message' => 'Invalid response format from CGrate',
-                'error_code' => 'PARSE_ERROR'
+                'error_code' => 'PARSE_ERROR',
             ];
 
         } catch (Exception $e) {
@@ -317,8 +325,8 @@ XML;
 
             return [
                 'success' => false,
-                'message' => 'Response parsing error: ' . $e->getMessage(),
-                'error_code' => 'PARSE_ERROR'
+                'message' => 'Response parsing error: '.$e->getMessage(),
+                'error_code' => 'PARSE_ERROR',
             ];
         }
     }
@@ -334,31 +342,45 @@ XML;
 
             $responseElem = $xml->xpath('//ns2:queryCustomerPaymentResponse/return');
 
-            if (!empty($responseElem)) {
+            if (! empty($responseElem)) {
                 $return = $responseElem[0];
                 $responseCode = (string) $return->responseCode;
                 $responseMessage = (string) $return->responseMessage;
                 $paymentStatus = (string) $return->paymentStatus;
 
+                // Check if payment is complete - be flexible with status text
+                $statusLower = strtolower(trim($paymentStatus));
+                $isComplete = $responseCode === '0' && (
+                    in_array($statusLower, ['completed', 'successful', 'success', 'paid']) ||
+                    str_contains($statusLower, 'success') ||
+                    str_contains($statusLower, 'complete')
+                );
+
+                Log::info('Payment status check', [
+                    'responseCode' => $responseCode,
+                    'paymentStatus' => $paymentStatus,
+                    'isComplete' => $isComplete,
+                ]);
+
                 return [
-                    'payment_complete' => $responseCode === '0' && in_array(strtolower($paymentStatus), ['completed', 'successful']),
+                    'payment_complete' => $isComplete,
                     'payment_status' => $paymentStatus,
                     'message' => $responseMessage,
-                    'responseCode' => $responseCode
+                    'responseCode' => $responseCode,
                 ];
             }
 
             return [
                 'payment_complete' => false,
                 'payment_status' => 'unknown',
-                'message' => 'Invalid response format'
+                'message' => 'Invalid response format',
             ];
 
         } catch (Exception $e) {
             return [
                 'payment_complete' => false,
                 'payment_status' => 'error',
-                'message' => 'Response parsing error: ' . $e->getMessage()
+                'message' => 'Response parsing error: '.$e->getMessage(),
             ];
         }
     }
@@ -374,7 +396,7 @@ XML;
 
             $responseElem = $xml->xpath('//ns2:getAccountBalanceResponse/return');
 
-            if (!empty($responseElem)) {
+            if (! empty($responseElem)) {
                 $return = $responseElem[0];
                 $responseCode = (string) $return->responseCode;
                 $balance = (float) $return->balance;
@@ -384,19 +406,19 @@ XML;
                     'success' => $responseCode === '0',
                     'balance' => $balance,
                     'currency' => $currency,
-                    'responseCode' => $responseCode
+                    'responseCode' => $responseCode,
                 ];
             }
 
             return [
                 'success' => false,
-                'message' => 'Invalid response format'
+                'message' => 'Invalid response format',
             ];
 
         } catch (Exception $e) {
             return [
                 'success' => false,
-                'message' => 'Response parsing error: ' . $e->getMessage()
+                'message' => 'Response parsing error: '.$e->getMessage(),
             ];
         }
     }
@@ -411,16 +433,16 @@ XML;
 
         // If starts with +260 or 260, convert to 0...
         if (substr($phoneNumber, 0, 4) === '+260') {
-            return '0' . substr($phoneNumber, 4);
+            return '0'.substr($phoneNumber, 4);
         }
 
         if (substr($phoneNumber, 0, 3) === '260') {
-            return '0' . substr($phoneNumber, 3);
+            return '0'.substr($phoneNumber, 3);
         }
 
         // If 9 digits, add 0 prefix
         if (strlen($phoneNumber) === 9) {
-            return '0' . $phoneNumber;
+            return '0'.$phoneNumber;
         }
 
         return $phoneNumber;
@@ -432,10 +454,10 @@ XML;
     protected function maskPhone(string $phone): string
     {
         if (strlen($phone) <= 6) {
-            return '****' . substr($phone, -3);
+            return '****'.substr($phone, -3);
         }
 
-        return substr($phone, 0, 6) . '****' . substr($phone, -3);
+        return substr($phone, 0, 6).'****'.substr($phone, -3);
     }
 
     /**
@@ -517,7 +539,7 @@ XML;
         Log::info('MOCK: Processing payment', [
             'amount' => $amount,
             'mobile' => $this->maskPhone($customerMobile),
-            'reference' => $paymentReference
+            'reference' => $paymentReference,
         ]);
 
         if (str_contains(strtolower($paymentReference), 'fail')) {
@@ -525,15 +547,15 @@ XML;
                 'success' => false,
                 'message' => 'Mock payment failed',
                 'error_code' => 'MOCK_FAIL',
-                'responseCode' => '999'
+                'responseCode' => '999',
             ];
         }
 
         return [
             'success' => true,
             'message' => 'Successful',
-            'paymentID' => 'MOCK_' . strtoupper(substr(md5($paymentReference), 0, 8)),
-            'responseCode' => '0'
+            'paymentID' => 'MOCK_'.strtoupper(substr(md5($paymentReference), 0, 8)),
+            'responseCode' => '0',
         ];
     }
 
@@ -548,7 +570,7 @@ XML;
             'payment_complete' => true,
             'payment_status' => 'completed',
             'message' => 'Mock payment completed',
-            'responseCode' => '0'
+            'responseCode' => '0',
         ];
     }
 }

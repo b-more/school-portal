@@ -166,6 +166,12 @@ class QrPaymentResource extends Resource
                         $cgrateService = new CGrateService;
                         $result = $cgrateService->queryCustomerPayment($record->payment_reference);
 
+                        \Log::info('QR Payment status check', [
+                            'reference' => $record->payment_reference,
+                            'result' => $result,
+                            'payment_complete' => $result['payment_complete'] ?? false,
+                        ]);
+
                         if ($result['payment_complete']) {
                             $record->update([
                                 'status' => 'completed',
@@ -179,14 +185,22 @@ class QrPaymentResource extends Resource
 
                             Notification::make()
                                 ->title('Payment Confirmed')
-                                ->body('Payment has been completed successfully')
+                                ->body("Payment has been completed successfully. Status: {$result['payment_status']}")
                                 ->success()
+                                ->duration(5000)
                                 ->send();
                         } else {
+                            // Update response but keep processing status
+                            $record->update([
+                                'response_message' => $result['message'] ?? 'Payment is still pending',
+                                'response_code' => $result['responseCode'] ?? null,
+                            ]);
+
                             Notification::make()
-                                ->title('Payment Pending')
-                                ->body($result['message'] ?? 'Payment is still pending')
+                                ->title('Payment Not Complete')
+                                ->body("Status: {$result['payment_status']} - {$result['message']}")
                                 ->warning()
+                                ->duration(7000)
                                 ->send();
                         }
                     }),
@@ -259,5 +273,26 @@ class QrPaymentResource extends Resource
             'create' => Pages\CreateQrPayment::route('/create'),
             'view' => Pages\ViewQrPayment::route('/{record}'),
         ];
+    }
+
+    public static function getEloquentQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        $query = parent::getEloquentQuery()
+            ->with(['student:id,name,user_id']);
+
+        $user = auth()->user();
+
+        // Students see only their own QR payments
+        if ($user && $user->role_id === RoleConstants::STUDENT) {
+            $student = Student::where('user_id', $user->id)->first();
+            if ($student) {
+                $query->where('student_id', $student->id);
+            } else {
+                // If no student record found, return empty result
+                return $query->whereRaw('1 = 0');
+            }
+        }
+
+        return $query;
     }
 }
