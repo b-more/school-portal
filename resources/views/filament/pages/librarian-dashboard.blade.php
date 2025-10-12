@@ -285,30 +285,25 @@
             </x-slot>
 
             <div class="space-y-3">
-                @foreach($this->getStudentsWithFines() as $studentFine)
-                    @php
-                        $student = \App\Models\Student::with(['grade', 'classSection'])->find($studentFine->student_id);
-                    @endphp
-                    @if($student)
-                        <div class="flex items-center p-4 bg-white rounded-lg shadow-sm dark:bg-gray-800">
-                            <div class="flex-1">
-                                <h4 class="font-medium text-gray-900 dark:text-white">{{ $student->name }}</h4>
-                                <div class="mt-1 flex items-center gap-3 text-sm text-gray-600 dark:text-gray-400">
-                                    <span>{{ $student->grade?->name }}</span>
-                                    <span>•</span>
-                                    <span>{{ $student->classSection?->name }}</span>
-                                    <span>•</span>
-                                    <span>ID: {{ $student->student_id }}</span>
-                                </div>
-                            </div>
-                            <div class="ml-4 text-right">
-                                <div class="text-xs text-gray-500 dark:text-gray-400">Outstanding Fine</div>
-                                <div class="text-xl font-bold text-red-600 dark:text-red-400">
-                                    ZMW {{ number_format($studentFine->total_fines, 2) }}
-                                </div>
+                @foreach($this->getStudentsWithFines() as $student)
+                    <div class="flex items-center p-4 bg-white rounded-lg shadow-sm dark:bg-gray-800">
+                        <div class="flex-1">
+                            <h4 class="font-medium text-gray-900 dark:text-white">{{ $student->name }}</h4>
+                            <div class="mt-1 flex items-center gap-3 text-sm text-gray-600 dark:text-gray-400">
+                                <span>{{ $student->grade?->name }}</span>
+                                <span>•</span>
+                                <span>{{ $student->classSection?->name }}</span>
+                                <span>•</span>
+                                <span>ID: {{ $student->student_id }}</span>
                             </div>
                         </div>
-                    @endif
+                        <div class="ml-4 text-right">
+                            <div class="text-xs text-gray-500 dark:text-gray-400">Outstanding Fine</div>
+                            <div class="text-xl font-bold text-red-600 dark:text-red-400">
+                                ZMW {{ number_format($student->total_fines, 2) }}
+                            </div>
+                        </div>
+                    </div>
                 @endforeach
 
                 <div class="text-right">

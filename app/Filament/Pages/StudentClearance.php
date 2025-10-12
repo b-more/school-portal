@@ -44,7 +44,22 @@ class StudentClearance extends Page implements HasForms, HasTable
     public function table(Table $table): Table
     {
         return $table
-            ->query(Student::query()->with(['grade', 'classSection']))
+            ->query(
+                Student::query()
+                    ->with(['grade', 'classSection'])
+                    ->withCount([
+                        'bookLoans as active_loans_count' => fn (Builder $query) => $query->whereIn('status', ['active', 'overdue']),
+                        'bookLoans as overdue_loans_count' => fn (Builder $query) => $query->where('status', 'overdue')
+                            ->orWhere(function ($q) {
+                                $q->where('status', 'active')->where('due_date', '<', now());
+                            }),
+                        'bookLoans as unpaid_fines_count' => fn (Builder $query) => $query->where('fine_paid', false)
+                            ->where('fine_amount', '>', 0),
+                    ])
+                    ->withSum([
+                        'bookLoans as total_fines' => fn (Builder $query) => $query->where('fine_paid', false),
+                    ], 'fine_amount')
+            )
             ->columns([
                 TextColumn::make('student_id')
                     ->label('Student ID')
@@ -58,35 +73,23 @@ class StudentClearance extends Page implements HasForms, HasTable
 
                 TextColumn::make('active_loans_count')
                     ->label('Active Loans')
-                    ->counts('bookLoans', fn (Builder $query) => $query->whereIn('status', ['active', 'overdue']))
                     ->badge()
                     ->color(fn (int $state): string => $state > 0 ? 'warning' : 'success'),
 
                 TextColumn::make('overdue_loans_count')
                     ->label('Overdue')
-                    ->counts('bookLoans', fn (Builder $query) => $query->where('status', 'overdue')->orWhere(function ($q) {
-                        $q->where('status', 'active')->where('due_date', '<', now());
-                    }))
                     ->badge()
                     ->color(fn (int $state): string => $state > 0 ? 'danger' : 'success'),
 
                 TextColumn::make('total_fines')
                     ->label('Outstanding Fines')
-                    ->getStateUsing(function (Student $record) {
-                        return $record->bookLoans()
-                            ->where('fine_paid', false)
-                            ->sum('fine_amount');
-                    })
                     ->money('ZMW')
-                    ->color(fn (float $state): string => $state > 0 ? 'danger' : 'success'),
+                    ->color(fn ($state): string => $state > 0 ? 'danger' : 'success'),
 
                 IconColumn::make('is_cleared')
                     ->label('Cleared')
                     ->getStateUsing(function (Student $record) {
-                        $activeLoans = $record->bookLoans()->whereIn('status', ['active', 'overdue'])->count();
-                        $unpaidFines = $record->bookLoans()->where('fine_paid', false)->where('fine_amount', '>', 0)->count();
-
-                        return $activeLoans === 0 && $unpaidFines === 0;
+                        return $record->active_loans_count === 0 && $record->unpaid_fines_count === 0;
                     })
                     ->boolean(),
             ])
