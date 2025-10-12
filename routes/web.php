@@ -1,11 +1,11 @@
 <?php
 
-use App\Http\Controllers\StudentFeeController;
-use App\Http\Controllers\HomeworkController;
+use App\Constants\RoleConstants;
 use App\Http\Controllers\FeeStatementsController;
+use App\Http\Controllers\HomeworkController;
 use App\Http\Controllers\PaymentStatementController;
 use App\Http\Controllers\PublicPaymentController;
-use App\Constants\RoleConstants;
+use App\Http\Controllers\StudentFeeController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -21,7 +21,7 @@ Route::get('/test', function () {
 
 // Root route - redirect to login if not authenticated, otherwise to dashboard
 Route::get('/', function () {
-    if (!auth()->check()) {
+    if (! auth()->check()) {
         return redirect('/admin/login');
     }
 
@@ -34,6 +34,8 @@ Route::get('/', function () {
             return redirect('/admin/parent-dashboard');
         case RoleConstants::STUDENT:
             return redirect('/admin/student-dashboard');
+        case RoleConstants::LIBRARIAN:
+            return redirect('/admin/librarian-dashboard');
         case RoleConstants::ADMIN:
         default:
             return redirect('/admin');
