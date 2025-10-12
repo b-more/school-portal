@@ -2,21 +2,20 @@
 
 namespace App\Filament\Resources;
 
+use App\Constants\RoleConstants;
 use App\Filament\Resources\HomeworkSubmissionResource\Pages;
-use App\Models\HomeworkSubmission;
 use App\Models\Homework;
-use App\Models\Student;
-use App\Models\Employee;
+use App\Models\HomeworkSubmission;
 use App\Models\Result;
+use App\Models\Student;
+use Carbon\Carbon;
 use Filament\Forms;
 use Filament\Forms\Form;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Filament\Notifications\Notification;
-use Carbon\Carbon;
-use App\Constants\RoleConstants;
 use Illuminate\Support\Facades\Auth;
 
 class HomeworkSubmissionResource extends Resource
@@ -93,11 +92,11 @@ class HomeworkSubmissionResource extends Resource
                                 if ($state) {
                                     $set('status', 'graded');
 
-                                    if (!$get('graded_at')) {
+                                    if (! $get('graded_at')) {
                                         $set('graded_at', Carbon::now());
                                     }
 
-                                    if (!$get('graded_by')) {
+                                    if (! $get('graded_by')) {
                                         $set('graded_by', auth()->id());
                                     }
                                 }
@@ -132,7 +131,7 @@ class HomeworkSubmissionResource extends Resource
                     ->schema([
                         Forms\Components\Placeholder::make('result_info')
                             ->content(function ($record) {
-                                if (!$record || !$record->id) {
+                                if (! $record || ! $record->id) {
                                     return 'Save this submission first to check for associated results.';
                                 }
 
@@ -141,12 +140,12 @@ class HomeworkSubmissionResource extends Resource
                                     ->where('exam_type', 'assignment')
                                     ->first();
 
-                                if (!$result) {
+                                if (! $result) {
                                     return 'No result record has been created for this submission yet. After grading, you can create a result record from the actions menu.';
                                 }
 
-                                return "Result Record: {$result->grade} ({$result->marks}%) - Created on " . $result->created_at->format('M d, Y H:i');
-                            })
+                                return "Result Record: {$result->grade} ({$result->marks}%) - Created on ".$result->created_at->format('M d, Y H:i');
+                            }),
                     ])
                     ->visible(function ($record) {
                         return $record && $record->id;
@@ -187,22 +186,18 @@ class HomeworkSubmissionResource extends Resource
                         }
 
                         $maxScore = $record->homework?->max_score ?? 100;
-                        return "{$record->marks}/{$maxScore} (" . round(($record->marks / $maxScore) * 100) . "%)";
+
+                        return "{$record->marks}/{$maxScore} (".round(($record->marks / $maxScore) * 100).'%)';
                     })
                     ->sortable(),
                 Tables\Columns\IconColumn::make('file_attachment')
                     ->label('Files')
                     ->boolean()
-                    ->getStateUsing(fn ($record) => !empty($record->file_attachment)),
+                    ->getStateUsing(fn ($record) => ! empty($record->file_attachment)),
                 Tables\Columns\IconColumn::make('has_result')
                     ->label('Result Created')
                     ->boolean()
-                    ->getStateUsing(function ($record) {
-                        return Result::where('student_id', $record->student_id)
-                            ->where('homework_id', $record->homework_id)
-                            ->where('exam_type', 'assignment')
-                            ->exists();
-                    }),
+                    ->getStateUsing(fn ($record) => (bool) $record->has_result),
                 Tables\Columns\TextColumn::make('gradedBy.name')
                     ->label('Graded By')
                     ->sortable()
@@ -249,7 +244,7 @@ class HomeworkSubmissionResource extends Resource
                             foreach ($withResults as $homeworkId => $studentId) {
                                 $q->orWhere(function ($sq) use ($homeworkId, $studentId) {
                                     $sq->where('homework_id', $homeworkId)
-                                       ->where('student_id', $studentId);
+                                        ->where('student_id', $studentId);
                                 });
                             }
                         });
@@ -273,7 +268,7 @@ class HomeworkSubmissionResource extends Resource
                             foreach ($withResults as $homeworkId => $studentId) {
                                 $q->whereNot(function ($sq) use ($homeworkId, $studentId) {
                                     $sq->where('homework_id', $homeworkId)
-                                       ->where('student_id', $studentId);
+                                        ->where('student_id', $studentId);
                                 });
                             }
                         });
@@ -294,7 +289,7 @@ class HomeworkSubmissionResource extends Resource
                                 $data['until'],
                                 fn (Builder $query, $date): Builder => $query->whereDate('submitted_at', '<=', $date),
                             );
-                    })
+                    }),
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
@@ -345,6 +340,7 @@ class HomeworkSubmissionResource extends Resource
                                 ->body('The submission must be graded before creating a result record.')
                                 ->warning()
                                 ->send();
+
                             return;
                         }
 
@@ -360,6 +356,7 @@ class HomeworkSubmissionResource extends Resource
                                 ->body('A result record for this homework assignment already exists.')
                                 ->warning()
                                 ->send();
+
                             return;
                         }
 
@@ -367,12 +364,13 @@ class HomeworkSubmissionResource extends Resource
                         $homework = $record->homework;
                         $student = $record->student;
 
-                        if (!$homework || !$student) {
+                        if (! $homework || ! $student) {
                             Notification::make()
                                 ->title('Missing Information')
                                 ->body('Cannot create result due to missing homework or student information.')
                                 ->danger()
                                 ->send();
+
                             return;
                         }
 
@@ -401,12 +399,7 @@ class HomeworkSubmissionResource extends Resource
                         // Redirect to the result edit page
                         redirect()->route('filament.admin.resources.results.edit', ['record' => $result->id]);
                     })
-                    ->visible(fn ($record) =>
-                        $record->marks !== null &&
-                        !Result::where('student_id', $record->student_id)
-                            ->where('exam_type', 'assignment')
-                            ->where('homework_id', $record->homework_id)
-                            ->exists()
+                    ->visible(fn ($record) => $record->marks !== null && ! $record->has_result
                     ),
                 Tables\Actions\Action::make('viewResult')
                     ->label('View Result')
@@ -418,30 +411,26 @@ class HomeworkSubmissionResource extends Resource
                             ->where('homework_id', $record->homework_id)
                             ->first();
 
-                        if (!$result) {
+                        if (! $result) {
                             Notification::make()
                                 ->title('No Result Found')
                                 ->body('No result record exists for this submission.')
                                 ->warning()
                                 ->send();
+
                             return;
                         }
 
                         redirect()->route('filament.admin.resources.results.view', ['record' => $result->id]);
                     })
-                    ->visible(fn ($record) =>
-                        Result::where('student_id', $record->student_id)
-                            ->where('exam_type', 'assignment')
-                            ->where('homework_id', $record->homework_id)
-                            ->exists()
-                    ),
+                    ->visible(fn ($record) => (bool) $record->has_result),
                 Tables\Actions\Action::make('download')
                     ->label('Download Files')
                     ->icon('heroicon-o-arrow-down-tray')
                     ->color('primary')
                     ->url(fn ($record) => route('filament.resources.homework-submissions.download', $record))
                     ->openUrlInNewTab()
-                    ->visible(fn ($record) => !empty($record->file_attachment)),
+                    ->visible(fn ($record) => ! empty($record->file_attachment)),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
@@ -484,6 +473,7 @@ class HomeworkSubmissionResource extends Resource
 
                                 if ($existingResult) {
                                     $errorCount++;
+
                                     continue; // Skip if result exists
                                 }
 
@@ -491,8 +481,9 @@ class HomeworkSubmissionResource extends Resource
                                 $homework = $submission->homework;
                                 $student = $submission->student;
 
-                                if (!$homework || !$student) {
+                                if (! $homework || ! $student) {
                                     $errorCount++;
+
                                     continue;
                                 }
 
@@ -532,12 +523,24 @@ class HomeworkSubmissionResource extends Resource
     /**
      * Determine letter grade from numerical marks
      */
-    protected static function getGradeFromMarks($marks) {
-        if ($marks >= 90) return 'A+';
-        if ($marks >= 80) return 'A';
-        if ($marks >= 70) return 'B';
-        if ($marks >= 60) return 'C';
-        if ($marks >= 50) return 'D';
+    protected static function getGradeFromMarks($marks)
+    {
+        if ($marks >= 90) {
+            return 'A+';
+        }
+        if ($marks >= 80) {
+            return 'A';
+        }
+        if ($marks >= 70) {
+            return 'B';
+        }
+        if ($marks >= 60) {
+            return 'C';
+        }
+        if ($marks >= 50) {
+            return 'D';
+        }
+
         return 'F';
     }
 
@@ -556,5 +559,24 @@ class HomeworkSubmissionResource extends Resource
             'view' => Pages\ViewHomeworkSubmission::route('/{record}'),
             'edit' => Pages\EditHomeworkSubmission::route('/{record}/edit'),
         ];
+    }
+
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()
+            ->select('homework_submissions.*')
+            ->with([
+                'homework:id,title,max_score,subject_id,grade_id',
+                'student:id,name,grade_id',
+                'student.grade:id,name',
+                'gradedBy:id,name',
+            ])
+            ->addSelect([
+                'has_result' => Result::select(\DB::raw('1'))
+                    ->whereColumn('results.student_id', 'homework_submissions.student_id')
+                    ->whereColumn('results.homework_id', 'homework_submissions.homework_id')
+                    ->where('results.exam_type', 'assignment')
+                    ->limit(1),
+            ]);
     }
 }
