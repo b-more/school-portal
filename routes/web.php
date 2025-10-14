@@ -1,6 +1,7 @@
 <?php
 
 use App\Constants\RoleConstants;
+use App\Http\Controllers\BusPassController;
 use App\Http\Controllers\FeeStatementsController;
 use App\Http\Controllers\HomeworkController;
 use App\Http\Controllers\PaymentStatementController;
@@ -168,6 +169,21 @@ Route::middleware(['auth'])->group(function () {
     // Download payslip as PDF
     Route::get('/payslips/{payroll}/download', [PayslipController::class, 'download'])
         ->name('payslips.download');
+});
+
+// Bus Pass Routes
+Route::middleware(['auth'])->group(function () {
+    // View bus pass in browser
+    Route::get('/bus-passes/{busPayment}', [BusPassController::class, 'view'])
+        ->name('bus-passes.view');
+
+    // Print bus pass
+    Route::get('/bus-passes/{busPayment}/print', [BusPassController::class, 'print'])
+        ->name('bus-passes.print');
+
+    // Download bus pass as PDF
+    Route::get('/bus-passes/{busPayment}/download', [BusPassController::class, 'download'])
+        ->name('bus-passes.download');
 });
 
 // Public Payment Routes (no authentication required)

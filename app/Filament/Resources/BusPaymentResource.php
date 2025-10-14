@@ -300,6 +300,14 @@ class BusPaymentResource extends Resource
                     ->native(false),
             ], layout: Tables\Enums\FiltersLayout::AboveContentCollapsible)
             ->actions([
+                Tables\Actions\Action::make('view_bus_pass')
+                    ->label('View Bus Pass')
+                    ->icon('heroicon-o-ticket')
+                    ->color('info')
+                    ->url(fn (BusPayment $record) => route('bus-passes.view', $record))
+                    ->openUrlInNewTab()
+                    ->visible(fn (BusPayment $record) => $record->payment_status !== 'unpaid'),
+
                 Tables\Actions\Action::make('record_payment')
                     ->label('Record Payment')
                     ->icon('heroicon-o-banknotes')

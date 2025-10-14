@@ -2,28 +2,31 @@
 
 namespace App\Filament\Pages;
 
-use Filament\Pages\Page;
-use App\Models\Student;
+use App\Constants\RoleConstants;
+use App\Models\Event;
 use App\Models\Homework;
 use App\Models\HomeworkSubmission;
 use App\Models\Result;
-use App\Models\Event;
-use App\Models\FeePayment;
-use App\Constants\RoleConstants;
+use App\Models\Student;
 use Filament\Actions\Action;
 use Filament\Notifications\Notification;
+use Filament\Pages\Page;
 use Illuminate\Support\Facades\Auth;
 
 class StudentDashboard extends Page
 {
     protected static ?string $navigationIcon = 'heroicon-o-document-text';
+
     protected static string $view = 'filament.pages.student-dashboard';
+
     protected static ?string $navigationLabel = 'Dashboard';
+
     protected static ?int $navigationSort = 1;
 
     public function getStudent()
     {
         $user = Auth::user();
+
         return Student::where('user_id', $user->id)
             ->with(['grade', 'classSection', 'parentGuardian'])
             ->first();
@@ -34,8 +37,9 @@ class StudentDashboard extends Page
         try {
             $student = $this->getStudent();
 
-            if (!$student) {
-                \Log::error('StudentDashboard: No student found for user ' . auth()->id());
+            if (! $student) {
+                \Log::error('StudentDashboard: No student found for user '.auth()->id());
+
                 return collect();
             }
 
@@ -67,6 +71,7 @@ class StudentDashboard extends Page
                 'error' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
+
             return collect();
         }
     }
@@ -75,7 +80,7 @@ class StudentDashboard extends Page
     {
         $student = $this->getStudent();
 
-        if (!$student) {
+        if (! $student) {
             return collect();
         }
 
@@ -90,7 +95,7 @@ class StudentDashboard extends Page
     {
         $student = $this->getStudent();
 
-        if (!$student) {
+        if (! $student) {
             return collect();
         }
 
@@ -105,12 +110,12 @@ class StudentDashboard extends Page
     {
         $student = $this->getStudent();
 
-        if (!$student) {
+        if (! $student) {
             return collect();
         }
 
         return Event::where('start_date', '>=', now())
-            ->where(function($query) use ($student) {
+            ->where(function ($query) use ($student) {
                 $query->where('applicable_to', $student->grade_id)
                     ->orWhere('applicable_to', 'all')
                     ->orWhere('applicable_to', 'students')
@@ -125,7 +130,7 @@ class StudentDashboard extends Page
     {
         $student = $this->getStudent();
 
-        if (!$student) {
+        if (! $student) {
             return [
                 'total_homework' => 0,
                 'submitted' => 0,
@@ -146,6 +151,23 @@ class StudentDashboard extends Page
             'graded' => $submissions->whereNotNull('marks')->count(),
             'average_grade' => $results->avg('marks'),
         ];
+    }
+
+    public function getActiveBusPasses()
+    {
+        $student = $this->getStudent();
+
+        if (! $student) {
+            return collect();
+        }
+
+        return \App\Models\BusPayment::where('student_id', $student->id)
+            ->whereIn('payment_status', ['paid', 'partial'])
+            ->where('year', '>=', now()->year - 1)
+            ->with(['busFareStructure'])
+            ->orderBy('year', 'desc')
+            ->orderByRaw("FIELD(month, 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December') DESC")
+            ->get();
     }
 
     protected function getHeaderActions(): array
