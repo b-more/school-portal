@@ -89,4 +89,26 @@ class BusPassController extends Controller
             'busPayment' => $busPayment,
         ]);
     }
+
+    /**
+     * View payment receipt
+     */
+    public function receipt(BusPayment $busPayment)
+    {
+        // Check if user has permission
+        $user = auth()->user();
+
+        if ($user->role_id !== \App\Constants\RoleConstants::ADMIN) {
+            $student = \App\Models\Student::where('user_id', $user->id)->first();
+            if (! $student || $busPayment->student_id !== $student->id) {
+                abort(403, 'Unauthorized access to receipt.');
+            }
+        }
+
+        $busPayment->load(['student.grade', 'busFareStructure']);
+
+        return view('bus-receipts.view', [
+            'busPayment' => $busPayment,
+        ]);
+    }
 }

@@ -184,6 +184,10 @@ Route::middleware(['auth'])->group(function () {
     // Download bus pass as PDF
     Route::get('/bus-passes/{busPayment}/download', [BusPassController::class, 'download'])
         ->name('bus-passes.download');
+
+    // View payment receipt
+    Route::get('/bus-receipts/{busPayment}', [BusPassController::class, 'receipt'])
+        ->name('bus-receipts.view');
 });
 
 // Public Payment Routes (no authentication required)

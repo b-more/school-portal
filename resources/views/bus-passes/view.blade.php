@@ -54,8 +54,8 @@
         }
 
         .school-logo {
-            width: 60px;
-            height: 60px;
+            width: 80px;
+            height: 80px;
             background: white;
             border-radius: 50%;
             margin: 0 auto 15px;
@@ -66,6 +66,14 @@
             font-size: 20px;
             color: #667eea;
             box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+
+        .school-logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            padding: 8px;
         }
 
         .school-name {
@@ -260,7 +268,13 @@
         <div class="bus-pass">
             <!-- Header -->
             <div class="pass-header">
-                <div class="school-logo">SFA</div>
+                <div class="school-logo">
+                    @if(file_exists(public_path('logo.png')))
+                        <img src="{{ asset('logo.png') }}" alt="School Logo">
+                    @else
+                        SFA
+                    @endif
+                </div>
                 <div class="school-name">St. Francis of Assisi School</div>
                 <div class="pass-type">School Bus Pass</div>
             </div>
@@ -292,10 +306,27 @@
                         <span class="detail-label">Valid For</span>
                         <span class="detail-value">{{ $busPayment->month }} {{ $busPayment->year }}</span>
                     </div>
+                    @php
+                        // Calculate expiry date - last day of the month
+                        $monthNumber = date('n', strtotime($busPayment->month . ' 1'));
+                        $expiryDate = \Carbon\Carbon::create($busPayment->year, $monthNumber)->endOfMonth();
+                    @endphp
+                    <div class="detail-row">
+                        <span class="detail-label">Expires On</span>
+                        <span class="detail-value">{{ $expiryDate->format('d M Y') }}</span>
+                    </div>
                     @else
                     <div class="detail-row">
                         <span class="detail-label">Valid For</span>
                         <span class="detail-value">Full Term {{ $busPayment->year }}</span>
+                    </div>
+                    @php
+                        // For term payments, expires at end of term (assume December 31st or set due date)
+                        $expiryDate = $busPayment->due_date ?? \Carbon\Carbon::create($busPayment->year, 12, 31);
+                    @endphp
+                    <div class="detail-row">
+                        <span class="detail-label">Expires On</span>
+                        <span class="detail-value">{{ \Carbon\Carbon::parse($expiryDate)->format('d M Y') }}</span>
                     </div>
                     @endif
 
@@ -303,18 +334,6 @@
                         <span class="detail-label">Grade</span>
                         <span class="detail-value">{{ $busPayment->student->grade->name ?? 'N/A' }}</span>
                     </div>
-
-                    <div class="detail-row">
-                        <span class="detail-label">Amount Paid</span>
-                        <span class="detail-value">ZMW {{ number_format($busPayment->amount_paid, 2) }}</span>
-                    </div>
-
-                    @if($busPayment->balance > 0)
-                    <div class="detail-row">
-                        <span class="detail-label">Balance</span>
-                        <span class="detail-value" style="color: #e74c3c;">ZMW {{ number_format($busPayment->balance, 2) }}</span>
-                    </div>
-                    @endif
                 </div>
             </div>
 
