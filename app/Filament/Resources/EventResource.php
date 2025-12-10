@@ -17,6 +17,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Str;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Log;
+use App\Constants\RoleConstants;
 
 class EventResource extends Resource
 {
@@ -27,9 +28,10 @@ class EventResource extends Resource
     protected static ?string $navigationGroup = 'Website Management';
 
     public static function shouldRegisterNavigation(): bool
-{
-    return false;
-}
+    {
+        $teachingRoles = RoleConstants::teaching();
+        return in_array(auth()->user()?->role_id, $teachingRoles) ?? false;
+    }
 
     public static function form(Form $form): Form
     {
@@ -108,9 +110,9 @@ class EventResource extends Resource
                             ->label('Target Grades (leave empty for all)')
                             ->multiple()
                             ->options(function () {
-                                return Student::select('grade')
-                                    ->distinct()
-                                    ->pluck('grade', 'grade')
+                                return \App\Models\Grade::query()
+                                    ->orderBy('name')
+                                    ->pluck('name', 'id')
                                     ->toArray();
                             })
                             ->visible(fn (callable $get) => $get('notify_parents'))
@@ -195,8 +197,10 @@ class EventResource extends Resource
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\EditAction::make()
+                    ->visible(fn () => auth()->user()?->role_id === RoleConstants::ADMIN),
+                Tables\Actions\DeleteAction::make()
+                    ->visible(fn () => auth()->user()?->role_id === RoleConstants::ADMIN),
                 Tables\Actions\Action::make('sendNotifications')
                     ->label('Send SMS Notifications')
                     ->icon('heroicon-o-paper-airplane')
@@ -207,7 +211,8 @@ class EventResource extends Resource
                     ->requiresConfirmation()
                     ->modalHeading('Send Event Notifications')
                     ->modalDescription('This will send SMS notifications to parents/guardians. Are you sure you want to continue?')
-                    ->modalSubmitActionLabel('Yes, Send Notifications'),
+                    ->modalSubmitActionLabel('Yes, Send Notifications')
+                    ->visible(fn () => auth()->user()?->role_id === RoleConstants::ADMIN),
                 Tables\Actions\Action::make('updateStatus')
                     ->label('Update Status')
                     ->icon('heroicon-o-arrow-path')
@@ -223,63 +228,68 @@ class EventResource extends Resource
                     ])
                     ->action(function ($record, array $data): void {
                         $record->update(['status' => $data['status']]);
-                    }),
+                    })
+                    ->visible(fn () => auth()->user()?->role_id === RoleConstants::ADMIN),
             ])
-            ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
-                    Tables\Actions\BulkAction::make('updateStatus')
-                        ->label('Update Status')
-                        ->icon('heroicon-o-arrow-path')
-                        ->form([
-                            Forms\Components\Select::make('status')
-                                ->options([
-                                    'upcoming' => 'Upcoming',
-                                    'ongoing' => 'Ongoing',
-                                    'completed' => 'Completed',
-                                    'cancelled' => 'Cancelled',
+            ->bulkActions(
+                auth()->user()?->role_id === RoleConstants::ADMIN
+                    ? [
+                        Tables\Actions\BulkActionGroup::make([
+                            Tables\Actions\DeleteBulkAction::make(),
+                            Tables\Actions\BulkAction::make('updateStatus')
+                                ->label('Update Status')
+                                ->icon('heroicon-o-arrow-path')
+                                ->form([
+                                    Forms\Components\Select::make('status')
+                                        ->options([
+                                            'upcoming' => 'Upcoming',
+                                            'ongoing' => 'Ongoing',
+                                            'completed' => 'Completed',
+                                            'cancelled' => 'Cancelled',
+                                        ])
+                                        ->required(),
                                 ])
-                                ->required(),
-                        ])
-                        ->action(function (Builder $query, array $data): void {
-                            $query->update(['status' => $data['status']]);
-                        })
-                        ->deselectRecordsAfterCompletion(),
-                    Tables\Actions\BulkAction::make('sendBulkNotifications')
-                        ->label('Send SMS Notifications')
-                        ->icon('heroicon-o-paper-airplane')
-                        ->color('warning')
-                        ->action(function (Builder $query) {
-                            $events = $query->where('status', 'upcoming')->get();
+                                ->action(function (Builder $query, array $data): void {
+                                    $query->update(['status' => $data['status']]);
+                                })
+                                ->deselectRecordsAfterCompletion(),
+                            Tables\Actions\BulkAction::make('sendBulkNotifications')
+                                ->label('Send SMS Notifications')
+                                ->icon('heroicon-o-paper-airplane')
+                                ->color('warning')
+                                ->action(function (Builder $query) {
+                                    $events = $query->where('status', 'upcoming')->get();
 
-                            $successCount = 0;
-                            $failedCount = 0;
+                                    $successCount = 0;
+                                    $failedCount = 0;
 
-                            foreach ($events as $event) {
-                                try {
-                                    $result = self::sendEventNotifications($event, false);
-                                    $successCount += $result['success'];
-                                    $failedCount += $result['failed'];
-                                } catch (\Exception $e) {
-                                    $failedCount++;
-                                    Log::error('Failed to send event notifications', [
-                                        'event_id' => $event->id,
-                                        'error' => $e->getMessage()
-                                    ]);
-                                }
-                            }
+                                    foreach ($events as $event) {
+                                        try {
+                                            $result = self::sendEventNotifications($event, false);
+                                            $successCount += $result['success'];
+                                            $failedCount += $result['failed'];
+                                        } catch (\Exception $e) {
+                                            $failedCount++;
+                                            Log::error('Failed to send event notifications', [
+                                                'event_id' => $event->id,
+                                                'error' => $e->getMessage()
+                                            ]);
+                                        }
+                                    }
 
-                            Notification::make()
-                                ->title("Event Notifications: {$successCount} sent successfully, {$failedCount} failed")
-                                ->success()
-                                ->send();
-                        })
-                        ->requiresConfirmation()
-                        ->modalHeading('Send Bulk Event Notifications')
-                        ->modalDescription('This will send SMS notifications for all selected upcoming events. Are you sure you want to continue?')
-                        ->modalSubmitActionLabel('Yes, Send All Notifications'),
-                ]),
-            ]);
+                                    Notification::make()
+                                        ->title("Event Notifications: {$successCount} sent successfully, {$failedCount} failed")
+                                        ->success()
+                                        ->send();
+                                })
+                                ->requiresConfirmation()
+                                ->modalHeading('Send Bulk Event Notifications')
+                                ->modalDescription('This will send SMS notifications for all selected upcoming events. Are you sure you want to continue?')
+                                ->modalSubmitActionLabel('Yes, Send All Notifications'),
+                        ]),
+                    ]
+                    : []
+            );
     }
 
     protected static function sendEventNotifications(Event $event, $showNotification = true)
@@ -287,9 +297,9 @@ class EventResource extends Resource
         // Determine which students to target
         $query = Student::where('enrollment_status', 'active')->with('parentGuardian');
 
-        // Filter by grades if specified
+        // Filter by grades if specified (target_grades contains grade IDs)
         if (!empty($event->target_grades)) {
-            $query->whereIn('grade', $event->target_grades);
+            $query->whereIn('grade_id', $event->target_grades);
         }
 
         $students = $query->get();

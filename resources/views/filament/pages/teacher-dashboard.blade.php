@@ -67,10 +67,17 @@
                 </div>
 
                 <div class="mt-4">
-                    <a href="{{ route('filament.admin.resources.teacher-homework-submissions.index') }}"
-                       class="inline-flex items-center text-sm text-primary-600 hover:text-primary-500">
-                        Grade pending submissions →
-                    </a>
+                    @if(Route::has('filament.admin.resources.homework-submissions.index'))
+                        <a href="{{ route('filament.admin.resources.homework-submissions.index') }}"
+                           class="inline-flex items-center text-sm text-primary-600 hover:text-primary-500">
+                            Grade pending submissions →
+                        </a>
+                    @else
+                        <a href="/admin/homework-submissions"
+                           class="inline-flex items-center text-sm text-primary-600 hover:text-primary-500">
+                            Grade pending submissions →
+                        </a>
+                    @endif
                 </div>
             </div>
         </x-filament::section>
@@ -103,10 +110,17 @@
                         <span class="text-sm text-gray-500 dark:text-gray-400">
                             {{ $homework->submissions()->count() }} submissions
                         </span>
-                        <a href="{{ route('filament.admin.resources.teacher-homeworks.view', ['record' => $homework->id]) }}"
-                           class="text-primary-600 hover:text-primary-500 text-sm">
-                            View →
-                        </a>
+                        @if(Route::has('filament.admin.resources.homework.view'))
+                            <a href="{{ route('filament.admin.resources.homework.view', ['record' => $homework->id]) }}"
+                               class="text-primary-600 hover:text-primary-500 text-sm">
+                                View →
+                            </a>
+                        @else
+                            <a href="/admin/homework/{{ $homework->id }}"
+                               class="text-primary-600 hover:text-primary-500 text-sm">
+                                View →
+                            </a>
+                        @endif
                     </div>
                 </div>
             @empty
@@ -146,10 +160,17 @@
                         <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300">
                             {{ ucfirst($submission->status) }}
                         </span>
-                        <a href="{{ route('filament.admin.resources.teacher-homework-submissions.edit', ['record' => $submission->id]) }}"
-                           class="text-primary-600 hover:text-primary-500 text-sm">
-                            Grade →
-                        </a>
+                        @if(Route::has('filament.admin.resources.homework-submissions.edit'))
+                            <a href="{{ route('filament.admin.resources.homework-submissions.edit', ['record' => $submission->id]) }}"
+                               class="text-primary-600 hover:text-primary-500 text-sm">
+                                Grade →
+                            </a>
+                        @else
+                            <a href="/admin/homework-submissions/{{ $submission->id }}/edit"
+                               class="text-primary-600 hover:text-primary-500 text-sm">
+                                Grade →
+                            </a>
+                        @endif
                     </div>
                 </div>
             @empty

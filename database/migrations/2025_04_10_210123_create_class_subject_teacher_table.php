@@ -21,10 +21,10 @@ return new class extends Migration
 
                 // $table->foreign('class_id')->references('id')->on('classes')->onDelete('cascade');
                 // $table->foreign('subject_id')->references('id')->on('subjects')->onDelete('cascade');
-                // $table->foreign('employee_id')->references('id')->on('employees')->onDelete('cascade');
+                // $table->foreign('teacher_id')->references('id')->on('teachers')->onDelete('cascade');
 
                 // Ensure a teacher only teaches a subject to a class once
-                $table->unique(['class_id', 'subject_id', 'employee_id']);
+                $table->unique(['class_id', 'subject_id', 'teacher_id']);
             });
         }
     }

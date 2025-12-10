@@ -49,33 +49,37 @@ class CreateStudent extends CreateRecord
             // Create the student record
             $student = static::getModel()::create($data);
 
-            // **NEW: Automatically create student fee for current term**
+            // **NEW: Automatically create student fee for enrollment term**
             try {
-                $studentFee = StudentFeeService::createFeeForNewStudent($student);
+                // Use the enrollment term selected during student creation
+                $enrollmentTermId = $data['enrollment_term_id'] ?? null;
+                $studentFee = StudentFeeService::createFeeForNewStudent($student, $enrollmentTermId);
 
                 if ($studentFee) {
                     Log::info('Student fee automatically created', [
                         'student_id' => $student->id,
                         'fee_id' => $studentFee->id,
-                        'amount' => $studentFee->balance
+                        'amount' => $studentFee->balance,
+                        'enrollment_term_id' => $enrollmentTermId
                     ]);
 
                     // Show notification about fee creation
                     Notification::make()
                         ->title('Student Fee Created')
-                        ->body("Fee of ZMW " . number_format($studentFee->balance, 2) . " automatically created for current term.")
+                        ->body("Fee of ZMW " . number_format($studentFee->balance, 2) . " automatically created for enrollment term.")
                         ->success()
                         ->send();
                 } else {
                     // Log warning but don't fail student creation
                     Log::warning('Could not automatically create fee for new student', [
                         'student_id' => $student->id,
-                        'reason' => 'No active term or fee structure found'
+                        'enrollment_term_id' => $enrollmentTermId,
+                        'reason' => 'No fee structure found for selected enrollment term and grade'
                     ]);
 
                     Notification::make()
                         ->title('Fee Creation Notice')
-                        ->body('Student created successfully, but no fee was created (no active term or fee structure found). Please create fee manually.')
+                        ->body('Student created successfully, but no fee was created. No fee structure found for the selected enrollment term and grade. Please create fee manually.')
                         ->warning()
                         ->send();
                 }
@@ -83,6 +87,7 @@ class CreateStudent extends CreateRecord
                 // Log error but don't fail student creation
                 Log::error('Failed to create automatic fee for new student', [
                     'student_id' => $student->id,
+                    'enrollment_term_id' => $data['enrollment_term_id'] ?? null,
                     'error' => $e->getMessage()
                 ]);
 
@@ -118,7 +123,8 @@ class CreateStudent extends CreateRecord
 
                     if ($parentGuardian && $parentGuardian->phone) {
                         // Send the student's login credentials to the parent/guardian
-                        $message = "Hello {$parentGuardian->name}, your child {$data['name']}'s student portal account has been created.\n\nLogin details:\nUsername: {$user->username}\nPassword: {$password}\n\nPortal: https://staff.stfrancisofassisi.tech/\n\nPlease help them log in and change their password.";
+                        // Short SMS under 160 characters
+                        $message = "Student portal for {$data['name']}\nUser: {$user->username}\nPass: {$password}\nChange password on first login. St Francis";
                         $formattedPhone = $this->formatPhoneNumber($parentGuardian->phone);
                         $success = $this->sendMessage($message, $formattedPhone);
 
@@ -193,14 +199,8 @@ class CreateStudent extends CreateRecord
             if ($parentGuardian && $parentGuardian->phone) {
                 // Get parent's user account if it exists
                 $parentUser = User::find($parentGuardian->user_id);
-                $message = "Hello {$parentGuardian->name}, your child {$data['name']} has been registered at St Francis of Assisi School.\n\n";
-
-                // Add login information if parent has an account
-                if ($parentUser) {
-                    $message .= "You can view their information on your parent portal: https://staff.stfrancisofassisi.tech/\nYour username: {$parentUser->username}";
-                } else {
-                    $message .= "Please contact the school office for more information.";
-                }
+                // Short SMS under 160 characters
+                $message = "{$data['name']} registered at St Francis. Check parent portal for details. Welcome!";
 
                 $formattedPhone = $this->formatPhoneNumber($parentGuardian->phone);
 

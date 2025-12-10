@@ -40,22 +40,69 @@ class HomeworkSubmissionResource extends Resource
 
     public static function form(Form $form): Form
     {
+        $user = Auth::user();
+        $isParent = $user->role_id === RoleConstants::PARENT;
+        $isTeacher = in_array($user->role_id, [RoleConstants::ADMIN, ...RoleConstants::teaching()]);
+
         return $form
             ->schema([
                 Forms\Components\Section::make('Submission Details')
                     ->schema([
-                        Forms\Components\Select::make('homework_id')
-                            ->relationship('homework', 'title')
+                        Forms\Components\Select::make('student_id')
+                            ->label('Student')
+                            ->options(function () use ($user, $isParent) {
+                                if ($isParent) {
+                                    // Parents see only their children
+                                    $parent = $user->parentGuardian;
+                                    if ($parent) {
+                                        return $parent->students()
+                                            ->where('enrollment_status', 'active')
+                                            ->pluck('name', 'id');
+                                    }
+                                    return [];
+                                }
+                                // Teachers and admins see all students
+                                return Student::where('enrollment_status', 'active')
+                                    ->orderBy('name')
+                                    ->pluck('name', 'id');
+                            })
                             ->searchable()
                             ->preload()
                             ->required()
-                            ->reactive()
-                            ->afterStateUpdated(fn (callable $set) => $set('marks', null)),
-                        Forms\Components\Select::make('student_id')
-                            ->relationship('student', 'name')
+                            ->live()
+                            ->afterStateUpdated(fn (callable $set) => $set('homework_id', null)),
+
+                        Forms\Components\Select::make('homework_id')
+                            ->label('Homework Assignment')
+                            ->options(function (callable $get) use ($isParent) {
+                                $studentId = $get('student_id');
+                                if (!$studentId) {
+                                    return [];
+                                }
+
+                                $student = Student::find($studentId);
+                                if (!$student) {
+                                    return [];
+                                }
+
+                                // Get homework for the student's grade that is still active
+                                return Homework::where('grade_id', $student->grade_id)
+                                    ->where('status', 'active')
+                                    ->where('due_date', '>=', now()->subDays(7)) // Show homework from last 7 days
+                                    ->orderBy('due_date', 'desc')
+                                    ->get()
+                                    ->mapWithKeys(function ($homework) {
+                                        $dueDate = $homework->due_date->format('M d, Y');
+                                        $subject = $homework->subject?->name ?? 'Unknown';
+                                        return [$homework->id => "{$homework->title} - {$subject} (Due: {$dueDate})"];
+                                    })
+                                    ->toArray();
+                            })
                             ->searchable()
-                            ->preload()
-                            ->required(),
+                            ->required()
+                            ->reactive()
+                            ->afterStateUpdated(fn (callable $set) => $set('marks', null))
+                            ->helperText('Select which homework assignment you are submitting'),
                         Forms\Components\Textarea::make('content')
                             ->label('Student Comments')
                             ->maxLength(65535)
@@ -112,7 +159,8 @@ class HomeworkSubmissionResource extends Resource
                         Forms\Components\Textarea::make('feedback')
                             ->label('Feedback for Student')
                             ->maxLength(65535)
-                            ->columnSpanFull(),
+                            ->columnSpanFull()
+                            ->disabled($isParent),
                         Forms\Components\Textarea::make('teacher_notes')
                             ->label('Private Teacher Notes')
                             ->helperText('These notes are only visible to teachers, not to students')
@@ -125,7 +173,9 @@ class HomeworkSubmissionResource extends Resource
                             ->default(auth()->id()),
                         Forms\Components\DateTimePicker::make('graded_at')
                             ->default(now()),
-                    ])->columns(2),
+                    ])
+                    ->columns(2)
+                    ->visible($isTeacher), // Only teachers can see grading section
 
                 Forms\Components\Section::make('Associated Result')
                     ->schema([
@@ -563,7 +613,7 @@ class HomeworkSubmissionResource extends Resource
 
     public static function getEloquentQuery(): Builder
     {
-        return parent::getEloquentQuery()
+        $query = parent::getEloquentQuery()
             ->select('homework_submissions.*')
             ->with([
                 'homework:id,title,max_score,subject_id,grade_id',
@@ -578,5 +628,44 @@ class HomeworkSubmissionResource extends Resource
                     ->where('results.exam_type', 'assignment')
                     ->limit(1),
             ]);
+
+        $user = Auth::user();
+
+        // Admin and teachers can see all submissions
+        if (in_array($user->role_id, [RoleConstants::ADMIN, ...RoleConstants::teaching()])) {
+            return $query;
+        }
+
+        // Parents can only see their children's submissions
+        if ($user->role_id === RoleConstants::PARENT) {
+            $parent = $user->parentGuardian;
+
+            if ($parent) {
+                $studentIds = $parent->students()
+                    ->where('enrollment_status', 'active')
+                    ->pluck('id')
+                    ->toArray();
+
+                if (!empty($studentIds)) {
+                    return $query->whereIn('student_id', $studentIds);
+                }
+            }
+
+            return $query->where('id', 0); // Return empty if no children
+        }
+
+        // Students can only see their own submissions
+        if ($user->role_id === RoleConstants::STUDENT) {
+            $student = Student::where('user_id', $user->id)->first();
+
+            if ($student) {
+                return $query->where('student_id', $student->id);
+            }
+
+            return $query->where('id', 0); // Return empty if student not found
+        }
+
+        // All other roles have no access
+        return $query->where('id', 0);
     }
 }

@@ -25,7 +25,7 @@ class ClassSectionResource extends Resource
 
     public static function shouldRegisterNavigation(): bool
     {
-        return ! in_array(auth()->user()?->role_id, [RoleConstants::LIBRARIAN]) ?? false;
+        return ! in_array(auth()->user()?->role_id, [RoleConstants::LIBRARIAN, RoleConstants::TEACHER, RoleConstants::PARENT]) ?? false;
     }
 
     public static function form(Form $form): Form

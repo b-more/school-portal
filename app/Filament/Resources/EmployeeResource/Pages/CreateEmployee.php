@@ -7,6 +7,8 @@ use App\Mail\StaffCredentialsCreated;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\UserCredential;
+use App\Models\Teacher;
+use App\Constants\RoleConstants;
 use App\Services\SmsService;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\CreateRecord;
@@ -50,6 +52,32 @@ class CreateEmployee extends CreateRecord
                 $data,
                 ['user_id' => $user->id]
             ));
+
+            // If employee is a teacher, also create teacher record
+            if (isset($data['role_id']) && $data['role_id'] == RoleConstants::TEACHER) {
+                Teacher::create([
+                    'user_id' => $user->id,
+                    'name' => $data['name'],
+                    'email' => $email,
+                    'phone' => $data['phone'] ?? null,
+                    'employee_id' => $data['employee_id'],
+                    'role_id' => $data['role_id'],
+                    'grade_id' => $data['grade_id'] ?? null,
+                    'class_section_id' => $data['class_section_id'] ?? null,
+                    'is_class_teacher' => $data['is_class_teacher'] ?? false,
+                    'is_grade_teacher' => $data['is_grade_teacher'] ?? false,
+                    'specialization' => $data['specialization'] ?? null,
+                    'qualification' => $data['qualification'] ?? null,
+                    'is_active' => true,
+                ]);
+
+                Log::info('Teacher record created', [
+                    'employee_id' => $employee->id,
+                    'user_id' => $user->id,
+                    'grade_id' => $data['grade_id'] ?? null,
+                    'class_section_id' => $data['class_section_id'] ?? null,
+                ]);
+            }
 
             // Store credentials
             UserCredential::create([

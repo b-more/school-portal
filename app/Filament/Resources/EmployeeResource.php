@@ -6,11 +6,15 @@ use App\Constants\RoleConstants;
 use App\Filament\Resources\EmployeeResource\Pages;
 use App\Models\Employee;
 use App\Models\Role;
+use App\Models\Grade;
+use App\Models\ClassSection;
+use App\Models\Subject;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Filament\Forms\Get;
 
 class EmployeeResource extends Resource
 {
@@ -59,6 +63,7 @@ class EmployeeResource extends Resource
                         Forms\Components\Select::make('role_id')  // Changed from 'role' to 'role_id'
                             ->relationship('role', 'name')  // Use relationship to get role names
                             ->required()
+                            ->live()
                             // ->searchable()
                             ->preload(),
                         Forms\Components\Select::make('department')
@@ -87,6 +92,55 @@ class EmployeeResource extends Resource
                             ->prefix('ZMW'),
                         // ->required(),
                     ])->columns(2),
+
+                // Teacher-specific fields (shown only when Teacher role is selected)
+                Forms\Components\Section::make('Teacher Assignment')
+                    ->schema([
+                        Forms\Components\Select::make('grade_id')
+                            ->label('Assigned Grade')
+                            ->options(Grade::pluck('name', 'id'))
+                            ->searchable()
+                            ->preload()
+                            ->live()
+                            ->helperText('Select the grade this teacher will teach'),
+
+                        Forms\Components\Select::make('class_section_id')
+                            ->label('Class Section')
+                            ->options(function (Get $get) {
+                                $gradeId = $get('grade_id');
+                                if (!$gradeId) {
+                                    return [];
+                                }
+                                return ClassSection::where('grade_id', $gradeId)
+                                    ->pluck('name', 'id')
+                                    ->toArray();
+                            })
+                            ->searchable()
+                            ->preload()
+                            ->helperText('Select the class section if this is a class teacher'),
+
+                        Forms\Components\Toggle::make('is_class_teacher')
+                            ->label('Is Class Teacher?')
+                            ->helperText('Check if this teacher is a class teacher')
+                            ->default(false),
+
+                        Forms\Components\Toggle::make('is_grade_teacher')
+                            ->label('Is Grade Teacher?')
+                            ->helperText('Check if this teacher is responsible for the entire grade')
+                            ->default(false),
+
+                        Forms\Components\TextInput::make('specialization')
+                            ->label('Subject Specialization')
+                            ->maxLength(255)
+                            ->helperText('E.g., Mathematics, English, Science'),
+
+                        Forms\Components\TextInput::make('qualification')
+                            ->label('Qualification')
+                            ->maxLength(255)
+                            ->helperText('E.g., Bachelor of Education'),
+                    ])
+                    ->columns(2)
+                    ->visible(fn (Get $get): bool => $get('role_id') == RoleConstants::TEACHER),
             ]);
     }
 

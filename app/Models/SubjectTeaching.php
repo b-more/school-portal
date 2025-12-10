@@ -108,9 +108,4 @@ class SubjectTeaching extends Model
     {
         return "{$this->subject->name} - {$this->classSection->name}";
     }
-
-    public function subjectTeachings(): HasMany
-{
-    return $this->hasMany(SubjectTeaching::class);
-}
 }

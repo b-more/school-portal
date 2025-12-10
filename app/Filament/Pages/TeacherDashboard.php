@@ -278,9 +278,13 @@ class TeacherDashboard extends Page
     protected function routeExists(string $url): bool
     {
         try {
-            return !str_contains($url, '/admin/') || Route::has(str_replace('//', '/', $url));
+            // If URL starts with /admin/, just return true since fallback URLs are used
+            if (str_starts_with($url, '/admin/')) {
+                return true;
+            }
+            return Route::has($url);
         } catch (\Exception $e) {
-            return false;
+            return true; // Return true to show buttons with fallback URLs
         }
     }
 
@@ -365,11 +369,11 @@ class TeacherDashboard extends Page
 
     public static function canAccess(): bool
     {
-        return auth()->user()?->role_id === RoleConstants::TEACHER ?? false;
+        return in_array(auth()->user()?->role_id, RoleConstants::teaching()) ?? false;
     }
 
     public static function shouldRegisterNavigation(): bool
     {
-        return auth()->user()?->role_id === RoleConstants::TEACHER ?? false;
+        return in_array(auth()->user()?->role_id, RoleConstants::teaching()) ?? false;
     }
 }

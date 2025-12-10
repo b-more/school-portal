@@ -13,6 +13,11 @@ class RoleConstants
     public const LIBRARIAN = 7;
     public const SECURITY = 8;
     public const SUPPORT = 9;
+    public const CLINICIAN = 10;
+    public const DIRECTOR = 11;
+    public const DEAN_OF_PRIMARY = 12;
+    public const DEAN_OF_SECONDARY = 13;
+    public const DRIVER = 14;
 
     /**
      * Get all role IDs
@@ -29,6 +34,11 @@ class RoleConstants
             self::LIBRARIAN,
             self::SECURITY,
             self::SUPPORT,
+            self::CLINICIAN,
+            self::DIRECTOR,
+            self::DEAN_OF_PRIMARY,
+            self::DEAN_OF_SECONDARY,
+            self::DRIVER,
         ];
     }
 
@@ -45,17 +55,36 @@ class RoleConstants
             self::LIBRARIAN,
             self::SECURITY,
             self::SUPPORT,
+            self::CLINICIAN,
+            self::DIRECTOR,
+            self::DEAN_OF_PRIMARY,
+            self::DEAN_OF_SECONDARY,
+            self::DRIVER,
         ];
     }
 
     /**
-     * Get teaching role IDs
+     * Get teaching role IDs (excluding Admin)
      */
     public static function teaching(): array
     {
         return [
+            self::TEACHER,
+            self::DEAN_OF_PRIMARY,
+            self::DEAN_OF_SECONDARY,
+        ];
+    }
+
+    /**
+     * Get teaching role IDs including Admin
+     */
+    public static function teachingWithAdmin(): array
+    {
+        return [
             self::ADMIN,
             self::TEACHER,
+            self::DEAN_OF_PRIMARY,
+            self::DEAN_OF_SECONDARY,
         ];
     }
 
@@ -67,6 +96,30 @@ class RoleConstants
         return [
             self::ADMIN,
             self::ACCOUNTANT,
+        ];
+    }
+
+    /**
+     * Get management role IDs
+     */
+    public static function management(): array
+    {
+        return [
+            self::ADMIN,
+            self::DIRECTOR,
+            self::DEAN_OF_PRIMARY,
+            self::DEAN_OF_SECONDARY,
+        ];
+    }
+
+    /**
+     * Get medical role IDs
+     */
+    public static function medical(): array
+    {
+        return [
+            self::NURSE,
+            self::CLINICIAN,
         ];
     }
 }

@@ -4,6 +4,9 @@ namespace App\Providers\Filament;
 
 use App\Filament\Pages\Dashboard;  // Your custom admin dashboard
 use App\Filament\Pages\TeacherDashboard;
+use App\Filament\Pages\TeacherProfile;
+use App\Filament\Pages\MySchedule;
+use App\Filament\Pages\MyReports;
 use App\Filament\Pages\ParentDashboard;
 use App\Filament\Pages\StudentDashboard;
 use App\Filament\Pages\MarkAttendance;
@@ -40,6 +43,9 @@ class AdminPanelProvider extends PanelProvider
                 Dashboard::class,
                 // Register role-specific dashboards
                 TeacherDashboard::class,
+                TeacherProfile::class,
+                MySchedule::class,
+                MyReports::class,
                 ParentDashboard::class,
                 StudentDashboard::class,
                 // Register custom pages (hidden from nav, accessed via buttons)

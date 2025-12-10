@@ -255,4 +255,77 @@ class ParentGuardianResource extends Resource
             'edit' => Pages\EditParentGuardian::route('/{record}/edit'),
         ];
     }
+
+    public static function getEloquentQuery(): Builder
+    {
+        $query = parent::getEloquentQuery()
+            ->with(['students:id,name,parent_guardian_id,grade_id,class_section_id']);
+
+        $user = auth()->user();
+
+        // Admin can see all parents
+        if ($user->role_id === RoleConstants::ADMIN) {
+            \Log::info('ParentGuardian query: Admin access - showing all parents');
+            return $query;
+        }
+
+        // Teachers can only see parents of their students
+        if (in_array($user->role_id, RoleConstants::teaching())) {
+            $teacher = \App\Models\Teacher::where('user_id', $user->id)->first();
+
+            if ($teacher) {
+                \Log::info('ParentGuardian query: Teacher access', [
+                    'teacher_id' => $teacher->id,
+                    'teacher_name' => $teacher->name,
+                    'grade_id' => $teacher->grade_id,
+                    'class_section_id' => $teacher->class_section_id,
+                    'is_grade_teacher' => $teacher->is_grade_teacher,
+                ]);
+
+                // Get parent IDs of students the teacher can see
+                $query->whereHas('students', function ($studentQuery) use ($teacher) {
+                    $studentQuery->where(function ($q) use ($teacher) {
+                        // 1. Students in sections where this teacher teaches (from subject_teachings)
+                        $classSectionIds = $teacher->classSections()->pluck('class_sections.id')->toArray();
+                        if (!empty($classSectionIds)) {
+                            $q->orWhereIn('class_section_id', $classSectionIds);
+                        }
+
+                        // 2. Students in sections where this teacher is the class teacher
+                        if ($teacher->class_section_id) {
+                            $q->orWhere('class_section_id', $teacher->class_section_id);
+                        }
+
+                        // 3. All students in the grade if this teacher is a grade teacher
+                        if ($teacher->is_grade_teacher && $teacher->grade_id) {
+                            $q->orWhere('grade_id', $teacher->grade_id);
+                        }
+                    });
+                });
+
+                // Log the actual parent IDs returned
+                $parentIds = $query->pluck('id')->toArray();
+                \Log::info('ParentGuardian query: Filtered parent IDs', ['parent_ids' => $parentIds]);
+
+                return $query;
+            }
+
+            \Log::warning('ParentGuardian query: Teacher record not found for user', ['user_id' => $user->id]);
+            return $query->where('id', 0); // Return empty if teacher not found
+        }
+
+        // Parents can only see their own record
+        if ($user->role_id === RoleConstants::PARENT) {
+            $parent = $user->parentGuardian;
+
+            if ($parent) {
+                return $query->where('id', $parent->id);
+            }
+
+            return $query->where('id', 0); // Return empty if parent not found
+        }
+
+        // All other roles have no access
+        return $query->where('id', 0);
+    }
 }

@@ -72,6 +72,14 @@ class TeacherResource extends Resource
                                     ->default(fn () => static::generateEmployeeId())
                                     ->disabled()
                                     ->dehydrated(),
+                                Forms\Components\TextInput::make('nrc')
+                                    ->label('NRC Number')
+                                    ->maxLength(255)
+                                    ->placeholder('e.g., 123456/78/9'),
+                                Forms\Components\TextInput::make('tpin')
+                                    ->label('TPIN')
+                                    ->maxLength(255)
+                                    ->placeholder('Tax Payer Identification Number'),
                                 Forms\Components\Select::make('qualification')
                                     ->options([
                                         'Certificate' => 'Certificate',
@@ -95,6 +103,7 @@ class TeacherResource extends Resource
                                     ->imageResizeTargetHeight('300'),
                                 Forms\Components\TextInput::make('phone')
                                     ->tel()
+                                    ->required()
                                     ->maxLength(20),
                                 Forms\Components\TextInput::make('email')
                                     ->email()
@@ -106,6 +115,35 @@ class TeacherResource extends Resource
                                 Forms\Components\Toggle::make('is_active')
                                     ->label('Active')
                                     ->default(true),
+                            ])
+                            ->columns(2),
+
+                        Forms\Components\Section::make('Banking Information')
+                            ->schema([
+                                Forms\Components\TextInput::make('account_number')
+                                    ->label('Account Number')
+                                    ->maxLength(255),
+                                Forms\Components\TextInput::make('bank_name')
+                                    ->label('Bank Name')
+                                    ->maxLength(255),
+                                Forms\Components\TextInput::make('bank_branch')
+                                    ->label('Bank Branch')
+                                    ->maxLength(255),
+                            ])
+                            ->columns(3),
+
+                        Forms\Components\Section::make('Documents')
+                            ->schema([
+                                Forms\Components\FileUpload::make('application_letter')
+                                    ->label('Application Letter')
+                                    ->directory('teacher-documents')
+                                    ->acceptedFileTypes(['application/pdf', 'image/*'])
+                                    ->maxSize(5120),
+                                Forms\Components\FileUpload::make('scanned_contract')
+                                    ->label('Scanned Contract')
+                                    ->directory('teacher-documents')
+                                    ->acceptedFileTypes(['application/pdf', 'image/*'])
+                                    ->maxSize(5120),
                             ])
                             ->columns(2),
 
@@ -660,12 +698,46 @@ class TeacherResource extends Resource
                                 ->send();
                         }),
 
-                    Tables\Actions\DeleteAction::make(),
+                    Tables\Actions\DeleteAction::make()
+                        ->requiresConfirmation()
+                        ->modalHeading('Delete Teacher')
+                        ->modalDescription('Are you sure you want to delete this teacher? This will also delete their user account if it exists.')
+                        ->modalSubmitActionLabel('Yes, delete')
+                        ->successNotification(
+                            Notification::make()
+                                ->success()
+                                ->title('Teacher deleted')
+                                ->body('The teacher has been deleted successfully.')
+                        )
+                        ->before(function (Teacher $record) {
+                            // Delete associated user account if exists
+                            if ($record->user_id) {
+                                \App\Models\User::find($record->user_id)?->delete();
+                            }
+                        }),
                 ]),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->requiresConfirmation()
+                        ->modalHeading('Delete Teachers')
+                        ->modalDescription('Are you sure you want to delete the selected teachers? This will also delete their user accounts.')
+                        ->modalSubmitActionLabel('Yes, delete all')
+                        ->successNotification(
+                            Notification::make()
+                                ->success()
+                                ->title('Teachers deleted')
+                                ->body('The selected teachers have been deleted successfully.')
+                        )
+                        ->before(function (Collection $records) {
+                            // Delete associated user accounts
+                            foreach ($records as $record) {
+                                if ($record->user_id) {
+                                    \App\Models\User::find($record->user_id)?->delete();
+                                }
+                            }
+                        }),
 
                     Tables\Actions\BulkAction::make('activateTeachers')
                         ->label('Activate Selected')

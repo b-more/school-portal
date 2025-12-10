@@ -52,15 +52,29 @@ class StudentResource extends Resource
         }
 
         // Teachers can only see students in their classes
-        if ($user->role_id === RoleConstants::TEACHER) {
+        if (in_array($user->role_id, RoleConstants::teaching())) {
             $teacher = Teacher::where('user_id', $user->id)->first();
 
             if ($teacher) {
-                // Get students from classes where this teacher teaches
-                // Specify table name to avoid ambiguous column error
-                $classSectionIds = $teacher->classSections()->pluck('class_sections.id')->toArray();
+                $query->where(function ($q) use ($teacher) {
+                    // 1. Students in sections where this teacher teaches (from subject_teachings)
+                    $classSectionIds = $teacher->classSections()->pluck('class_sections.id')->toArray();
+                    if (!empty($classSectionIds)) {
+                        $q->orWhereIn('class_section_id', $classSectionIds);
+                    }
 
-                return $query->whereIn('class_section_id', $classSectionIds);
+                    // 2. Students in sections where this teacher is the class teacher
+                    if ($teacher->class_section_id) {
+                        $q->orWhere('class_section_id', $teacher->class_section_id);
+                    }
+
+                    // 3. All students in the grade if this teacher is a grade teacher
+                    if ($teacher->is_grade_teacher && $teacher->grade_id) {
+                        $q->orWhere('grade_id', $teacher->grade_id);
+                    }
+                });
+
+                return $query;
             }
 
             return $query->where('id', 0); // Return empty if teacher not found
@@ -314,12 +328,23 @@ class StudentResource extends Resource
                                             ->default(now())
                                             ->displayFormat('d/m/Y'),
 
+                                        Forms\Components\Select::make('enrollment_term_id')
+                                            ->label('Enrollment Term')
+                                            ->relationship('enrollmentTerm', 'name')
+                                            ->searchable()
+                                            ->preload()
+                                            ->required()
+                                            ->default(function () {
+                                                return \App\Models\Term::where('is_active', true)->first()?->id;
+                                            })
+                                            ->helperText('The term when the student enrolled'),
+
                                         Forms\Components\TextInput::make('previous_school')
                                             ->label('Previous School')
                                             ->maxLength(255)
                                             ->placeholder('Name of previous institution (if any)'),
                                     ])
-                                    ->columns(2),
+                                    ->columns(3),
                             ]),
 
                         Forms\Components\Section::make('Medical Information')
@@ -549,6 +574,11 @@ class StudentResource extends Resource
 
                 Tables\Columns\TextColumn::make('admission_date')
                     ->date('M j, Y')
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
+
+                Tables\Columns\TextColumn::make('enrollmentTerm.name')
+                    ->label('Enrollment Term')
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
 

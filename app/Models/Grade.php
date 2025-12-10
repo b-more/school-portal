@@ -85,6 +85,7 @@ class Grade extends Model
     public function subjects(): BelongsToMany
     {
         return $this->belongsToMany(Subject::class, 'grade_subject')
+                    ->withPivot('is_mandatory')
                     ->withTimestamps();
     }
 

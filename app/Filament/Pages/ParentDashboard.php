@@ -5,12 +5,12 @@ namespace App\Filament\Pages;
 use Filament\Pages\Page;
 use App\Models\ParentGuardian;
 use App\Models\Student;
-use App\Models\FeePayment;
+use App\Models\StudentFee;
+use App\Models\PaymentTransaction;
 use App\Models\Event;
 use App\Models\Homework;
 use App\Models\HomeworkSubmission;
 use App\Models\Result;
-use App\Filament\Widgets\ParentHomeworkWidget;
 use App\Constants\RoleConstants;
 use Filament\Actions\Action;
 use Filament\Notifications\Notification;
@@ -29,7 +29,7 @@ class ParentDashboard extends Page
     protected function getHeaderWidgets(): array
     {
         return [
-            ParentHomeworkWidget::class,
+            // ParentHomeworkWidget removed - homework data is already in dashboard
         ];
     }
 
@@ -70,10 +70,46 @@ class ParentDashboard extends Page
             return collect();
         }
 
-        return FeePayment::whereIn('student_id', $studentIds)
-            ->with(['student', 'student.grade'])
-            ->latest('payment_date')
+        // Get student fee IDs for the parent's children
+        $studentFeeIds = StudentFee::whereIn('student_id', $studentIds)
+            ->pluck('id')
+            ->toArray();
+
+        if (empty($studentFeeIds)) {
+            return collect();
+        }
+
+        return PaymentTransaction::whereIn('student_fee_id', $studentFeeIds)
+            ->with(['studentFee.student', 'studentFee.student.grade'])
+            ->latest('transaction_date')
             ->take(5)
+            ->get();
+    }
+
+    /**
+     * Get student fees (balances) for children
+     */
+    public function getStudentFees()
+    {
+        $parentGuardian = $this->getParentGuardian();
+
+        if (!$parentGuardian) {
+            return collect();
+        }
+
+        $studentIds = $parentGuardian->students()
+            ->where('enrollment_status', 'active')
+            ->pluck('id')
+            ->toArray();
+
+        if (empty($studentIds)) {
+            return collect();
+        }
+
+        return StudentFee::whereIn('student_id', $studentIds)
+            ->with(['student', 'student.grade', 'feeStructure', 'term', 'academicYear'])
+            ->where('payment_status', '!=', 'paid')
+            ->orderBy('created_at', 'desc')
             ->get();
     }
 
@@ -266,7 +302,7 @@ class ParentDashboard extends Page
                 ->label('Fee Payments')
                 ->icon('heroicon-o-banknotes')
                 ->color('gray')
-                ->url(route('filament.admin.resources.fee-payments.index'))
+                ->url(route('filament.admin.resources.payment-transactions.index'))
                 ->tooltip('View fee payment history and statements'),
 
             Action::make('refresh_dashboard')
@@ -296,6 +332,7 @@ class ParentDashboard extends Page
             'recentHomework' => $this->getRecentHomework(),
             'homeworkSubmissions' => $this->getHomeworkSubmissions(),
             'feePayments' => $this->getFeePayments(),
+            'studentFees' => $this->getStudentFees(),
             'recentResults' => $this->getRecentResults(),
             'upcomingEvents' => $this->getUpcomingEvents(),
             'dashboardStats' => $this->getDashboardStats(),

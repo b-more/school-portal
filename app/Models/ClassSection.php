@@ -65,6 +65,14 @@ class ClassSection extends Model
     }
 
     /**
+     * Get all subject teachings for this class section
+     */
+    public function subjectTeachings(): HasMany
+    {
+        return $this->hasMany(SubjectTeaching::class);
+    }
+
+    /**
      * Get the employees associated with this class section through teachers
      */
     public function employees(): BelongsToMany

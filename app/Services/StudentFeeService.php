@@ -19,25 +19,39 @@ class StudentFeeService
     /**
      * Create fee for a newly registered student
      */
-    public static function createFeeForNewStudent(Student $student): ?StudentFee
+    public static function createFeeForNewStudent(Student $student, ?int $enrollmentTermId = null): ?StudentFee
     {
         try {
-            // Get current active academic year and term
-            $currentAcademicYear = AcademicYear::where('is_active', true)->first();
-            $currentTerm = Term::where('is_active', true)->first();
+            // Use the student's enrollment term if provided, otherwise fall back to active term
+            if ($enrollmentTermId) {
+                $term = Term::find($enrollmentTermId);
+            } else {
+                $term = $student->enrollmentTerm ?? Term::where('is_active', true)->first();
+            }
 
-            if (!$currentAcademicYear || !$currentTerm) {
-                Log::warning('No active academic year or term found for new student fee creation', [
+            if (!$term) {
+                Log::warning('No enrollment term found for new student fee creation', [
                     'student_id' => $student->id,
-                    'has_academic_year' => !is_null($currentAcademicYear),
-                    'has_term' => !is_null($currentTerm)
+                    'enrollment_term_id' => $enrollmentTermId,
+                    'student_enrollment_term_id' => $student->enrollment_term_id
                 ]);
                 return null;
             }
 
-            // Find fee structure for this student's grade
-            $feeStructure = FeeStructure::where('academic_year_id', $currentAcademicYear->id)
-                ->where('term_id', $currentTerm->id)
+            // Get the academic year from the term
+            $academicYear = $term->academicYear;
+
+            if (!$academicYear) {
+                Log::warning('No academic year found for term', [
+                    'student_id' => $student->id,
+                    'term_id' => $term->id
+                ]);
+                return null;
+            }
+
+            // Find fee structure for this student's grade and enrollment term
+            $feeStructure = FeeStructure::where('academic_year_id', $academicYear->id)
+                ->where('term_id', $term->id)
                 ->where('grade_id', $student->grade_id)
                 ->where('is_active', true)
                 ->first();
@@ -46,8 +60,10 @@ class StudentFeeService
                 Log::warning('No fee structure found for new student', [
                     'student_id' => $student->id,
                     'grade_id' => $student->grade_id,
-                    'academic_year_id' => $currentAcademicYear->id,
-                    'term_id' => $currentTerm->id
+                    'academic_year_id' => $academicYear->id,
+                    'term_id' => $term->id,
+                    'term_name' => $term->name,
+                    'academic_year_name' => $academicYear->name
                 ]);
                 return null;
             }
@@ -69,8 +85,8 @@ class StudentFeeService
             $studentFee = StudentFee::create([
                 'student_id' => $student->id,
                 'fee_structure_id' => $feeStructure->id,
-                'academic_year_id' => $currentAcademicYear->id,
-                'term_id' => $currentTerm->id,
+                'academic_year_id' => $academicYear->id,
+                'term_id' => $term->id,
                 'grade_id' => $student->grade_id,
                 'amount_paid' => 0.00,
                 'balance' => $feeStructure->total_fee,
@@ -81,7 +97,9 @@ class StudentFeeService
             Log::info('Fee created for new student', [
                 'student_id' => $student->id,
                 'fee_id' => $studentFee->id,
-                'total_fee' => $feeStructure->total_fee
+                'total_fee' => $feeStructure->total_fee,
+                'term' => $term->name,
+                'academic_year' => $academicYear->name
             ]);
 
             // Send SMS notification to parent about fee
@@ -328,10 +346,9 @@ class StudentFeeService
             $academicYear = $studentFee->feeStructure->academicYear->name ?? 'Unknown';
             $amount = number_format($studentFee->feeStructure->total_fee, 2);
 
-            $message = "Dear {$parentGuardian->name}, ";
-            $message .= "Fees for {$student->name} have been set for {$term} ({$academicYear}). ";
-            $message .= "Grade: {$grade}, Amount: ZMW {$amount}. ";
-            $message .= "Please visit the school office for payment. Thank you.";
+            // Short SMS message under 160 characters
+            $message = "Fees set for {$student->name}, {$grade}: K{$amount}. ";
+            $message .= "{$term} {$academicYear}. Visit school to pay. St Francis";
 
             $formattedPhone = self::formatPhoneNumber($parentGuardian->phone);
 

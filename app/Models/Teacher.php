@@ -21,6 +21,11 @@ class Teacher extends Model
         'role_id',
         'is_grade_teacher',
         'employee_id',
+        'nrc',
+        'tpin',
+        'account_number',
+        'bank_name',
+        'bank_branch',
         'qualification',
         'specialization',
         'join_date',
@@ -32,6 +37,8 @@ class Teacher extends Model
         'class_section_id',
         'grade_id', // Added this field
         'profile_photo',
+        'application_letter',
+        'scanned_contract',
         'biography',
     ];
 

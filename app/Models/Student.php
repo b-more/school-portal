@@ -27,6 +27,7 @@ class Student extends Model
         'parent_guardian_id',
         'grade_id',
         'admission_date',
+        'enrollment_term_id',
         'enrollment_status',
         'user_id',
         'previous_school',
@@ -69,6 +70,11 @@ class Student extends Model
     public function parentGuardian(): BelongsTo
     {
         return $this->belongsTo(ParentGuardian::class);
+    }
+
+    public function enrollmentTerm(): BelongsTo
+    {
+        return $this->belongsTo(Term::class, 'enrollment_term_id');
     }
 
     public function results(): HasMany

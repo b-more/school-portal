@@ -280,7 +280,8 @@ class ResultResource extends Resource
                     $homeworkInfo = " - {$result->homework->title}";
                 }
 
-                $message = "Dear {$parent->name}, your child {$student->name} has received a result for {$subjectName} {$examType}{$homeworkInfo}. Grade: {$result->grade}, Marks: {$result->marks}%. Please log in to the parent portal for details.";
+                // Short SMS under 160 characters
+                $message = "Result for {$student->name} - {$subjectName}: {$result->marks}% ({$result->grade}). Check portal. St Francis";
             } else {
                 $message = $customMessage;
             }

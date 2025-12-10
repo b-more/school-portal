@@ -471,31 +471,44 @@ class HomeworkResource extends Resource
             }
 
             try {
-                // Construct the SMS message
+                // Construct the SMS message - MUST BE UNDER 159 CHARACTERS
                 $subjectName = $homework->subject->name ?? 'Unknown Subject';
-                $gradeName = $homework->grade->name ?? 'Unknown Grade';
-                $teacherName = $homework->assignedBy->name ?? 'Teacher';
-                $dueDate = $homework->due_date->format('d/m/Y g:i A');
+                $dueDate = $homework->due_date->format('d/m/Y');
 
-                $message = "📚 NEW HOMEWORK ASSIGNMENT\n\n";
-                $message .= "Hello {$parentGuardian->name},\n\n";
-                $message .= "Your child {$student->name} has received new homework:\n\n";
-                $message .= "📖 Subject: {$subjectName}\n";
-                $message .= "📝 Title: {$homework->title}\n";
-                $message .= "🎓 Grade: {$gradeName}\n";
-                $message .= "👨‍🏫 Teacher: {$teacherName}\n";
-                $message .= "⏰ Due: {$dueDate}\n";
+                // Short message format to stay under 159 characters
+                $message = "New homework: {$subjectName}\n";
+                $message .= "Student: {$student->name}\n";
+                $message .= "Due: {$dueDate}\n";
+                $message .= "Check portal for details.\n";
+                $message .= "St Francis of Assisi";
 
-                if ($homework->max_score) {
-                    $message .= "📊 Max Score: {$homework->max_score}\n";
+                // Ensure message is under 159 characters
+                if (strlen($message) > 159) {
+                    // Truncate if needed
+                    $message = substr($message, 0, 156) . '...';
                 }
 
-                $message .= "\n📱 Please check the parent portal to download the homework file.\n\n";
-                $message .= 'St. Francis of Assisi School';
+                // Format and send SMS using SmsService
+                $smsService = app(\App\Services\SmsService::class);
+                $success = $smsService->send(
+                    $message,
+                    $parentGuardian->phone,
+                    'homework_notification',
+                    $homework->id
+                );
 
-                // Format and send SMS
-                $formattedPhone = static::formatPhoneNumber($parentGuardian->phone);
-                $success = static::sendMessage($message, $formattedPhone);
+                // Also send email notification
+                if ($parentGuardian->email) {
+                    try {
+                        static::sendEmailNotification($homework, $student, $parentGuardian);
+                    } catch (\Exception $emailError) {
+                        Log::error('Failed to send homework email', [
+                            'homework_id' => $homework->id,
+                            'parent_email' => $parentGuardian->email,
+                            'error' => $emailError->getMessage(),
+                        ]);
+                    }
+                }
 
                 if ($success) {
                     $successCount++;
@@ -548,71 +561,43 @@ class HomeworkResource extends Resource
     }
 
     /**
-     * Format phone number to ensure it has the country code
+     * Send email notification to parent about new homework
      */
-    public static function formatPhoneNumber(string $phoneNumber): string
-    {
-        // Remove any non-numeric characters
-        $phoneNumber = preg_replace('/[^0-9]/', '', $phoneNumber);
-
-        // Check if number already has country code (260 for Zambia)
-        if (substr($phoneNumber, 0, 3) === '260') {
-            return $phoneNumber;
-        }
-
-        // If starting with 0, replace with country code
-        if (substr($phoneNumber, 0, 1) === '0') {
-            return '260'.substr($phoneNumber, 1);
-        }
-
-        // If number doesn't have country code, add it
-        if (strlen($phoneNumber) === 9) {
-            return '260'.$phoneNumber;
-        }
-
-        return $phoneNumber;
-    }
-
-    /**
-     * Send a message via SMS
-     */
-    public static function sendMessage($message_string, $phone_number): bool
+    public static function sendEmailNotification(Homework $homework, Student $student, ParentGuardian $parent): void
     {
         try {
-            // Log the sending attempt
-            Log::info('Sending homework SMS notification', [
-                'phone' => substr($phone_number, 0, 6).'****'.substr($phone_number, -3),
-                'message_length' => strlen($message_string),
-                'message_preview' => substr($message_string, 0, 100).'...',
+            $subjectName = $homework->subject->name ?? 'Unknown Subject';
+            $gradeName = $homework->grade->name ?? 'Unknown Grade';
+            $teacherName = $homework->assignedBy->name ?? 'Teacher';
+            $dueDate = $homework->due_date->format('l, F j, Y \a\t g:i A');
+
+            $emailData = [
+                'parent_name' => $parent->name,
+                'student_name' => $student->name,
+                'subject_name' => $subjectName,
+                'homework_title' => $homework->title,
+                'homework_description' => $homework->description,
+                'grade_name' => $gradeName,
+                'teacher_name' => $teacherName,
+                'due_date' => $dueDate,
+                'max_score' => $homework->max_score,
+            ];
+
+            \Mail::to($parent->email)->send(new \App\Mail\HomeworkNotification($emailData));
+
+            Log::info('Homework email sent successfully', [
+                'homework_id' => $homework->id,
+                'parent_email' => $parent->email,
+                'student_name' => $student->name,
             ]);
-
-            // Replace @ with (at) for SMS compatibility
-            $sms_message = str_replace('@', '(at)', $message_string);
-            $url_encoded_message = urlencode($sms_message);
-
-            $sendSenderSMS = Http::withoutVerifying()
-                ->timeout(30)
-                ->retry(3, 2000)
-                ->post('https://www.cloudservicezm.com/smsservice/httpapi?username=Blessmore&password=Blessmore&msg='.$url_encoded_message.'&shortcode=2343&sender_id=StFrancis&phone='.$phone_number.'&api_key=121231313213123123');
-
-            // Log the response
-            Log::info('SMS API Response', [
-                'status' => $sendSenderSMS->status(),
-                'successful' => $sendSenderSMS->successful(),
-                'body' => $sendSenderSMS->body(),
-                'to' => substr($phone_number, 0, 6).'****'.substr($phone_number, -3),
-            ]);
-
-            return $sendSenderSMS->successful();
 
         } catch (\Exception $e) {
-            Log::error('SMS sending failed with exception', [
+            Log::error('Failed to send homework email notification', [
+                'homework_id' => $homework->id,
+                'parent_email' => $parent->email,
                 'error' => $e->getMessage(),
-                'phone' => substr($phone_number, 0, 6).'****'.substr($phone_number, -3),
-                'trace' => $e->getTraceAsString(),
             ]);
-
-            return false;
+            throw $e;
         }
     }
 

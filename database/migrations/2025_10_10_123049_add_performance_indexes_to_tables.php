@@ -40,7 +40,7 @@ return new class extends Migration
         });
 
         // Subject teaching table indexes (for teacher assignments)
-        Schema::table('subject_teaching', function (Blueprint $table) {
+        Schema::table('subject_teachings', function (Blueprint $table) {
             $table->index('teacher_id', 'idx_subject_teaching_teacher');
             $table->index(['subject_id', 'class_section_id'], 'idx_subject_teaching_subject_class');
             $table->index('academic_year_id', 'idx_subject_teaching_year');
@@ -62,8 +62,10 @@ return new class extends Migration
 
         // Homework table indexes
         Schema::table('homework', function (Blueprint $table) {
-            $table->index(['class_section_id', 'subject_id'], 'idx_homework_class_subject');
-            $table->index('teacher_id', 'idx_homework_teacher');
+            // $table->index(['class_section_id', 'subject_id'], 'idx_homework_class_subject');
+            // $table->index('teacher_id', 'idx_homework_teacher');
+            $table->index('grade_id', 'idx_homework_grade');
+            $table->index('subject_id', 'idx_homework_subject');
             $table->index('due_date', 'idx_homework_due_date');
         });
 
@@ -108,7 +110,7 @@ return new class extends Migration
         });
 
         // Subject teaching table
-        Schema::table('subject_teaching', function (Blueprint $table) {
+        Schema::table('subject_teachings', function (Blueprint $table) {
             $table->dropIndex('idx_subject_teaching_teacher');
             $table->dropIndex('idx_subject_teaching_subject_class');
             $table->dropIndex('idx_subject_teaching_year');
@@ -130,8 +132,10 @@ return new class extends Migration
 
         // Homework table
         Schema::table('homework', function (Blueprint $table) {
-            $table->dropIndex('idx_homework_class_subject');
-            $table->dropIndex('idx_homework_teacher');
+            // $table->dropIndex('idx_homework_class_subject');
+            // $table->dropIndex('idx_homework_teacher');
+            $table->dropIndex('idx_homework_grade');
+            $table->dropIndex('idx_homework_subject');
             $table->dropIndex('idx_homework_due_date');
         });
 

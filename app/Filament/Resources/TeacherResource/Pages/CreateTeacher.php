@@ -235,20 +235,19 @@ class CreateTeacher extends CreateRecord
     }
 
     /**
-     * Send credentials SMS
+     * Send credentials SMS (kept under 159 characters)
      */
     private function sendCredentialsSms(string $name, string $email, string $password, string $phone, int $userId): bool
     {
         try {
             $smsService = app(SmsService::class);
 
-            // Format message for SMS
-            $message = "Welcome to St Francis Portal!\n\n".
-                       "Your account has been created.\n\n".
+            // Format message for SMS - keeping it under 159 characters
+            // Total: approximately 140-150 characters depending on email/password length
+            $message = "Welcome {$name}! Your St Francis Portal account is ready.\n".
                        "Email: {$email}\n".
-                       "Password: {$password}\n\n".
-                       'Login at: '.config('app.url')."/admin\n\n".
-                       'Please change your password after first login.';
+                       "Pass: {$password}\n".
+                       "Login: ".config('app.url')."/admin";
 
             $sent = $smsService->send(
                 $message,
@@ -258,7 +257,7 @@ class CreateTeacher extends CreateRecord
             );
 
             if ($sent) {
-                Log::info('Credentials SMS sent', ['phone' => $phone]);
+                Log::info('Credentials SMS sent', ['phone' => $phone, 'length' => strlen($message)]);
             }
 
             return $sent;

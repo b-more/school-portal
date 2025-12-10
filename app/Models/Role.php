@@ -149,6 +149,51 @@ class Role extends Model
                 'manage_access' => true,
                 'view_gates' => true,
             ],
+            'Clinician' => [
+                'manage_medical_records' => true,
+                'view_student_health' => true,
+                'prescribe_medication' => true,
+                'manage_health_reports' => true,
+            ],
+            'Director' => [
+                'view_all_students' => true,
+                'view_all_reports' => true,
+                'view_all_teachers' => true,
+                'view_financial_reports' => true,
+                'manage_school_settings' => true,
+                'approve_decisions' => true,
+            ],
+            'Dean of Primary' => [
+                // Teacher permissions
+                'manage_homework' => true,
+                'manage_results' => true,
+                'view_assigned_students' => true,
+                'create_class_content' => true,
+                // Dean-specific permissions
+                'manage_primary_teachers' => true,
+                'view_primary_students' => true,
+                'manage_primary_curriculum' => true,
+                'view_primary_reports' => true,
+                'view_all_students' => true,
+            ],
+            'Dean of Secondary' => [
+                // Teacher permissions
+                'manage_homework' => true,
+                'manage_results' => true,
+                'view_assigned_students' => true,
+                'create_class_content' => true,
+                // Dean-specific permissions
+                'manage_secondary_teachers' => true,
+                'view_secondary_students' => true,
+                'manage_secondary_curriculum' => true,
+                'view_secondary_reports' => true,
+                'view_all_students' => true,
+            ],
+            'Driver' => [
+                'view_bus_routes' => true,
+                'manage_bus_attendance' => true,
+                'view_assigned_students' => true,
+            ],
         ];
 
         return $defaultPermissions[$this->name] ?? [];

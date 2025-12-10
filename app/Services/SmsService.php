@@ -73,14 +73,14 @@ class SmsService
 
             // Set a longer timeout for the HTTP request
             try {
-                // Send the SMS with increased timeout
+                // Send the SMS with increased timeout and fixed sender_id 388
                 $response = Http::timeout($this->timeout)->withoutVerifying()
                     ->post(config('services.sms.api_url', env('SMS_API_URL')), [
                         'username' => config('services.sms.username', env('SMS_USERNAME')),
                         'password' => config('services.sms.password', env('SMS_PASSWORD')),
                         'msg' => $urlEncodedMessage,
                         'shortcode' => config('services.sms.shortcode', env('SMS_SHORTCODE')),
-                        'sender_id' => config('services.sms.sender_id', env('SMS_SENDER_ID')),
+                        'sender_id' => 'StFrancis', // School sender ID
                         'phone' => $formattedPhone,
                         'api_key' => config('services.sms.api_key', env('SMS_API_KEY'))
                     ]);
@@ -335,14 +335,14 @@ class SmsService
                 // Encode the message
                 $urlEncodedMessage = urlencode($sanitizedMessage);
 
-                // Send the SMS with increased timeout
+                // Send the SMS with increased timeout and fixed sender_id 388
                 $response = Http::timeout($this->timeout)->withoutVerifying()
                     ->post(config('services.sms.api_url', env('SMS_API_URL')), [
                         'username' => config('services.sms.username', env('SMS_USERNAME')),
                         'password' => config('services.sms.password', env('SMS_PASSWORD')),
                         'msg' => $urlEncodedMessage,
                         'shortcode' => config('services.sms.shortcode', env('SMS_SHORTCODE')),
-                        'sender_id' => config('services.sms.sender_id', env('SMS_SENDER_ID')),
+                        'sender_id' => 'StFrancis', // School sender ID
                         'phone' => $formattedPhone,
                         'api_key' => config('services.sms.api_key', env('SMS_API_KEY'))
                     ]);
