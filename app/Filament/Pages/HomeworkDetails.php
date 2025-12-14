@@ -2,7 +2,9 @@
 
 namespace App\Filament\Pages;
 
+use App\Constants\RoleConstants;
 use App\Models\Homework;
+use App\Models\HomeworkSubmission;
 use App\Models\Student;
 use Filament\Pages\Page;
 use Filament\Actions\Action;
@@ -11,112 +13,129 @@ use Illuminate\Support\Facades\Auth;
 
 class HomeworkDetails extends Page
 {
-    // Page configuration
     protected static ?string $navigationIcon = 'heroicon-o-document-text';
     protected static ?string $navigationLabel = 'Homework Details';
-    protected static bool $shouldRegisterNavigation = false; // Don't show in navigation menu
+    protected static bool $shouldRegisterNavigation = false;
     protected static string $view = 'filament.pages.homework-details';
 
-    // Route parameters
-    public ?int $homeworkId = null;
-    public ?int $childId = null;
+    public static function getRouteName(?string $panel = null): string
+    {
+        return 'filament.admin.pages.homework-details';
+    }
 
-    // Properties to store data
+    public static function getRoutes(): \Closure
+    {
+        return function () {
+            \Illuminate\Support\Facades\Route::get('/homework-details/{homeworkId}', static::class)
+                ->name('filament.admin.pages.homework-details');
+        };
+    }
+
+    public ?int $homeworkId = null;
     public ?Homework $homework = null;
     public ?Student $student = null;
 
-    public function mount(int $homeworkId, ?int $childId = null): void
+    public function mount(int $homeworkId): void
     {
         $user = Auth::user();
 
-        // Get the homework
-        $this->homework = Homework::findOrFail($homeworkId);
+        // Get the homework with relationships
+        $this->homework = Homework::with(['subject', 'grade', 'assignedBy'])->findOrFail($homeworkId);
+        $this->homeworkId = $homeworkId;
 
-        // Check user permissions and get student context
-        if ($user->hasRole('parent')) {
-            $parent = $user->parentGuardian;
-            if (!$parent) {
-                Notification::make()
-                    ->title('Access Denied')
-                    ->body('You must be logged in as a parent to view homework')
-                    ->danger()
-                    ->send();
-
-                $this->redirect(route('filament.admin.pages.view-homework'));
-                return;
-            }
-
-            // Get the student if childId is provided, otherwise default to a child in this grade
-            if ($childId) {
-                $this->student = $parent->students()
-                    ->where('id', $childId)
-                    ->where('enrollment_status', 'active')
-                    ->first();
-            } else {
-                $this->student = $parent->students()
-                    ->where('grade', $this->homework->grade)
-                    ->where('enrollment_status', 'active')
-                    ->first();
-            }
+        // Handle different user roles
+        if ($user->role_id === RoleConstants::STUDENT) {
+            $this->student = Student::where('user_id', $user->id)->first();
 
             if (!$this->student) {
                 Notification::make()
-                    ->title('Student Not Found')
-                    ->body('The selected student was not found or is not in the grade for this homework')
+                    ->title('Access Denied')
+                    ->body('Student profile not found.')
                     ->danger()
                     ->send();
 
-                $this->redirect(route('filament.admin.pages.view-homework'));
+                $this->redirect(route('filament.admin.pages.student-dashboard'));
                 return;
             }
-        } elseif ($user->hasRole('student')) {
-            $this->student = $user->student;
 
-            if (!$this->student || $this->student->grade !== $this->homework->grade) {
+            // Check if homework is for student's grade
+            if ($this->homework->grade_id !== $this->student->grade_id) {
                 Notification::make()
                     ->title('Access Denied')
-                    ->body('This homework is not for your grade')
+                    ->body('This homework is not for your grade.')
                     ->danger()
                     ->send();
 
-                $this->redirect(route('filament.admin.pages.view-homework'));
+                $this->redirect(route('filament.admin.pages.student-dashboard'));
                 return;
             }
-        } elseif (!$user->hasRole(['admin', 'teacher'])) {
-            abort(403, 'Access denied');
+        } elseif ($user->role_id === RoleConstants::PARENT) {
+            $parent = $user->parentGuardian;
+            if ($parent) {
+                // Get student in this grade
+                $this->student = $parent->students()
+                    ->where('grade_id', $this->homework->grade_id)
+                    ->where('enrollment_status', 'active')
+                    ->first();
+            }
+        }
+    }
+
+    public function getTitle(): string
+    {
+        return $this->homework?->title ?? 'Homework Details';
+    }
+
+    public function getSubmission(): ?HomeworkSubmission
+    {
+        if (!$this->student || !$this->homework) {
+            return null;
         }
 
-        // Set page title
-        $this->title = $this->homework->title;
+        return HomeworkSubmission::where('homework_id', $this->homework->id)
+            ->where('student_id', $this->student->id)
+            ->first();
     }
 
     protected function getHeaderActions(): array
     {
-        $actions = [
-            Action::make('back')
-                ->label('Back to Homework List')
-                ->url(route('filament.admin.pages.view-homework'))
-                ->color('secondary'),
-        ];
+        $actions = [];
+
+        // Add submit action if not yet submitted and not past due
+        if ($this->student && !$this->getSubmission() && !$this->homework->due_date->isPast()) {
+            $actions[] = Action::make('submit')
+                ->label('Submit Homework')
+                ->icon('heroicon-o-arrow-up-tray')
+                ->color('primary')
+                ->url(route('filament.admin.resources.homework-submissions.create', ['homework_id' => $this->homework->id]));
+        }
 
         // Add download action if homework has files
         if ($this->homework && $this->homework->homework_file) {
             $actions[] = Action::make('download')
-                ->label('Download Homework')
-                ->url(route('homework.download', $this->homework))
-                ->color('primary')
+                ->label('Download')
                 ->icon('heroicon-o-arrow-down-tray')
+                ->color('gray')
+                ->url(route('homework.download', $this->homework))
                 ->openUrlInNewTab();
         }
 
         return $actions;
     }
 
-    protected function getViewData(): array
+    public static function canAccess(): bool
     {
-        return [
-            'homework' => $this->homework,
-            'student' => $this->student,
-        ];
+        $user = auth()->user();
+        return in_array($user?->role_id, [
+            RoleConstants::ADMIN,
+            RoleConstants::TEACHER,
+            RoleConstants::STUDENT,
+            RoleConstants::PARENT,
+        ]);
+    }
+
+    public static function shouldRegisterNavigation(): bool
+    {
+        return false;
     }
 }

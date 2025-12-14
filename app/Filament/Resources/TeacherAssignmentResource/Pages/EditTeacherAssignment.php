@@ -5,6 +5,8 @@ namespace App\Filament\Resources\TeacherAssignmentResource\Pages;
 use App\Filament\Resources\TeacherAssignmentResource;
 use App\Models\SchoolClass;
 use App\Models\Subject;
+use App\Models\ClassSection;
+use App\Models\AcademicYear;
 use Filament\Resources\Pages\EditRecord;
 use Illuminate\Support\Facades\DB;
 use Filament\Notifications\Notification;
@@ -15,34 +17,23 @@ class EditTeacherAssignment extends EditRecord
 
     protected function mutateFormDataBeforeFill(array $data): array
     {
-        // Get existing class assignments for ECL/Primary
-        if (in_array($this->record->department, ['ECL', 'Primary'])) {
-            $data['class_assignments'] = DB::table('class_teacher')
-                ->where('employee_id', $this->record->id)
-                ->pluck('class_id')
-                ->toArray();
+        // Get teacher's specialization to determine type
+        $isPrimary = in_array($this->record->specialization, ['Primary', 'ECL']) ||
+                     $this->record->specialization === null;
+
+        // Get existing class section assignment
+        if ($this->record->class_section_id) {
+            $data['class_section_id'] = $this->record->class_section_id;
         }
 
-        // Get existing subject assignments for Secondary
-        if ($this->record->department === 'Secondary') {
-            // Get assigned subjects
-            $data['subject_assignments'] = $this->record->subjects()
-                ->pluck('subjects.id')
-                ->toArray();
+        // Get existing subject assignments from subject_teachings
+        $subjectTeachings = DB::table('subject_teachings')
+            ->where('teacher_id', $this->record->id)
+            ->get();
 
-            // Get class-subject assignments
-            $classSubjects = DB::table('class_subject_teacher')
-                ->where('employee_id', $this->record->id)
-                ->get()
-                ->groupBy('subject_id');
-
-            $data['class_subject_assignments'] = [];
-            foreach ($classSubjects as $subjectId => $classes) {
-                $data['class_subject_assignments'][] = [
-                    'subject_id' => $subjectId,
-                    'class_ids' => $classes->pluck('class_id')->toArray(),
-                ];
-            }
+        if ($subjectTeachings->isNotEmpty()) {
+            $data['subject_assignments'] = $subjectTeachings->pluck('subject_id')->unique()->toArray();
+            $data['class_section_assignments'] = $subjectTeachings->pluck('class_section_id')->unique()->toArray();
         }
 
         return $data;
@@ -50,36 +41,90 @@ class EditTeacherAssignment extends EditRecord
 
     protected function afterSave(): void
     {
-        // Handle class-subject assignments for Secondary teachers
-        if ($this->record->department === 'Secondary') {
-            // Clear existing class-subject assignments
-            DB::table('class_subject_teacher')
-                ->where('employee_id', $this->record->id)
-                ->delete();
+        $currentAcademicYear = AcademicYear::where('is_active', true)->first();
+        if (!$currentAcademicYear) {
+            Notification::make()
+                ->title('Error')
+                ->body('No active academic year found.')
+                ->danger()
+                ->send();
+            return;
+        }
 
-            // Save new class-subject assignments
-            if (!empty($this->data['class_subject_assignments'])) {
-                foreach ($this->data['class_subject_assignments'] as $assignment) {
-                    if (empty($assignment['subject_id']) || empty($assignment['class_ids'])) {
-                        continue;
-                    }
+        // Clear existing subject teachings for this teacher
+        DB::table('subject_teachings')
+            ->where('teacher_id', $this->record->id)
+            ->delete();
 
-                    foreach ($assignment['class_ids'] as $classId) {
-                        DB::table('class_subject_teacher')->insert([
-                            'class_id' => $classId,
-                            'subject_id' => $assignment['subject_id'],
-                            'employee_id' => $this->record->id,
-                            'created_at' => now(),
-                            'updated_at' => now(),
-                        ]);
-                    }
-                }
+        // Get assigned class section(s)
+        $classSectionIds = $this->data['class_section_assignments'] ?? [];
+
+        if (empty($classSectionIds)) {
+            // Update teacher's class_section_id to null
+            $this->record->update(['class_section_id' => null]);
+
+            Notification::make()
+                ->title('Assignments Cleared')
+                ->body('Teacher assignments have been cleared.')
+                ->success()
+                ->send();
+            return;
+        }
+
+        // Set the first class section as the primary assignment
+        $primaryClassSectionId = is_array($classSectionIds) ? $classSectionIds[0] : $classSectionIds;
+        $this->record->update(['class_section_id' => $primaryClassSectionId]);
+
+        // Determine if this is a primary teacher
+        $classSection = ClassSection::with('grade')->find($primaryClassSectionId);
+        $isPrimaryLevel = false;
+
+        if ($classSection && $classSection->grade) {
+            $gradeName = $classSection->grade->name;
+            // Primary level includes Baby Class, Middle Class, Reception, and Grades 1-7
+            $isPrimaryLevel = in_array($gradeName, ['Baby Class', 'Middle Class', 'Reception']) ||
+                             (preg_match('/Grade (\d+)/', $gradeName, $matches) && (int)$matches[1] <= 7);
+        }
+
+        // Get subjects to assign
+        $subjectIds = $this->data['subject_assignments'] ?? [];
+
+        // For primary teachers, auto-assign all primary subjects if none selected
+        if ($isPrimaryLevel && empty($subjectIds)) {
+            $subjectIds = Subject::where('grade_level', 'Primary')
+                ->where('is_active', true)
+                ->pluck('id')
+                ->toArray();
+        }
+
+        // Create subject teaching records for each class section and subject
+        $insertData = [];
+        foreach ((array)$classSectionIds as $classSectionId) {
+            foreach ($subjectIds as $subjectId) {
+                $insertData[] = [
+                    'teacher_id' => $this->record->id,
+                    'subject_id' => $subjectId,
+                    'class_section_id' => $classSectionId,
+                    'academic_year_id' => $currentAcademicYear->id,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ];
             }
         }
 
+        if (!empty($insertData)) {
+            DB::table('subject_teachings')->insert($insertData);
+        }
+
+        // Update is_class_teacher status
+        $this->record->update(['is_class_teacher' => true]);
+
+        $subjectCount = count($subjectIds);
+        $classCount = count((array)$classSectionIds);
+
         Notification::make()
             ->title('Assignments Saved')
-            ->body('Teacher assignments have been updated successfully.')
+            ->body("Assigned {$subjectCount} subjects across {$classCount} class section(s).")
             ->success()
             ->send();
     }

@@ -3,26 +3,26 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\TeacherAssignmentResource\Pages;
-use App\Models\Employee;
-use App\Models\SchoolClass;
 use App\Models\Subject;
 use App\Models\Teacher;
+use App\Models\ClassSection;
+use App\Models\Grade;
+use App\Models\AcademicYear;
+use App\Models\SchoolClass;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 use App\Constants\RoleConstants;
-use Illuminate\Support\Facades\Auth;
+use Filament\Notifications\Notification;
 
 class TeacherAssignmentResource extends Resource
 {
     protected static ?string $model = Teacher::class;
-    protected static ?string $navigationIcon = 'heroicon-o-academic-cap';
+    protected static ?string $navigationIcon = 'heroicon-o-clipboard-document';
     protected static ?string $navigationGroup = 'Academic Management';
     protected static ?string $navigationLabel = 'Teacher Assignments';
     protected static ?string $slug = 'teacher-assignments';
@@ -30,201 +30,73 @@ class TeacherAssignmentResource extends Resource
 
     public static function shouldRegisterNavigation(): bool
     {
-        $user = auth()->user();
-        if (! $user) {
-            return false;
-        }
-
-        return $user->role_id === RoleConstants::ADMIN;
+        return auth()->user()?->role_id === RoleConstants::ADMIN;
     }
 
     public static function form(Form $form): Form
     {
         return $form->schema([
-            Forms\Components\Select::make('id')
-                ->label('Teacher')
-                ->options(function () {
-                    // Use Teacher model with proper role_id check
-                    return Teacher::whereHas('user', function($query) {
-                        $query->where('role_id', RoleConstants::TEACHER);
-                    })
-                    ->orderBy('name')
-                    ->pluck('name', 'id');
-                })
-                ->searchable()
-                ->required()
-                ->reactive()
-                ->afterStateUpdated(function (callable $set, $state) {
-                    // Log for debugging
-                    Log::info('Teacher selected', ['id' => $state]);
-
-                    // Get the teacher and set info
-                    if ($state) {
-                        $teacher = Teacher::find($state);
-                        $employee = $teacher?->employee;
-                        if ($employee) {
-                            $set('department', $employee->department);
-                            Log::info('Setting department', ['department' => $employee->department]);
-                        }
-                    } else {
-                        $set('department', null);
-                    }
-                }),
-
-            Forms\Components\TextInput::make('department')
-                ->label('Department')
-                ->disabled()
-                ->dehydrated(false),
-
-            // For ECL/Primary Teachers
-            Forms\Components\Card::make()
+            Forms\Components\Section::make('Teacher Information')
                 ->schema([
-                    Forms\Components\Select::make('class_assignments')
-                        ->label('Assign to Classes')
-                        ->options(function () {
-                            return SchoolClass::whereIn('department', ['ECL', 'Primary'])
-                                ->orderBy('name')
-                                ->pluck('name', 'id');
-                        })
-                        ->multiple()
-                        ->searchable()
-                        ->saveRelationshipsUsing(function ($record, $state) {
-                            $classData = [];
-                            foreach ($state as $classId) {
-                                $classData[$classId] = [
-                                    'role' => 'class_teacher',
-                                    'is_primary' => true,
-                                    'created_at' => now(),
-                                    'updated_at' => now(),
-                                ];
+                    Forms\Components\Placeholder::make('teacher_name')
+                        ->label('Teacher')
+                        ->content(fn ($record) => $record?->name ?? 'N/A'),
+
+                    Forms\Components\Placeholder::make('teacher_type')
+                        ->label('Teacher Type')
+                        ->content(function ($record) {
+                            if (!$record) return 'N/A';
+                            $specialization = $record->specialization;
+                            if (in_array($specialization, ['Mathematics', 'Physics', 'Chemistry', 'Biology', 'English', 'History', 'Geography'])) {
+                                return 'Secondary';
                             }
-
-                            // Clear existing and set new assignments
-                            DB::table('class_teacher')
-                                ->where('employee_id', $record->employee_id)
-                                ->delete();
-
-                            if (!empty($classData)) {
-                                // Use employee_id for the pivot table
-                                $employee = $record->employee;
-                                if ($employee) {
-                                    $employee->classes()->attach($classData);
-                                }
-                            }
-                        })
-                        ->visible(function (callable $get) {
-                            $teacherId = $get('id');
-                            if (!$teacherId) return false;
-
-                            $teacher = Teacher::find($teacherId);
-                            $employee = $teacher?->employee;
-                            return $employee && in_array($employee->department, ['ECL', 'Primary']);
+                            return 'Primary/ECL';
                         }),
                 ])
-                ->visible(function (callable $get) {
-                    $teacherId = $get('id');
-                    if (!$teacherId) return false;
+                ->columns(2),
 
-                    $teacher = Teacher::find($teacherId);
-                    $employee = $teacher?->employee;
-                    return $employee && in_array($employee->department, ['ECL', 'Primary']);
-                }),
-
-            // For Secondary Teachers
-            Forms\Components\Card::make()
+            Forms\Components\Section::make('Class Assignment')
+                ->description('Assign teacher to class sections. Primary teachers will automatically be assigned all primary subjects.')
                 ->schema([
-                    Forms\Components\Select::make('subject_assignments')
-                        ->label('Assign Subjects')
+                    Forms\Components\Select::make('class_section_assignments')
+                        ->label('Assign to Class Section(s)')
                         ->options(function () {
-                            return Subject::orderBy('name')
-                                ->pluck('name', 'id')
+                            return ClassSection::with('grade')
+                                ->where('is_active', true)
+                                ->get()
+                                ->mapWithKeys(function ($section) {
+                                    $gradeName = $section->grade?->name ?? 'Unknown';
+                                    return [$section->id => "{$gradeName} {$section->name}"];
+                                })
+                                ->sort()
                                 ->toArray();
                         })
                         ->multiple()
                         ->searchable()
-                        ->reactive()
-                        ->afterStateUpdated(function (callable $set, $state) {
-                            // Log for debugging
-                            Log::info('Subject assignments updated', ['subjects' => $state]);
+                        ->preload()
+                        ->helperText('Select class section(s) this teacher will teach'),
+                ]),
 
-                            // Clear class_subject_assignments when subjects change
-                            $set('class_subject_assignments', []);
-                        })
-                        ->saveRelationshipsUsing(function ($record, $state) {
-                            // Update subject assignments
-                            $record->subjects()->sync($state);
-                        }),
-
-                    Forms\Components\Repeater::make('class_subject_assignments')
-                        ->schema([
-                            Forms\Components\Select::make('subject_id')
-                                ->label('Subject')
-                                ->options(function (callable $get) {
-                                    // Try to get subject assignments from the form
-                                    $subjectIds = $get('../subject_assignments');
-
-                                    // Log for debugging
-                                    Log::info('Getting subjects with path ../subject_assignments', [
-                                        'subject_ids' => $subjectIds
-                                    ]);
-
-                                    if (empty($subjectIds)) {
-                                        $alternativePath = $get('../../subject_assignments');
-                                        Log::info('Trying alternative path ../../subject_assignments', [
-                                            'alternative_subject_ids' => $alternativePath
-                                        ]);
-
-                                        $subjectIds = $alternativePath;
-                                    }
-
-                                    // Fall back to all subjects if we can't get the selected ones
-                                    if (empty($subjectIds)) {
-                                        Log::info('Falling back to all subjects');
-                                        return Subject::orderBy('name')
-                                            ->pluck('name', 'id')
-                                            ->toArray();
-                                    }
-
-                                    return Subject::whereIn('id', $subjectIds)
-                                        ->orderBy('name')
-                                        ->pluck('name', 'id')
-                                        ->toArray();
+            Forms\Components\Section::make('Subject Assignment')
+                ->description('For secondary teachers, select specific subjects. For primary teachers, leave empty to auto-assign all primary subjects.')
+                ->schema([
+                    Forms\Components\Select::make('subject_assignments')
+                        ->label('Subjects')
+                        ->options(function () {
+                            return Subject::where('is_active', true)
+                                ->orderBy('grade_level')
+                                ->orderBy('name')
+                                ->get()
+                                ->mapWithKeys(function ($subject) {
+                                    return [$subject->id => "{$subject->name} ({$subject->grade_level})"];
                                 })
-                                ->searchable()
-                                ->reactive()
-                                ->required(),
-
-                            Forms\Components\Select::make('school_class_ids')
-                                ->label('Classes')
-                                ->options(function () {
-                                    return SchoolClass::where('department', 'Secondary')
-                                        ->orderBy('name')
-                                        ->pluck('name', 'id')
-                                        ->toArray();
-                                })
-                                ->multiple()
-                                ->searchable()
-                                ->required(),
-                        ])
-                        ->columns(2)
-                        ->itemLabel(function (array $state) {
-                            $subjectId = $state['subject_id'] ?? null;
-                            $subjectName = $subjectId ?
-                                (Subject::find($subjectId)?->name ?? "Subject #$subjectId") :
-                                'No subject selected';
-
-                            $classCount = isset($state['school_class_ids']) ? count($state['school_class_ids']) : 0;
-                            return "$subjectName ($classCount classes)";
+                                ->toArray();
                         })
-                ])
-                ->visible(function (callable $get) {
-                    $teacherId = $get('id');
-                    if (!$teacherId) return false;
-
-                    $teacher = Teacher::find($teacherId);
-                    $employee = $teacher?->employee;
-                    return $employee && $employee->department === 'Secondary';
-                }),
+                        ->multiple()
+                        ->searchable()
+                        ->preload()
+                        ->helperText('Leave empty for primary teachers to auto-assign all primary subjects'),
+                ]),
         ]);
     }
 
@@ -237,164 +109,325 @@ class TeacherAssignmentResource extends Resource
                     ->searchable()
                     ->sortable(),
 
-                Tables\Columns\TextColumn::make('employee.department')
-                    ->label('Department')
-                    ->searchable()
-                    ->sortable(),
+                Tables\Columns\TextColumn::make('specialization')
+                    ->label('Specialization')
+                    ->default('Primary')
+                    ->searchable(),
 
-                Tables\Columns\TextColumn::make('class_sections_count')
-                    ->counts('classSections')
-                    ->label('Classes')
-                    ->sortable(),
+                Tables\Columns\TextColumn::make('class_section_display')
+                    ->label('Class Section')
+                    ->getStateUsing(function (Teacher $record) {
+                        if (!$record->class_section_id) return 'Not Assigned';
+                        $section = $record->classSection;
+                        if (!$section) return 'Not Assigned';
+                        return ($section->grade?->name ?? '') . ' ' . $section->name;
+                    })
+                    ->badge()
+                    ->color(fn ($state) => $state === 'Not Assigned' ? 'danger' : 'success'),
 
                 Tables\Columns\TextColumn::make('subjects_count')
-                    ->counts('subjects')
                     ->label('Subjects')
-                    ->sortable(),
+                    ->getStateUsing(function (Teacher $record) {
+                        return DB::table('subject_teachings')
+                            ->where('teacher_id', $record->id)
+                            ->distinct('subject_id')
+                            ->count('subject_id');
+                    })
+                    ->badge()
+                    ->color(fn ($state) => $state > 0 ? 'success' : 'gray'),
 
-                Tables\Columns\TextColumn::make('is_class_teacher')
+                Tables\Columns\TextColumn::make('students_count')
+                    ->label('Students')
+                    ->getStateUsing(function (Teacher $record) {
+                        if (!$record->class_section_id) return 0;
+                        return DB::table('students')
+                            ->where('class_section_id', $record->class_section_id)
+                            ->count();
+                    })
+                    ->badge()
+                    ->color(fn ($state) => $state > 0 ? 'primary' : 'gray'),
+
+                Tables\Columns\IconColumn::make('is_class_teacher')
                     ->label('Class Teacher')
-                    ->badge()
-                    ->formatStateUsing(fn ($state) => $state ? 'Yes' : 'No')
-                    ->color(fn ($state) => $state ? 'success' : 'gray'),
-
-                Tables\Columns\TextColumn::make('is_grade_teacher')
-                    ->label('Grade Teacher')
-                    ->badge()
-                    ->formatStateUsing(fn ($state) => $state ? 'Yes' : 'No')
-                    ->color(fn ($state) => $state ? 'success' : 'gray'),
+                    ->boolean(),
             ])
             ->filters([
-                Tables\Filters\SelectFilter::make('employee.department')
-                    ->label('Department')
-                    ->relationship('employee', 'department')
-                    ->options([
-                        'ECL' => 'ECL',
-                        'Primary' => 'Primary',
-                        'Secondary' => 'Secondary',
-                    ]),
-
-                Tables\Filters\Filter::make('has_assignments')
-                    ->query(function (Builder $query) {
-                        return $query->whereHas('classSections')->orWhereHas('subjects');
-                    })
-                    ->label('Has Assignments')
+                Tables\Filters\Filter::make('assigned')
+                    ->query(fn (Builder $query) => $query->whereNotNull('class_section_id'))
+                    ->label('Assigned Only')
                     ->toggle(),
 
-                Tables\Filters\Filter::make('class_teachers')
-                    ->query(function (Builder $query) {
-                        return $query->where('is_class_teacher', true);
-                    })
-                    ->label('Class Teachers Only')
-                    ->toggle(),
-
-                Tables\Filters\Filter::make('grade_teachers')
-                    ->query(function (Builder $query) {
-                        return $query->where('is_grade_teacher', true);
-                    })
-                    ->label('Grade Teachers Only')
+                Tables\Filters\Filter::make('unassigned')
+                    ->query(fn (Builder $query) => $query->whereNull('class_section_id'))
+                    ->label('Unassigned Only')
                     ->toggle(),
             ])
             ->actions([
-                Tables\Actions\EditAction::make()
-                    ->url(fn (Teacher $record) => route('filament.admin.resources.teacher-assignments.edit', $record)),
-
-                Tables\Actions\ViewAction::make()
-                    ->label('View Assignments')
-                    ->url(fn (Teacher $record) => route('filament.admin.resources.teacher-assignments.view', $record)),
-
-                Tables\Actions\Action::make('set_class_teacher')
-                    ->label('Set as Class Teacher')
+                Tables\Actions\Action::make('assign_class_teacher')
+                    ->label('Assign as Class Teacher')
                     ->icon('heroicon-o-academic-cap')
                     ->color('success')
-                    ->action(function (Teacher $record) {
-                        $record->update(['is_class_teacher' => true]);
+                    ->form([
+                        Forms\Components\Select::make('class_section_id')
+                            ->label('Class Section')
+                            ->options(function () {
+                                return ClassSection::with('grade')
+                                    ->where('is_active', true)
+                                    ->get()
+                                    ->mapWithKeys(function ($section) {
+                                        $gradeName = $section->grade?->name ?? 'Unknown';
+                                        $currentTeacher = Teacher::where('class_section_id', $section->id)
+                                            ->where('is_class_teacher', true)
+                                            ->first();
+                                        $label = "{$gradeName} {$section->name}";
+                                        if ($currentTeacher) {
+                                            $label .= " (Class Teacher: {$currentTeacher->name})";
+                                        }
+                                        return [$section->id => $label];
+                                    })
+                                    ->sort()
+                                    ->toArray();
+                            })
+                            ->searchable()
+                            ->preload()
+                            ->required()
+                            ->live()
+                            ->afterStateUpdated(function ($state, Forms\Set $set) {
+                                if (!$state) return;
 
-                        \Filament\Notifications\Notification::make()
-                            ->title('Class Teacher Status Updated')
-                            ->body("{$record->name} is now a class teacher.")
+                                $currentTeacher = Teacher::where('class_section_id', $state)
+                                    ->where('is_class_teacher', true)
+                                    ->first();
+                                if ($currentTeacher) {
+                                    $set('warning_message', "Warning: {$currentTeacher->name} is the current Class Teacher. They will be replaced as Class Teacher.");
+                                } else {
+                                    $set('warning_message', null);
+                                }
+                            }),
+
+                        Forms\Components\Placeholder::make('warning_message')
+                            ->label('')
+                            ->content(fn ($get) => $get('warning_message'))
+                            ->visible(fn ($get) => !empty($get('warning_message')))
+                            ->extraAttributes(['class' => 'text-danger-600 font-semibold']),
+
+                        Forms\Components\Placeholder::make('info')
+                            ->label('')
+                            ->content('As Class Teacher, all primary subjects will be automatically assigned.')
+                            ->extraAttributes(['class' => 'text-primary-600']),
+                    ])
+                    ->action(function (Teacher $record, array $data) {
+                        $classSectionId = $data['class_section_id'];
+
+                        $currentAcademicYear = AcademicYear::where('is_active', true)->first();
+                        if (!$currentAcademicYear) {
+                            Notification::make()->title('Error')->body('No active academic year found.')->danger()->send();
+                            return;
+                        }
+
+                        $classSection = ClassSection::with('grade')->find($classSectionId);
+                        $gradeName = $classSection->grade?->name ?? '';
+                        $isPrimaryLevel = in_array($gradeName, ['Baby Class', 'Middle Class', 'Reception']) ||
+                                         (preg_match('/Grade (\d+)/', $gradeName, $matches) && (int)$matches[1] <= 7);
+
+                        // Remove existing class teacher (but keep them as subject teacher if they have subjects)
+                        $existingClassTeacher = Teacher::where('class_section_id', $classSectionId)
+                            ->where('is_class_teacher', true)
+                            ->where('id', '!=', $record->id)
+                            ->first();
+
+                        if ($existingClassTeacher) {
+                            $existingClassTeacher->update([
+                                'is_class_teacher' => false,
+                                'class_section_id' => null,
+                            ]);
+                            // Remove their subject teachings
+                            DB::table('subject_teachings')
+                                ->where('teacher_id', $existingClassTeacher->id)
+                                ->where('class_section_id', $classSectionId)
+                                ->delete();
+                        }
+
+                        // Set new class teacher
+                        $record->update([
+                            'class_section_id' => $classSectionId,
+                            'is_class_teacher' => true,
+                        ]);
+
+                        // Update class_sections.class_teacher_id for ClassSectionResource
+                        $classSection->update(['class_teacher_id' => $record->id]);
+
+                        // Clear existing subject teachings for this teacher
+                        DB::table('subject_teachings')->where('teacher_id', $record->id)->delete();
+
+                        // Auto-assign all primary subjects for class teacher
+                        $subjectIds = $isPrimaryLevel
+                            ? Subject::where('grade_level', 'Primary')->where('is_active', true)->pluck('id')->toArray()
+                            : Subject::where('grade_level', 'Secondary')->where('is_active', true)->pluck('id')->toArray();
+
+                        $insertData = [];
+                        foreach ($subjectIds as $subjectId) {
+                            $insertData[] = [
+                                'teacher_id' => $record->id,
+                                'subject_id' => $subjectId,
+                                'class_section_id' => $classSectionId,
+                                'academic_year_id' => $currentAcademicYear->id,
+                                'created_at' => now(),
+                                'updated_at' => now(),
+                            ];
+                        }
+
+                        if (!empty($insertData)) {
+                            DB::table('subject_teachings')->insert($insertData);
+                        }
+
+                        // Sync with class_teacher table for SchoolClassResource
+                        self::syncClassTeacherTable($record, $classSection, 'class_teacher', $existingClassTeacher);
+
+                        Notification::make()
+                            ->title('Class Teacher Assigned')
+                            ->body("Assigned {$record->name} as Class Teacher for {$gradeName} {$classSection->name} with " . count($subjectIds) . " subjects.")
                             ->success()
                             ->send();
-                    })
-                    ->visible(fn (Teacher $record) => !$record->is_class_teacher)
-                    ->requiresConfirmation(),
+                    }),
 
-                Tables\Actions\Action::make('remove_class_teacher')
-                    ->label('Remove as Class Teacher')
-                    ->icon('heroicon-o-x-circle')
-                    ->color('danger')
-                    ->action(function (Teacher $record) {
-                        $record->update(['is_class_teacher' => false]);
+                Tables\Actions\Action::make('assign_subject_teacher')
+                    ->label('Assign as Subject Teacher')
+                    ->icon('heroicon-o-book-open')
+                    ->color('primary')
+                    ->form([
+                        Forms\Components\Select::make('class_section_id')
+                            ->label('Class Section')
+                            ->options(function () {
+                                return ClassSection::with('grade')
+                                    ->where('is_active', true)
+                                    ->get()
+                                    ->mapWithKeys(function ($section) {
+                                        $gradeName = $section->grade?->name ?? 'Unknown';
+                                        return [$section->id => "{$gradeName} {$section->name}"];
+                                    })
+                                    ->sort()
+                                    ->toArray();
+                            })
+                            ->searchable()
+                            ->preload()
+                            ->required(),
 
-                        \Filament\Notifications\Notification::make()
-                            ->title('Class Teacher Status Updated')
-                            ->body("{$record->name} is no longer a class teacher.")
-                            ->success()
-                            ->send();
-                    })
-                    ->visible(fn (Teacher $record) => $record->is_class_teacher)
-                    ->requiresConfirmation(),
+                        Forms\Components\Select::make('subjects')
+                            ->label('Subjects to Teach')
+                            ->options(function () {
+                                return Subject::where('is_active', true)
+                                    ->orderBy('grade_level')
+                                    ->orderBy('name')
+                                    ->get()
+                                    ->mapWithKeys(function ($subject) {
+                                        return [$subject->id => "{$subject->name} ({$subject->grade_level})"];
+                                    })
+                                    ->toArray();
+                            })
+                            ->multiple()
+                            ->searchable()
+                            ->preload()
+                            ->required()
+                            ->helperText('Select specific subjects this teacher will teach'),
+                    ])
+                    ->action(function (Teacher $record, array $data) {
+                        $classSectionId = $data['class_section_id'];
+                        $subjectIds = $data['subjects'];
 
-                Tables\Actions\Action::make('set_grade_teacher')
-                    ->label('Set as Grade Teacher')
-                    ->icon('heroicon-o-academic-cap')
-                    ->color('warning')
-                    ->action(function (Teacher $record) {
-                        $record->update(['is_grade_teacher' => true]);
+                        $currentAcademicYear = AcademicYear::where('is_active', true)->first();
+                        if (!$currentAcademicYear) {
+                            Notification::make()->title('Error')->body('No active academic year found.')->danger()->send();
+                            return;
+                        }
 
-                        \Filament\Notifications\Notification::make()
-                            ->title('Grade Teacher Status Updated')
-                            ->body("{$record->name} is now a grade teacher.")
-                            ->success()
-                            ->send();
-                    })
-                    ->visible(fn (Teacher $record) => !$record->is_grade_teacher)
-                    ->requiresConfirmation(),
+                        $classSection = ClassSection::with('grade')->find($classSectionId);
 
-                Tables\Actions\Action::make('remove_grade_teacher')
-                    ->label('Remove as Grade Teacher')
-                    ->icon('heroicon-o-x-circle')
-                    ->color('danger')
-                    ->action(function (Teacher $record) {
-                        $record->update(['is_grade_teacher' => false]);
+                        // Add subject teachings (don't clear existing - add to them)
+                        $insertData = [];
+                        foreach ($subjectIds as $subjectId) {
+                            // Check if already exists
+                            $exists = DB::table('subject_teachings')
+                                ->where('teacher_id', $record->id)
+                                ->where('subject_id', $subjectId)
+                                ->where('class_section_id', $classSectionId)
+                                ->exists();
 
-                        \Filament\Notifications\Notification::make()
-                            ->title('Grade Teacher Status Updated')
-                            ->body("{$record->name} is no longer a grade teacher.")
-                            ->success()
-                            ->send();
-                    })
-                    ->visible(fn (Teacher $record) => $record->is_grade_teacher)
-                    ->requiresConfirmation(),
-            ])
-            ->bulkActions([
-                Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\BulkAction::make('set_class_teachers')
-                        ->label('Set as Class Teachers')
-                        ->icon('heroicon-o-academic-cap')
-                        ->action(function (Collection $records) {
-                            $count = 0;
-                            foreach ($records as $record) {
-                                $record->update(['is_class_teacher' => true]);
-                                $count++;
+                            if (!$exists) {
+                                $insertData[] = [
+                                    'teacher_id' => $record->id,
+                                    'subject_id' => $subjectId,
+                                    'class_section_id' => $classSectionId,
+                                    'academic_year_id' => $currentAcademicYear->id,
+                                    'created_at' => now(),
+                                    'updated_at' => now(),
+                                ];
                             }
+                        }
 
-                            \Filament\Notifications\Notification::make()
-                                ->title('Updated Class Teachers')
-                                ->body("Set {$count} teachers as class teachers.")
-                                ->success()
-                                ->send();
-                        })
-                        ->requiresConfirmation(),
-                ]),
-            ]);
+                        if (!empty($insertData)) {
+                            DB::table('subject_teachings')->insert($insertData);
+                        }
+
+                        // Sync with class_teacher table for SchoolClassResource (as subject_teacher role)
+                        self::syncClassTeacherTable($record, $classSection, 'subject_teacher');
+
+                        Notification::make()
+                            ->title('Subject Teacher Assigned')
+                            ->body("Assigned {$record->name} to teach " . count($subjectIds) . " subject(s) in " . ($classSection->grade?->name ?? '') . " {$classSection->name}.")
+                            ->success()
+                            ->send();
+                    }),
+
+                Tables\Actions\Action::make('unassign')
+                    ->label('Unassign')
+                    ->icon('heroicon-o-x-circle')
+                    ->color('danger')
+                    ->requiresConfirmation()
+                    ->visible(fn (Teacher $record) => $record->class_section_id !== null)
+                    ->action(function (Teacher $record) {
+                        // Get the class section before clearing
+                        $classSectionId = $record->class_section_id;
+
+                        // Clear class_sections.class_teacher_id
+                        if ($classSectionId) {
+                            ClassSection::where('id', $classSectionId)
+                                ->where('class_teacher_id', $record->id)
+                                ->update(['class_teacher_id' => null]);
+                        }
+
+                        // Clear class section assignment
+                        $record->update([
+                            'class_section_id' => null,
+                            'is_class_teacher' => false,
+                        ]);
+
+                        // Clear subject teachings
+                        DB::table('subject_teachings')
+                            ->where('teacher_id', $record->id)
+                            ->delete();
+
+                        // Sync with class_teacher table - remove all entries for this teacher
+                        DB::table('class_teacher')
+                            ->where('teacher_id', $record->id)
+                            ->delete();
+
+                        Notification::make()
+                            ->title('Teacher Unassigned')
+                            ->body("{$record->name} has been unassigned from their class.")
+                            ->success()
+                            ->send();
+                    }),
+
+                Tables\Actions\ViewAction::make(),
+            ])
+            ->bulkActions([]);
     }
 
     public static function getPages(): array
     {
         return [
             'index' => Pages\ListTeacherAssignments::route('/'),
-            'create' => Pages\CreateTeacherAssignment::route('/create'),
             'edit' => Pages\EditTeacherAssignment::route('/{record}/edit'),
             'view' => Pages\ViewTeacherAssignment::route('/{record}'),
         ];
@@ -403,9 +436,60 @@ class TeacherAssignmentResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()
-            ->with(['employee', 'user'])
+            ->with(['classSection', 'classSection.grade'])
             ->whereHas('user', function($query) {
                 $query->where('role_id', RoleConstants::TEACHER);
             });
+    }
+
+    /**
+     * Sync the class_teacher table to keep SchoolClassResource in sync
+     */
+    protected static function syncClassTeacherTable(Teacher $teacher, ClassSection $classSection, string $role = 'class_teacher', ?Teacher $existingClassTeacher = null): void
+    {
+        // Find the corresponding school_class by matching the full name
+        $fullClassName = ($classSection->grade?->name ?? '') . ' ' . $classSection->name;
+        $schoolClass = SchoolClass::where('name', $fullClassName)->first();
+
+        if (!$schoolClass) {
+            return; // No matching school_class found
+        }
+
+        // If replacing an existing class teacher, remove their entry
+        if ($existingClassTeacher) {
+            DB::table('class_teacher')
+                ->where('teacher_id', $existingClassTeacher->id)
+                ->where('class_id', $schoolClass->id)
+                ->where('role', 'class_teacher')
+                ->delete();
+        }
+
+        // Check if entry already exists
+        $exists = DB::table('class_teacher')
+            ->where('teacher_id', $teacher->id)
+            ->where('class_id', $schoolClass->id)
+            ->exists();
+
+        if ($exists) {
+            // Update role if changing
+            DB::table('class_teacher')
+                ->where('teacher_id', $teacher->id)
+                ->where('class_id', $schoolClass->id)
+                ->update([
+                    'role' => $role,
+                    'is_primary' => $role === 'class_teacher',
+                    'updated_at' => now(),
+                ]);
+        } else {
+            // Insert new entry
+            DB::table('class_teacher')->insert([
+                'teacher_id' => $teacher->id,
+                'class_id' => $schoolClass->id,
+                'role' => $role,
+                'is_primary' => $role === 'class_teacher',
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
     }
 }

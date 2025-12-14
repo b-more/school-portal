@@ -10,6 +10,10 @@ use App\Filament\Pages\MyReports;
 use App\Filament\Pages\ParentDashboard;
 use App\Filament\Pages\StudentDashboard;
 use App\Filament\Pages\MarkAttendance;
+use App\Filament\Pages\AttendanceReports;
+use App\Filament\Pages\EnterResults;
+use App\Filament\Pages\GenerateReportCards;
+use App\Models\SchoolSettings;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
@@ -37,6 +41,15 @@ class AdminPanelProvider extends PanelProvider
             ->colors([
                 'primary' => Color::Blue,
             ])
+            ->favicon(function () {
+                $settings = SchoolSettings::first();
+                if ($settings && $settings->favicon) {
+                    // Add cache-busting parameter based on update time
+                    $cacheBuster = $settings->updated_at?->timestamp ?? time();
+                    return asset('storage/' . $settings->favicon) . '?v=' . $cacheBuster;
+                }
+                return null;
+            })
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             ->pages([
                 // Register your custom admin dashboard
@@ -50,6 +63,10 @@ class AdminPanelProvider extends PanelProvider
                 StudentDashboard::class,
                 // Register custom pages (hidden from nav, accessed via buttons)
                 MarkAttendance::class,
+                AttendanceReports::class,
+                // Results and Report Cards
+                EnterResults::class,
+                GenerateReportCards::class,
             ])
             ->discoverWidgets(in: app_path('Filament/Widgets'), for: 'App\\Filament\\Widgets')
             ->middleware([

@@ -5,6 +5,7 @@ namespace App\Policies;
 use App\Constants\RoleConstants;
 use App\Models\Homework;
 use App\Models\Teacher;
+use App\Models\Student;
 use App\Models\User;
 use Illuminate\Auth\Access\HandlesAuthorization;
 
@@ -28,6 +29,15 @@ class HomeworkPolicy
         // Admin can view all homework
         if ($user->role_id === RoleConstants::ADMIN) {
             return true;
+        }
+
+        // Students can view homework assigned to their grade
+        if ($user->role_id === RoleConstants::STUDENT) {
+            $student = Student::where('user_id', $user->id)->first();
+            if ($student && $homework->grade_id === $student->grade_id) {
+                return true;
+            }
+            return false;
         }
 
         // Get the teacher record for this user

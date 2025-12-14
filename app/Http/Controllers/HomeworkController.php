@@ -357,6 +357,50 @@ class HomeworkController extends Controller
     }
 
     /**
+     * View homework details page (student-friendly view)
+     */
+    public function details(Homework $homework)
+    {
+        // Check if user has permission to view this homework
+        if (!$this->canAccessHomework($homework)) {
+            abort(403, 'You do not have permission to access this homework.');
+        }
+
+        $user = Auth::user();
+        $student = null;
+        $submission = null;
+
+        // Get student and submission info
+        if ($user->role_id === RoleConstants::STUDENT) {
+            $student = Student::where('user_id', $user->id)->first();
+            if ($student) {
+                $submission = \App\Models\HomeworkSubmission::where('homework_id', $homework->id)
+                    ->where('student_id', $student->id)
+                    ->first();
+            }
+        } elseif ($user->role_id === RoleConstants::PARENT) {
+            $parentGuardian = ParentGuardian::where('user_id', $user->id)->first();
+            if ($parentGuardian) {
+                $student = $parentGuardian->students()
+                    ->where('grade_id', $homework->grade_id)
+                    ->where('enrollment_status', 'active')
+                    ->first();
+                if ($student) {
+                    $submission = \App\Models\HomeworkSubmission::where('homework_id', $homework->id)
+                        ->where('student_id', $student->id)
+                        ->first();
+                }
+            }
+        }
+
+        return view('homework.details', [
+            'homework' => $homework->load(['subject', 'grade', 'assignedBy']),
+            'student' => $student,
+            'submission' => $submission,
+        ]);
+    }
+
+    /**
      * Get homework statistics
      */
     public function getHomeworkStats()

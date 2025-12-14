@@ -67,7 +67,7 @@
     <x-filament::section>
         <x-slot name="heading">
             <div class="flex items-center gap-2">
-                <x-heroicon-o-chart-bar class="w-6 h-6 text-blue-600" />
+                <x-heroicon-o-chart-bar class="w-5 h-5 text-blue-600" />
                 <span>Class Performance Overview</span>
             </div>
         </x-slot>

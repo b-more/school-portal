@@ -248,22 +248,33 @@ class SendBroadcast extends Page
                 continue;
             }
 
-            // Send SMS using your existing mechanism
+            // Send SMS using GET request (matching working Postman format)
             try {
                 // Replace @ with (at) for SMS compatibility
                 $sms_message = str_replace('@', '(at)', $message);
-                $url_encoded_message = urlencode($sms_message);
 
-                // Send the SMS with optimized settings
+                // Build URL with query parameters (GET request)
+                $queryParams = http_build_query([
+                    'username' => env('SMS_USERNAME', 'Blessmore'),
+                    'password' => env('SMS_PASSWORD', 'Blessmore'),
+                    'msg' => $sms_message,
+                    'shortcode' => env('SMS_SHORTCODE', '2343'),
+                    'sender_id' => env('SMS_SENDER_ID', 'StFrancis'),
+                    'phone' => '+' . $formattedPhone,
+                    'api_key' => env('SMS_API_KEY', '121231313213123123'),
+                ]);
+
+                $apiUrl = env('SMS_API_URL', 'https://www.cloudservicezm.com/smsservice/httpapi');
+
+                // Send as GET request with optimized settings
                 $sendSenderSMS = Http::withoutVerifying()
                     ->timeout(15)
                     ->connectTimeout(10)
-                    ->retry(2, 1000) // Retry failed requests twice
-                    ->post('https://www.cloudservicezm.com/smsservice/httpapi?username=Blessmore&password=Blessmore&msg=' . $url_encoded_message . '&shortcode=2343&sender_id=StFrancis&phone=' . $formattedPhone . '&api_key=121231313213123123');
+                    ->retry(2, 1000)
+                    ->get($apiUrl . '?' . $queryParams);
 
                 $isSuccessful = $sendSenderSMS->successful() &&
-                              (strtolower($sendSenderSMS->body()) === 'success' ||
-                               strpos(strtolower($sendSenderSMS->body()), 'success') !== false);
+                              (strtolower(trim($sendSenderSMS->body())) === 'success');
 
                 // Update SMS log with result
                 DB::table('sms_logs')->where('id', $smsLog)->update([

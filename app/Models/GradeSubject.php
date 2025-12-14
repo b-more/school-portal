@@ -42,7 +42,7 @@ class GradeSubject extends Pivot
 
     /**
      * Get all teachers teaching this subject in this grade
-     * by looking at class_subject_teacher assignments
+     * by looking at subject_teachings table
      */
     public function getTeachersAttribute()
     {
@@ -55,16 +55,17 @@ class GradeSubject extends Pivot
             ->pluck('id');
 
         // Get all teachers teaching this subject in these class sections
-        $teachers = \DB::table('class_subject_teacher')
-            ->join('teachers', 'class_subject_teacher.teacher_id', '=', 'teachers.id')
-            ->join('class_sections', 'class_subject_teacher.class_id', '=', 'class_sections.id')
-            ->where('class_subject_teacher.subject_id', $this->subject_id)
-            ->whereIn('class_subject_teacher.class_id', $classSectionIds)
+        $teachers = \DB::table('subject_teachings')
+            ->join('teachers', 'subject_teachings.teacher_id', '=', 'teachers.id')
+            ->join('class_sections', 'subject_teachings.class_section_id', '=', 'class_sections.id')
+            ->where('subject_teachings.subject_id', $this->subject_id)
+            ->whereIn('subject_teachings.class_section_id', $classSectionIds)
             ->select(
                 'teachers.id',
                 'teachers.name',
                 'class_sections.name as class_section_name'
             )
+            ->distinct()
             ->get();
 
         return $teachers;

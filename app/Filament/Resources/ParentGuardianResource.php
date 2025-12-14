@@ -7,17 +7,22 @@ use App\Filament\Resources\ParentGuardianResource\Pages;
 use App\Models\ParentGuardian;
 use Filament\Forms;
 use Filament\Forms\Form;
+use Filament\Notifications\Notification;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class ParentGuardianResource extends Resource
 {
     protected static ?string $model = ParentGuardian::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-users';
+    protected static ?string $navigationIcon = 'heroicon-o-heart';
 
     protected static ?string $navigationGroup = 'Student Management';
 
@@ -214,8 +219,39 @@ class ParentGuardianResource extends Resource
                             ->rows(3),
                     ])
                     ->action(function (ParentGuardian $record, array $data) {
-                        // Logic for sending SMS would go here
-                        // You can reuse the SMS service logic from other resources
+                        if (empty($record->phone)) {
+                            Notification::make()
+                                ->title('SMS Failed')
+                                ->body('No phone number found for this parent.')
+                                ->danger()
+                                ->send();
+                            return;
+                        }
+
+                        $result = self::sendMessage(
+                            $data['message'],
+                            $record->phone,
+                            'general',
+                            $record->id
+                        );
+
+                        // Handle result (now returns array)
+                        $success = is_array($result) ? ($result['success'] ?? false) : $result;
+
+                        if ($success) {
+                            Notification::make()
+                                ->title('SMS Sent')
+                                ->body("Message sent to {$record->name} successfully.")
+                                ->success()
+                                ->send();
+                        } else {
+                            $reason = is_array($result) ? ($result['reason'] ?? 'Unknown error') : 'Failed to send SMS';
+                            Notification::make()
+                                ->title('SMS Failed')
+                                ->body($reason)
+                                ->danger()
+                                ->send();
+                        }
                     }),
             ])
             ->bulkActions([
@@ -233,8 +269,68 @@ class ParentGuardianResource extends Resource
                                 ->rows(3),
                         ])
                         ->action(function (Collection $records, array $data) {
-                            // Logic for sending bulk SMS would go here
-                        }),
+                            $successCount = 0;
+                            $failCount = 0;
+                            $skippedNoCreditCount = 0;
+
+                            // Check credit balance upfront
+                            $smsService = app(\App\Services\SmsService::class);
+                            $creditCheck = $smsService->canSend($data['message']);
+
+                            if (!$creditCheck['allowed']) {
+                                Notification::make()
+                                    ->title('Cannot Send SMS')
+                                    ->body($creditCheck['reason'] . ' Please top up SMS credits first.')
+                                    ->danger()
+                                    ->send();
+                                return;
+                            }
+
+                            foreach ($records as $record) {
+                                if (empty($record->phone)) {
+                                    $failCount++;
+                                    continue;
+                                }
+
+                                $result = self::sendMessage(
+                                    $data['message'],
+                                    $record->phone,
+                                    'general',
+                                    $record->id
+                                );
+
+                                // Handle result (now returns array)
+                                $success = is_array($result) ? ($result['success'] ?? false) : $result;
+
+                                if ($success) {
+                                    $successCount++;
+                                } else {
+                                    // Check if it was a credit issue
+                                    $reason = is_array($result) ? ($result['reason'] ?? '') : '';
+                                    if (str_contains(strtolower($reason), 'credit') || str_contains(strtolower($reason), 'insufficient')) {
+                                        $skippedNoCreditCount++;
+                                        break; // Stop sending if we run out of credit
+                                    }
+                                    $failCount++;
+                                }
+
+                                // Small delay to avoid overwhelming SMS gateway
+                                usleep(200000); // 200ms
+                            }
+
+                            $body = "Sent: {$successCount}, Failed: {$failCount}";
+                            if ($skippedNoCreditCount > 0) {
+                                $body .= ", Skipped (no credit): {$skippedNoCreditCount}";
+                            }
+
+                            Notification::make()
+                                ->title('Bulk SMS Complete')
+                                ->body($body)
+                                ->success($successCount > 0 && $skippedNoCreditCount === 0)
+                                ->warning($failCount > 0 || $skippedNoCreditCount > 0)
+                                ->send();
+                        })
+                        ->deselectRecordsAfterCompletion(),
                 ]),
             ]);
     }
@@ -327,5 +423,85 @@ class ParentGuardianResource extends Resource
 
         // All other roles have no access
         return $query->where('id', 0);
+    }
+
+    /**
+     * Format phone number to ensure it has country code
+     */
+    public static function formatPhoneNumber(string $phoneNumber): string
+    {
+        // Remove any non-numeric characters
+        $phoneNumber = preg_replace('/[^0-9]/', '', $phoneNumber);
+
+        // Check if number already has country code (260 for Zambia)
+        if (substr($phoneNumber, 0, 3) === '260') {
+            return $phoneNumber;
+        }
+
+        // If starting with 0, replace with country code
+        if (substr($phoneNumber, 0, 1) === '0') {
+            return '260' . substr($phoneNumber, 1);
+        }
+
+        // If number doesn't have country code, add it
+        if (strlen($phoneNumber) === 9) {
+            return '260' . $phoneNumber;
+        }
+
+        return $phoneNumber;
+    }
+
+    /**
+     * Send SMS message using SmsService (with credit checking)
+     *
+     * @return array ['success' => bool, 'reason' => string|null]
+     */
+    public static function sendMessage($message_string, $phone_number, $message_type = 'general', $reference_id = null)
+    {
+        try {
+            // Use the SmsService which handles credit checking
+            $smsService = app(\App\Services\SmsService::class);
+
+            // Check if we can send (credit check)
+            $canSend = $smsService->canSend($message_string);
+
+            if (!$canSend['allowed']) {
+                Log::warning('SMS blocked - insufficient credit', [
+                    'reason' => $canSend['reason'],
+                    'balance' => $canSend['balance'] ?? 0,
+                    'cost' => $canSend['cost'] ?? 0,
+                ]);
+
+                return [
+                    'success' => false,
+                    'reason' => $canSend['reason'],
+                    'balance' => $canSend['balance'] ?? 0,
+                    'cost' => $canSend['cost'] ?? 0,
+                ];
+            }
+
+            // Send the SMS using SmsService
+            $success = $smsService->send(
+                $message_string,
+                $phone_number,
+                $message_type,
+                $reference_id
+            );
+
+            return [
+                'success' => $success,
+                'reason' => $success ? null : 'Failed to deliver SMS',
+            ];
+        } catch (\Exception $e) {
+            Log::error('ParentGuardian SMS sending failed', [
+                'error' => $e->getMessage(),
+                'phone' => $phone_number,
+            ]);
+
+            return [
+                'success' => false,
+                'reason' => $e->getMessage(),
+            ];
+        }
     }
 }

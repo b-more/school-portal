@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\Auth;
 class SchoolClassResource extends Resource
 {
     protected static ?string $model = SchoolClass::class;
-    protected static ?string $navigationIcon = 'heroicon-o-academic-cap';
+    protected static ?string $navigationIcon = 'heroicon-o-home-modern';
     protected static ?string $navigationGroup = 'Academic Management';
     protected static ?string $navigationLabel = 'Classes';
     protected static ?int $navigationSort = 7;

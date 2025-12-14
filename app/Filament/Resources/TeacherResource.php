@@ -10,6 +10,9 @@ use App\Models\Grade;
 use App\Models\Subject;
 use App\Models\ClassSection;
 use App\Models\AcademicYear;
+use App\Models\Role;
+use App\Models\SchoolSection;
+use App\Models\StaffDesignation;
 use App\Constants\RoleConstants;
 use Filament\Forms;
 use Filament\Forms\Form;
@@ -29,7 +32,7 @@ class TeacherResource extends Resource
 {
     protected static ?string $model = Teacher::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-academic-cap';
+    protected static ?string $navigationIcon = 'heroicon-o-briefcase';
     protected static ?string $navigationLabel = 'Teachers';
     protected static ?string $navigationGroup = 'Staff Management';
     protected static ?int $navigationSort = 1;
@@ -96,7 +99,12 @@ class TeacherResource extends Resource
                                 Forms\Components\FileUpload::make('profile_photo')
                                     ->label('Profile Photo')
                                     ->image()
+                                    ->disk('public')
                                     ->directory('teacher-photos')
+                                    ->visibility('public')
+                                    ->preserveFilenames()
+                                    ->openable()
+                                    ->downloadable()
                                     ->imageResizeMode('cover')
                                     ->imageCropAspectRatio('1:1')
                                     ->imageResizeTargetWidth('300')
@@ -132,20 +140,163 @@ class TeacherResource extends Resource
                             ])
                             ->columns(3),
 
-                        Forms\Components\Section::make('Documents')
+                        Forms\Components\Section::make('Role & Section')
+                            ->description('Assign administrative role and school section')
+                            ->schema([
+                                Forms\Components\Select::make('role_id')
+                                    ->label('Staff Role')
+                                    ->options(function () {
+                                        return Role::whereIn('id', RoleConstants::teaching())
+                                            ->pluck('name', 'id');
+                                    })
+                                    ->default(RoleConstants::TEACHER)
+                                    ->required()
+                                    ->live()
+                                    ->afterStateUpdated(function (Forms\Set $set, $state) {
+                                        // Auto-set school section based on role
+                                        $sectionCode = RoleConstants::getSectionForRole((int) $state);
+                                        if ($sectionCode) {
+                                            $section = SchoolSection::where('code', $sectionCode)->first();
+                                            if ($section) {
+                                                $set('school_section_id', $section->id);
+                                            }
+                                        }
+                                    }),
+
+                                Forms\Components\Select::make('school_section_id')
+                                    ->label('School Section')
+                                    ->options(SchoolSection::pluck('name', 'id'))
+                                    ->helperText('Required for section-based roles')
+                                    ->visible(function (Forms\Get $get) {
+                                        $roleId = (int) $get('role_id');
+                                        // Show for section heads and deans
+                                        return in_array($roleId, RoleConstants::sectionManagement());
+                                    })
+                                    ->required(function (Forms\Get $get) {
+                                        $roleId = (int) $get('role_id');
+                                        return in_array($roleId, RoleConstants::sectionManagement());
+                                    }),
+
+                                Forms\Components\Repeater::make('teacher_designations')
+                                    ->label('Staff Designations')
+                                    ->relationship('teacherDesignations')
+                                    ->schema([
+                                        Forms\Components\Select::make('staff_designation_id')
+                                            ->label('Designation')
+                                            ->options(StaffDesignation::active()->orderByHierarchy()->pluck('name', 'id'))
+                                            ->required()
+                                            ->searchable(),
+
+                                        Forms\Components\Select::make('school_section_id')
+                                            ->label('Section')
+                                            ->options(SchoolSection::pluck('name', 'id'))
+                                            ->required()
+                                            ->searchable(),
+
+                                        Forms\Components\DatePicker::make('assigned_date')
+                                            ->label('Assigned Date')
+                                            ->default(now()),
+
+                                        Forms\Components\Toggle::make('is_active')
+                                            ->label('Active')
+                                            ->default(true),
+                                    ])
+                                    ->columns(4)
+                                    ->defaultItems(0)
+                                    ->collapsible()
+                                    ->collapsed()
+                                    ->helperText('Optional: Assign additional designations like Dean of Teachers, Senior Teacher, etc.')
+                                    ->itemLabel(fn (array $state): ?string =>
+                                        StaffDesignation::find($state['staff_designation_id'] ?? null)?->name ?? 'New Designation'
+                                    ),
+                            ])
+                            ->columns(2)
+                            ->collapsible(),
+
+                        Forms\Components\Section::make('Required Documents')
+                            ->description('Upload required documents for the teacher')
+                            ->schema([
+                                Forms\Components\FileUpload::make('cv_document')
+                                    ->label('Curriculum Vitae (CV)')
+                                    ->disk('public')
+                                    ->directory('teacher-documents/cv')
+                                    ->visibility('public')
+                                    ->preserveFilenames()
+                                    ->openable()
+                                    ->downloadable()
+                                    ->previewable()
+                                    ->acceptedFileTypes(['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'])
+                                    ->maxSize(10240)
+                                    ->helperText('PDF or Word document, max 10MB'),
+
+                                Forms\Components\FileUpload::make('police_clearance')
+                                    ->label('Police Clearance Certificate')
+                                    ->disk('public')
+                                    ->directory('teacher-documents/police-clearance')
+                                    ->visibility('public')
+                                    ->preserveFilenames()
+                                    ->openable()
+                                    ->downloadable()
+                                    ->previewable()
+                                    ->acceptedFileTypes(['application/pdf', 'image/jpeg', 'image/png'])
+                                    ->maxSize(10240)
+                                    ->helperText('PDF or Image, max 10MB'),
+
+                                Forms\Components\FileUpload::make('teaching_license')
+                                    ->label('Teaching License/Certificate')
+                                    ->disk('public')
+                                    ->directory('teacher-documents/teaching-license')
+                                    ->visibility('public')
+                                    ->preserveFilenames()
+                                    ->openable()
+                                    ->downloadable()
+                                    ->previewable()
+                                    ->acceptedFileTypes(['application/pdf', 'image/jpeg', 'image/png'])
+                                    ->maxSize(10240)
+                                    ->helperText('PDF or Image, max 10MB'),
+
+                                Forms\Components\FileUpload::make('nrc_copy')
+                                    ->label('NRC Scanned Copy')
+                                    ->disk('public')
+                                    ->directory('teacher-documents/nrc')
+                                    ->visibility('public')
+                                    ->preserveFilenames()
+                                    ->openable()
+                                    ->downloadable()
+                                    ->previewable()
+                                    ->acceptedFileTypes(['application/pdf', 'image/jpeg', 'image/png'])
+                                    ->maxSize(10240)
+                                    ->helperText('PDF or Image, max 10MB'),
+                            ])
+                            ->columns(2),
+
+                        Forms\Components\Section::make('Other Documents')
                             ->schema([
                                 Forms\Components\FileUpload::make('application_letter')
                                     ->label('Application Letter')
-                                    ->directory('teacher-documents')
+                                    ->disk('public')
+                                    ->directory('teacher-documents/applications')
+                                    ->visibility('public')
+                                    ->preserveFilenames()
+                                    ->openable()
+                                    ->downloadable()
+                                    ->previewable()
                                     ->acceptedFileTypes(['application/pdf', 'image/*'])
-                                    ->maxSize(5120),
+                                    ->maxSize(10240),
                                 Forms\Components\FileUpload::make('scanned_contract')
                                     ->label('Scanned Contract')
-                                    ->directory('teacher-documents')
+                                    ->disk('public')
+                                    ->directory('teacher-documents/contracts')
+                                    ->visibility('public')
+                                    ->preserveFilenames()
+                                    ->openable()
+                                    ->downloadable()
+                                    ->previewable()
                                     ->acceptedFileTypes(['application/pdf', 'image/*'])
-                                    ->maxSize(5120),
+                                    ->maxSize(10240),
                             ])
-                            ->columns(2),
+                            ->columns(2)
+                            ->collapsed(),
 
                         Forms\Components\Section::make('Teacher Classification')
                             ->schema([
@@ -463,6 +614,28 @@ class TeacherResource extends Resource
                     ->label('Employee ID')
                     ->searchable(),
 
+                Tables\Columns\TextColumn::make('role.name')
+                    ->label('Role')
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'Head Teacher Primary', 'Head Teacher Secondary' => 'danger',
+                        'Deputy Head Primary', 'Deputy Head Secondary' => 'warning',
+                        'Dean of Primary', 'Dean of Secondary' => 'info',
+                        default => 'gray',
+                    })
+                    ->sortable(),
+
+                Tables\Columns\TextColumn::make('schoolSection.name')
+                    ->label('Section')
+                    ->badge()
+                    ->color(fn (?string $state): string => match ($state) {
+                        'Primary' => 'success',
+                        'Secondary' => 'info',
+                        'Pre-School' => 'warning',
+                        default => 'gray',
+                    })
+                    ->placeholder('Not Assigned'),
+
                 Tables\Columns\TextColumn::make('qualification')
                     ->searchable()
                     ->sortable(),
@@ -520,6 +693,17 @@ class TeacherResource extends Resource
                     ->sortable(),
             ])
             ->filters([
+                Tables\Filters\SelectFilter::make('role_id')
+                    ->label('Staff Role')
+                    ->options(function () {
+                        return Role::whereIn('id', RoleConstants::teaching())
+                            ->pluck('name', 'id');
+                    }),
+
+                Tables\Filters\SelectFilter::make('school_section_id')
+                    ->label('School Section')
+                    ->options(SchoolSection::pluck('name', 'id')),
+
                 Tables\Filters\SelectFilter::make('filter_teacher_type')
                     ->label('Teacher Type')
                     ->options([
@@ -800,7 +984,7 @@ class TeacherResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         return parent::getEloquentQuery()
-            ->with(['grade', 'classSection.grade']) // Eager load relationships
+            ->with(['grade', 'classSection.grade', 'role', 'schoolSection']) // Eager load relationships
             ->withoutGlobalScopes([
                 SoftDeletingScope::class,
             ]);

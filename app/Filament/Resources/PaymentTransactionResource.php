@@ -26,7 +26,7 @@ class PaymentTransactionResource extends Resource
 {
     protected static ?string $model = PaymentTransaction::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-banknotes';
+    protected static ?string $navigationIcon = 'heroicon-o-receipt-percent';
 
     protected static ?string $navigationGroup = 'Financial Management';
 

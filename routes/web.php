@@ -7,6 +7,7 @@ use App\Http\Controllers\HomeworkController;
 use App\Http\Controllers\PaymentStatementController;
 use App\Http\Controllers\PayslipController;
 use App\Http\Controllers\PublicPaymentController;
+use App\Http\Controllers\ReportCardController;
 use App\Http\Controllers\StudentFeeController;
 use Illuminate\Support\Facades\Route;
 
@@ -128,8 +129,8 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/homework/stats', [HomeworkController::class, 'getHomeworkStats'])
         ->name('homework.stats');
 
-    // Get homework details (API)
-    Route::get('/homework/{homework}/details', [HomeworkController::class, 'show'])
+    // Get homework details page (student-friendly view)
+    Route::get('/homework/{homework}/details', [HomeworkController::class, 'details'])
         ->name('homework.details');
 });
 
@@ -202,4 +203,23 @@ Route::prefix('pay')->group(function () {
 Route::middleware(['auth'])->group(function () {
     Route::get('/attendance/export', [\App\Http\Controllers\AttendanceController::class, 'export'])
         ->name('attendance.export');
+});
+
+// Report Card Routes
+Route::middleware(['auth'])->group(function () {
+    // Generate single student report card PDF
+    Route::get('/report-cards/{student}/{term}', [ReportCardController::class, 'generate'])
+        ->name('report-cards.generate');
+
+    // Preview report card (HTML view)
+    Route::get('/report-cards/{student}/{term}/preview', [ReportCardController::class, 'preview'])
+        ->name('report-cards.preview');
+
+    // Bulk generate report cards (ZIP download)
+    Route::get('/report-cards/bulk/{classSection}/{term}', [ReportCardController::class, 'bulkGenerate'])
+        ->name('report-cards.bulk-generate');
+
+    // API endpoint for report card data
+    Route::get('/report-cards/{student}/{term}/data', [ReportCardController::class, 'getReportCardData'])
+        ->name('report-cards.data');
 });

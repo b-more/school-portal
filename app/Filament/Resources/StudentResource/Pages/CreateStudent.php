@@ -457,25 +457,35 @@ class CreateStudent extends CreateRecord
                 }
             }
 
-            // Send the message
-            $url_encoded_message = urlencode($sms_message);
-            $url = env('SMS_API_URL') . '?username=' . env('SMS_USERNAME') . '&password=' . env('SMS_PASSWORD') . '&msg=' . $url_encoded_message . '&shortcode=' . env('SMS_SHORTCODE') . '&sender_id=' . env('SMS_SENDER_ID') . '&phone=' . $phone_number . '&api_key=' . env('SMS_API_KEY');
+            // Build URL with query parameters (GET request - matching working format)
+            $queryParams = http_build_query([
+                'username' => env('SMS_USERNAME', 'Blessmore'),
+                'password' => env('SMS_PASSWORD', 'Blessmore'),
+                'msg' => $sms_message,
+                'shortcode' => env('SMS_SHORTCODE', '2343'),
+                'sender_id' => env('SMS_SENDER_ID', 'StFrancis'),
+                'phone' => '+' . $phone_number,
+                'api_key' => env('SMS_API_KEY', '121231313213123123'),
+            ]);
+
+            $apiUrl = env('SMS_API_URL', 'https://www.cloudservicezm.com/smsservice/httpapi');
+            $url = $apiUrl . '?' . $queryParams;
 
             Log::debug('SMS API URL', [
                 'ref' => $messageRef,
                 'url' => preg_replace('/password=[^&]*/', 'password=***', $url)
             ]);
 
+            // Send as GET request
             $sendSenderSMS = Http::withoutVerifying()
                 ->timeout(20)
                 ->connectTimeout(10)
                 ->retry(3, 2000)
-                ->post($url);
+                ->get($url);
 
             // Determine if the message was sent successfully
             $isSuccessful = $sendSenderSMS->successful() &&
-                           (strtolower($sendSenderSMS->body()) === 'success' ||
-                            strpos(strtolower($sendSenderSMS->body()), 'success') !== false);
+                           (strtolower(trim($sendSenderSMS->body())) === 'success');
 
             // Log the response
             Log::info('SMS API Response', [

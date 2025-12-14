@@ -9,8 +9,6 @@ use App\Models\Student;
 use App\Models\Teacher;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Components\Textarea;
-use Filament\Forms\Components\TimePicker;
 use Filament\Forms\Concerns\InteractsWithForms;
 use Filament\Forms\Contracts\HasForms;
 use Filament\Forms\Form;
@@ -26,13 +24,13 @@ class MarkAttendance extends Page implements HasForms
 
     protected static string $view = 'filament.pages.mark-attendance';
 
-    protected static ?string $navigationLabel = 'Mark Attendance';
+    protected static ?string $navigationLabel = 'Daily Attendance';
 
-    protected static ?string $title = 'Mark Class Attendance';
+    protected static ?string $title = 'Daily Attendance';
 
     protected static ?string $navigationGroup = 'Academic';
 
-    protected static ?int $navigationSort = 6;
+    protected static ?int $navigationSort = 5;
 
     public ?array $data = [];
 
@@ -40,19 +38,34 @@ class MarkAttendance extends Page implements HasForms
 
     public $attendanceDate = null;
 
-    public $checkInTime = null;
-
-    public $notes = null;
-
     public $students = [];
 
     public $attendanceData = [];
 
+    public $attendanceAlreadyMarked = false;
+
     public function mount(): void
     {
         $this->attendanceDate = now()->format('Y-m-d');
-        $this->checkInTime = now()->format('H:i');
-        $this->form->fill();
+
+        $user = Auth::user();
+
+        // Auto-select class for teachers with only one class
+        if ($user->role_id === RoleConstants::TEACHER) {
+            $teacher = Teacher::where('user_id', $user->id)->first();
+            if ($teacher) {
+                $classSections = $teacher->classSections()->get();
+                if ($classSections->count() === 1) {
+                    $this->classSectionId = $classSections->first()->id;
+                    $this->loadStudents($this->classSectionId);
+                }
+            }
+        }
+
+        $this->form->fill([
+            'classSectionId' => $this->classSectionId,
+            'attendanceDate' => $this->attendanceDate,
+        ]);
     }
 
     public function form(Form $form): Form
@@ -69,14 +82,15 @@ class MarkAttendance extends Page implements HasForms
                 ->with('grade')
                 ->get()
                 ->mapWithKeys(function ($section) {
-                    return [$section->id => $section->grade->name.' - '.$section->name];
+                    return [$section->id => $section->grade->name . ' - ' . $section->name];
                 })
                 ->toArray();
         } elseif ($user->role_id === RoleConstants::ADMIN) {
             $classSectionOptions = ClassSection::with('grade')
+                ->where('is_active', true)
                 ->get()
                 ->mapWithKeys(function ($section) {
-                    return [$section->id => $section->grade->name.' - '.$section->name];
+                    return [$section->id => $section->grade->name . ' - ' . $section->name];
                 })
                 ->toArray();
         }
@@ -84,11 +98,13 @@ class MarkAttendance extends Page implements HasForms
         return $form
             ->schema([
                 Select::make('classSectionId')
-                    ->label('Select Class')
+                    ->label('Class')
                     ->options($classSectionOptions)
                     ->required()
                     ->reactive()
+                    ->default($this->classSectionId)
                     ->afterStateUpdated(function ($state) {
+                        $this->classSectionId = $state;
                         $this->loadStudents($state);
                     }),
 
@@ -97,18 +113,14 @@ class MarkAttendance extends Page implements HasForms
                     ->required()
                     ->default(now())
                     ->maxDate(now())
-                    ->displayFormat('d/m/Y')
-                    ->reactive(),
-
-                TimePicker::make('checkInTime')
-                    ->label('Default Check-In Time')
-                    ->default(now()->format('H:i'))
-                    ->seconds(false),
-
-                Textarea::make('notes')
-                    ->label('Notes (Optional)')
-                    ->maxLength(500)
-                    ->rows(2),
+                    ->displayFormat('D, d M Y')
+                    ->reactive()
+                    ->afterStateUpdated(function ($state) {
+                        $this->attendanceDate = $state;
+                        if ($this->classSectionId) {
+                            $this->loadStudents($this->classSectionId);
+                        }
+                    }),
             ])
             ->statePath('data')
             ->columns(2);
@@ -116,42 +128,53 @@ class MarkAttendance extends Page implements HasForms
 
     public function loadStudents($classSectionId): void
     {
-        if (! $classSectionId) {
+        if (!$classSectionId) {
             $this->students = [];
             $this->attendanceData = [];
-
+            $this->attendanceAlreadyMarked = false;
             return;
         }
 
         $this->classSectionId = $classSectionId;
 
-        // Get all students in this class, ordered by name
+        // Get all active students in this class, ordered by name
         $this->students = Student::where('class_section_id', $classSectionId)
+            ->where('enrollment_status', 'active')
             ->orderBy('name')
             ->get()
             ->toArray();
 
         // Check if attendance already exists for this date
-        if ($this->attendanceDate) {
-            $existingAttendance = Attendance::where('class_section_id', $classSectionId)
-                ->where('attendance_date', $this->attendanceDate)
-                ->get()
-                ->keyBy('student_id');
+        $existingAttendance = Attendance::where('class_section_id', $classSectionId)
+            ->where('attendance_date', $this->attendanceDate)
+            ->get()
+            ->keyBy('student_id');
 
-            // Pre-fill attendance data
-            foreach ($this->students as $student) {
-                $studentId = $student['id'];
-                if (isset($existingAttendance[$studentId])) {
-                    $this->attendanceData[$studentId] = $existingAttendance[$studentId]->status;
-                } else {
-                    $this->attendanceData[$studentId] = 'present'; // Default to present
-                }
+        $this->attendanceAlreadyMarked = $existingAttendance->isNotEmpty();
+
+        // Pre-fill attendance data - default to present
+        $this->attendanceData = [];
+        foreach ($this->students as $student) {
+            $studentId = $student['id'];
+            if (isset($existingAttendance[$studentId])) {
+                $this->attendanceData[$studentId] = $existingAttendance[$studentId]->status;
+            } else {
+                $this->attendanceData[$studentId] = 'present'; // Default to present
             }
+        }
+    }
+
+    public function toggleStatus($studentId): void
+    {
+        $current = $this->attendanceData[$studentId] ?? 'present';
+
+        // Simple toggle: present -> absent -> late -> present
+        if ($current === 'present') {
+            $this->attendanceData[$studentId] = 'absent';
+        } elseif ($current === 'absent') {
+            $this->attendanceData[$studentId] = 'late';
         } else {
-            // Default all to present
-            foreach ($this->students as $student) {
-                $this->attendanceData[$student['id']] = 'present';
-            }
+            $this->attendanceData[$studentId] = 'present';
         }
     }
 
@@ -167,51 +190,35 @@ class MarkAttendance extends Page implements HasForms
         }
 
         Notification::make()
-            ->title('All students marked as present')
+            ->title('All marked present')
             ->success()
-            ->send();
-    }
-
-    public function markAllAbsent(): void
-    {
-        foreach ($this->students as $student) {
-            $this->attendanceData[$student['id']] = 'absent';
-        }
-
-        Notification::make()
-            ->title('All students marked as absent')
-            ->warning()
             ->send();
     }
 
     public function submitAttendance(): void
     {
-        // Validate
-        if (! $this->classSectionId) {
+        if (!$this->classSectionId) {
             Notification::make()
                 ->title('Please select a class')
                 ->danger()
                 ->send();
-
             return;
         }
 
-        if (! $this->attendanceDate) {
+        if (!$this->attendanceDate) {
             Notification::make()
                 ->title('Please select a date')
                 ->danger()
                 ->send();
-
             return;
         }
 
         $classSection = ClassSection::find($this->classSectionId);
-        if (! $classSection) {
+        if (!$classSection) {
             Notification::make()
-                ->title('Class section not found')
+                ->title('Class not found')
                 ->danger()
                 ->send();
-
             return;
         }
 
@@ -225,13 +232,10 @@ class MarkAttendance extends Page implements HasForms
                 'grade_id' => $classSection->grade_id,
                 'attendance_date' => $this->attendanceDate,
                 'status' => $status,
-                'check_in_time' => in_array($status, ['present', 'late']) ? $this->checkInTime : null,
-                'check_out_time' => null,
-                'notes' => $this->notes,
+                'check_in_time' => in_array($status, ['present', 'late']) ? now()->format('H:i:s') : null,
                 'marked_by' => Auth::id(),
             ];
 
-            // Check if attendance already exists
             $existing = Attendance::where('student_id', $studentId)
                 ->where('attendance_date', $this->attendanceDate)
                 ->first();
@@ -245,26 +249,33 @@ class MarkAttendance extends Page implements HasForms
             }
         }
 
+        $this->attendanceAlreadyMarked = true;
+
         Notification::make()
-            ->title('Attendance Saved Successfully!')
-            ->body("Created: {$created} | Updated: {$updated} | Total: ".count($this->attendanceData))
+            ->title('Attendance Saved!')
+            ->body($this->getAttendanceSummary())
             ->success()
             ->send();
+    }
 
-        // Reload students to show updated attendance
-        $this->loadStudents($this->classSectionId);
+    protected function getAttendanceSummary(): string
+    {
+        $present = collect($this->attendanceData)->filter(fn($s) => $s === 'present')->count();
+        $absent = collect($this->attendanceData)->filter(fn($s) => $s === 'absent')->count();
+        $late = collect($this->attendanceData)->filter(fn($s) => $s === 'late')->count();
+
+        return "Present: {$present} | Absent: {$absent} | Late: {$late}";
     }
 
     public static function shouldRegisterNavigation(): bool
     {
-        // Hidden from navigation - accessed via AttendanceResource button
-        return false;
+        return static::canAccess();
     }
 
     public static function canAccess(): bool
     {
         $user = auth()->user();
-        if (! $user) {
+        if (!$user) {
             return false;
         }
 

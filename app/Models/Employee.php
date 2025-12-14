@@ -73,7 +73,7 @@ class Employee extends Model
 
     public function school_classes(): BelongsToMany
     {
-        return $this->belongsToMany(SchoolClass::class, 'class_teacher', 'employee_id', 'class_id')
+        return $this->belongsToMany(SchoolClass::class, 'class_teacher', 'teacher_id', 'class_id')
                     ->select(['school_classes.*']) // Make sure this matches your actual table name
                     ->withPivot('role', 'is_primary')
                     ->withTimestamps();

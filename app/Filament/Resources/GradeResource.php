@@ -21,7 +21,7 @@ use Illuminate\Database\Eloquent\Builder;
 class GradeResource extends Resource
 {
     protected static ?string $model = Grade::class;
-    protected static ?string $navigationIcon = 'heroicon-o-academic-cap';
+    protected static ?string $navigationIcon = 'heroicon-o-chart-bar';
     protected static ?string $navigationGroup = 'Academic Configuration';
     protected static ?int $navigationSort = 3;
 

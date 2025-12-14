@@ -68,7 +68,7 @@ class ViewTeacherAssignment extends ViewRecord
                         $assignments = [];
 
                         $classSubjects = \DB::table('class_subject_teacher')
-                            ->where('employee_id', $record->id)
+                            ->where('teacher_id', $record->id)
                             ->get();
 
                         foreach ($classSubjects as $assignment) {

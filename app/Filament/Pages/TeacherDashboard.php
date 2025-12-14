@@ -224,7 +224,8 @@ class TeacherDashboard extends Page
             ];
         }
 
-        $submissions = HomeworkSubmission::whereIn('homework_id', $homeworkIds);
+        // Get submissions as a collection to allow multiple operations
+        $submissions = HomeworkSubmission::whereIn('homework_id', $homeworkIds)->get();
 
         return [
             'total_submitted' => $submissions->count(),
@@ -369,11 +370,19 @@ class TeacherDashboard extends Page
 
     public static function canAccess(): bool
     {
-        return in_array(auth()->user()?->role_id, RoleConstants::teaching()) ?? false;
+        $user = auth()->user();
+        if (!$user) {
+            return false;
+        }
+        return in_array($user->role_id, RoleConstants::teaching());
     }
 
     public static function shouldRegisterNavigation(): bool
     {
-        return in_array(auth()->user()?->role_id, RoleConstants::teaching()) ?? false;
+        $user = auth()->user();
+        if (!$user) {
+            return false;
+        }
+        return in_array($user->role_id, RoleConstants::teaching());
     }
 }

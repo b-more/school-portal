@@ -79,7 +79,7 @@ class ResultResource extends Resource
                                 }
 
                                 return Homework::where('subject_id', $subjectId)
-                                    ->where('grade', $student->grade)
+                                    ->where('grade_id', $student->grade_id)
                                     ->orderBy('title')
                                     ->pluck('title', 'id')
                                     ->toArray();
@@ -169,7 +169,6 @@ class ResultResource extends Resource
                     ->searchable()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('year')
-                    ->numeric()
                     ->sortable(),
                 Tables\Columns\TextColumn::make('recordedBy.name')
                     ->sortable()
@@ -286,27 +285,29 @@ class ResultResource extends Resource
                 $message = $customMessage;
             }
 
-            // Format phone number and send SMS
-            $formattedPhone = self::formatPhoneNumber($parent->phone);
-            SmsService::send($message, $formattedPhone);
+            // Send SMS using SmsService (handles logging automatically)
+            $smsService = app(SmsService::class);
+            $success = $smsService->send(
+                $message,
+                $parent->phone,
+                'result_notification',
+                $result->id
+            );
 
-            // Log the SMS
-            SmsLog::create([
-                'recipient' => $formattedPhone,
-                'message' => $message,
-                'status' => 'sent',
-                'message_type' => 'result_notification',
-                'reference_id' => $result->id,
-                'cost' => 0.5, // Assuming cost per SMS
-                'sent_by' => auth()->id(),
-            ]);
-
-            // Show success notification
-            Notification::make()
-                ->title('Result Notification Sent')
-                ->body("SMS notification sent to {$parent->name} at {$formattedPhone}")
-                ->success()
-                ->send();
+            if ($success) {
+                // Show success notification
+                Notification::make()
+                    ->title('Result Notification Sent')
+                    ->body("SMS notification sent to {$parent->name}")
+                    ->success()
+                    ->send();
+            } else {
+                Notification::make()
+                    ->title('SMS Notification Failed')
+                    ->body('Failed to send SMS. Check logs for details.')
+                    ->danger()
+                    ->send();
+            }
 
         } catch (\Exception $e) {
             // Log error
@@ -315,17 +316,6 @@ class ResultResource extends Resource
                 'student_id' => $student->id,
                 'parent_id' => $parent->id,
                 'error' => $e->getMessage()
-            ]);
-
-            // Log the failed SMS
-            SmsLog::create([
-                'recipient' => $parent->phone,
-                'message' => $message ?? 'Result notification',
-                'status' => 'failed',
-                'message_type' => 'result_notification',
-                'reference_id' => $result->id,
-                'error_message' => $e->getMessage(),
-                'sent_by' => auth()->id(),
             ]);
 
             // Show error notification

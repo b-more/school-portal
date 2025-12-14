@@ -22,7 +22,7 @@ class HomeworkSubmissionResource extends Resource
 {
     protected static ?string $model = HomeworkSubmission::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-clipboard-document-check';
+    protected static ?string $navigationIcon = 'heroicon-o-document-arrow-up';
 
     protected static ?string $navigationGroup = 'Teaching';
 
@@ -41,13 +41,26 @@ class HomeworkSubmissionResource extends Resource
     public static function form(Form $form): Form
     {
         $user = Auth::user();
+        $isStudent = $user->role_id === RoleConstants::STUDENT;
         $isParent = $user->role_id === RoleConstants::PARENT;
         $isTeacher = in_array($user->role_id, [RoleConstants::ADMIN, ...RoleConstants::teaching()]);
+
+        // Get student record if current user is a student
+        $currentStudent = null;
+        if ($isStudent) {
+            $currentStudent = Student::where('user_id', $user->id)->first();
+        }
 
         return $form
             ->schema([
                 Forms\Components\Section::make('Submission Details')
                     ->schema([
+                        // Hidden field for student submissions - auto-set to their own ID
+                        Forms\Components\Hidden::make('student_id')
+                            ->default($currentStudent?->id)
+                            ->visible($isStudent),
+
+                        // Select field for teachers/parents/admins
                         Forms\Components\Select::make('student_id')
                             ->label('Student')
                             ->options(function () use ($user, $isParent) {
@@ -70,12 +83,20 @@ class HomeworkSubmissionResource extends Resource
                             ->preload()
                             ->required()
                             ->live()
-                            ->afterStateUpdated(fn (callable $set) => $set('homework_id', null)),
+                            ->afterStateUpdated(fn (callable $set) => $set('homework_id', null))
+                            ->visible(!$isStudent),
+
+                        // For students, show their name as a placeholder
+                        Forms\Components\Placeholder::make('student_name')
+                            ->label('Submitting as')
+                            ->content($currentStudent?->name ?? 'Unknown Student')
+                            ->visible($isStudent),
 
                         Forms\Components\Select::make('homework_id')
                             ->label('Homework Assignment')
-                            ->options(function (callable $get) use ($isParent) {
-                                $studentId = $get('student_id');
+                            ->options(function (callable $get) use ($isStudent, $currentStudent) {
+                                // For students, use their own student ID
+                                $studentId = $isStudent ? $currentStudent?->id : $get('student_id');
                                 if (!$studentId) {
                                     return [];
                                 }
@@ -85,16 +106,23 @@ class HomeworkSubmissionResource extends Resource
                                     return [];
                                 }
 
-                                // Get homework for the student's grade that is still active
+                                // Get homework IDs that already have submissions from this student
+                                $submittedHomeworkIds = HomeworkSubmission::where('student_id', $studentId)
+                                    ->pluck('homework_id')
+                                    ->toArray();
+
+                                // Get homework for the student's grade that is still active and not yet submitted
                                 return Homework::where('grade_id', $student->grade_id)
                                     ->where('status', 'active')
                                     ->where('due_date', '>=', now()->subDays(7)) // Show homework from last 7 days
+                                    ->whereNotIn('id', $submittedHomeworkIds) // Exclude already submitted
                                     ->orderBy('due_date', 'desc')
                                     ->get()
                                     ->mapWithKeys(function ($homework) {
                                         $dueDate = $homework->due_date->format('M d, Y');
                                         $subject = $homework->subject?->name ?? 'Unknown';
-                                        return [$homework->id => "{$homework->title} - {$subject} (Due: {$dueDate})"];
+                                        $status = $homework->due_date->isPast() ? ' [OVERDUE]' : '';
+                                        return [$homework->id => "{$homework->title} - {$subject} (Due: {$dueDate}){$status}"];
                                     })
                                     ->toArray();
                             })
@@ -102,7 +130,7 @@ class HomeworkSubmissionResource extends Resource
                             ->required()
                             ->reactive()
                             ->afterStateUpdated(fn (callable $set) => $set('marks', null))
-                            ->helperText('Select which homework assignment you are submitting'),
+                            ->helperText('Select which homework assignment you are submitting (already submitted homework is not shown)'),
                         Forms\Components\Textarea::make('content')
                             ->label('Student Comments')
                             ->maxLength(65535)
@@ -113,14 +141,27 @@ class HomeworkSubmissionResource extends Resource
                             ->multiple()
                             ->acceptedFileTypes(['application/pdf', 'image/*', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'])
                             ->maxSize(10240) // 10MB
+                            ->preserveFilenames()
+                            ->openable()
+                            ->downloadable()
                             ->columnSpanFull(),
                         Forms\Components\DateTimePicker::make('submitted_at')
                             ->required()
-                            ->default(now()),
+                            ->default(now())
+                            ->visible(!$isStudent), // Hidden for students - auto-set
+                        Forms\Components\Hidden::make('submitted_at')
+                            ->default(now())
+                            ->visible($isStudent),
                         Forms\Components\Toggle::make('is_late')
                             ->label('Mark as Late Submission')
-                            ->default(false),
+                            ->default(false)
+                            ->visible(!$isStudent), // Hidden for students - system calculated
                     ])->columns(2),
+
+                // Hidden status field for students - auto-set to submitted
+                Forms\Components\Hidden::make('status')
+                    ->default('submitted')
+                    ->visible($isStudent),
 
                 Forms\Components\Section::make('Grading')
                     ->schema([
@@ -175,7 +216,7 @@ class HomeworkSubmissionResource extends Resource
                             ->default(now()),
                     ])
                     ->columns(2)
-                    ->visible($isTeacher), // Only teachers can see grading section
+                    ->visible($isTeacher), // Only teachers and admins can see grading section
 
                 Forms\Components\Section::make('Associated Result')
                     ->schema([
@@ -342,9 +383,51 @@ class HomeworkSubmissionResource extends Resource
                     }),
             ])
             ->actions([
-                Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),
-                Tables\Actions\DeleteAction::make(),
+                Tables\Actions\ViewAction::make()
+                    ->visible(fn () => in_array(Auth::user()->role_id, [RoleConstants::ADMIN, ...RoleConstants::teaching()])),
+                Tables\Actions\EditAction::make()
+                    ->visible(fn () => in_array(Auth::user()->role_id, [RoleConstants::ADMIN, ...RoleConstants::teaching()])),
+                Tables\Actions\DeleteAction::make()
+                    ->visible(fn () => Auth::user()->role_id === RoleConstants::ADMIN),
+                // Student cancel submission action - only before grading and before due date
+                Tables\Actions\Action::make('cancelSubmission')
+                    ->label('Cancel Submission')
+                    ->icon('heroicon-o-x-circle')
+                    ->color('danger')
+                    ->requiresConfirmation()
+                    ->modalHeading('Cancel Homework Submission')
+                    ->modalDescription('Are you sure you want to cancel this submission? You can submit again before the due date.')
+                    ->modalSubmitActionLabel('Yes, Cancel Submission')
+                    ->action(function ($record): void {
+                        // Delete the submission
+                        $record->delete();
+
+                        Notification::make()
+                            ->title('Submission Cancelled')
+                            ->body('Your submission has been cancelled. You can now submit again.')
+                            ->success()
+                            ->send();
+                    })
+                    ->visible(function ($record) {
+                        $user = Auth::user();
+                        // Only for students
+                        if ($user->role_id !== RoleConstants::STUDENT) {
+                            return false;
+                        }
+                        // Only if not graded
+                        if ($record->status === 'graded' || $record->marks !== null) {
+                            return false;
+                        }
+                        // Only before due date (if homework exists)
+                        if ($record->homework && $record->homework->due_date && $record->homework->due_date->isPast()) {
+                            return false;
+                        }
+                        // If no homework found, don't show button
+                        if (!$record->homework) {
+                            return false;
+                        }
+                        return true;
+                    }),
                 Tables\Actions\Action::make('grade')
                     ->label('Grade Submission')
                     ->icon('heroicon-o-pencil-square')
@@ -355,7 +438,9 @@ class HomeworkSubmissionResource extends Resource
                             ->required()
                             ->step(0.01)
                             ->minValue(0)
-                            ->maxValue(fn ($record) => $record->homework?->max_score ?? 100),
+                            ->maxValue(fn ($record) => $record->homework?->max_score ?? 100)
+                            ->suffix(fn ($record) => '/ ' . ($record->homework?->max_score ?? 100))
+                            ->helperText(fn ($record) => 'Enter score out of ' . ($record->homework?->max_score ?? 100) . '. Example: Enter 75 for 75%'),
                         Forms\Components\Textarea::make('feedback')
                             ->required(),
                         Forms\Components\Textarea::make('teacher_notes')
@@ -377,7 +462,7 @@ class HomeworkSubmissionResource extends Resource
                             ->success()
                             ->send();
                     })
-                    ->visible(fn ($record) => $record->status === 'submitted'),
+                    ->visible(fn ($record) => $record->status === 'submitted' && in_array(Auth::user()->role_id, [RoleConstants::ADMIN, ...RoleConstants::teaching()])),
                 Tables\Actions\Action::make('createResult')
                     ->label('Create Result')
                     ->icon('heroicon-o-clipboard-document-list')
@@ -449,8 +534,7 @@ class HomeworkSubmissionResource extends Resource
                         // Redirect to the result edit page
                         redirect()->route('filament.admin.resources.results.edit', ['record' => $result->id]);
                     })
-                    ->visible(fn ($record) => $record->marks !== null && ! $record->has_result
-                    ),
+                    ->visible(fn ($record) => $record->marks !== null && ! $record->has_result && in_array(Auth::user()->role_id, [RoleConstants::ADMIN, ...RoleConstants::teaching()])),
                 Tables\Actions\Action::make('viewResult')
                     ->label('View Result')
                     ->icon('heroicon-o-clipboard-document-list')
@@ -473,18 +557,19 @@ class HomeworkSubmissionResource extends Resource
 
                         redirect()->route('filament.admin.resources.results.view', ['record' => $result->id]);
                     })
-                    ->visible(fn ($record) => (bool) $record->has_result),
+                    ->visible(fn ($record) => (bool) $record->has_result && in_array(Auth::user()->role_id, [RoleConstants::ADMIN, ...RoleConstants::teaching()])),
                 Tables\Actions\Action::make('download')
                     ->label('Download Files')
                     ->icon('heroicon-o-arrow-down-tray')
                     ->color('primary')
                     ->url(fn ($record) => route('filament.resources.homework-submissions.download', $record))
                     ->openUrlInNewTab()
-                    ->visible(fn ($record) => ! empty($record->file_attachment)),
+                    ->visible(fn ($record) => ! empty($record->file_attachment) && in_array(Auth::user()->role_id, [RoleConstants::ADMIN, ...RoleConstants::teaching()])),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->visible(fn () => Auth::user()->role_id === RoleConstants::ADMIN),
                     Tables\Actions\BulkAction::make('bulk_grade')
                         ->label('Bulk Mark as Graded')
                         ->icon('heroicon-o-check')
@@ -500,7 +585,8 @@ class HomeworkSubmissionResource extends Resource
                                 ->title('Submissions marked as graded')
                                 ->success()
                                 ->send();
-                        }),
+                        })
+                        ->visible(fn () => in_array(Auth::user()->role_id, [RoleConstants::ADMIN, ...RoleConstants::teaching()])),
                     Tables\Actions\BulkAction::make('bulk_create_results')
                         ->label('Create Results for Graded')
                         ->icon('heroicon-o-clipboard-document-list')
@@ -565,13 +651,25 @@ class HomeworkSubmissionResource extends Resource
                                 ->success($createdCount > 0)
                                 ->warning($errorCount > 0)
                                 ->send();
-                        }),
+                        })
+                        ->visible(fn () => in_array(Auth::user()->role_id, [RoleConstants::ADMIN, ...RoleConstants::teaching()])),
                 ]),
             ]);
     }
 
     /**
-     * Determine letter grade from numerical marks
+     * Determine letter grade from numerical marks (percentage)
+     * Grade Scale:
+     * A+ : 90-100%
+     * A  : 80-89%
+     * B+ : 75-79%
+     * B  : 70-74%
+     * C+ : 65-69%
+     * C  : 60-64%
+     * D+ : 55-59%
+     * D  : 50-54%
+     * E  : 40-49%
+     * F  : Below 40% (Fail)
      */
     protected static function getGradeFromMarks($marks)
     {
@@ -581,17 +679,29 @@ class HomeworkSubmissionResource extends Resource
         if ($marks >= 80) {
             return 'A';
         }
+        if ($marks >= 75) {
+            return 'B+';
+        }
         if ($marks >= 70) {
             return 'B';
+        }
+        if ($marks >= 65) {
+            return 'C+';
         }
         if ($marks >= 60) {
             return 'C';
         }
+        if ($marks >= 55) {
+            return 'D+';
+        }
         if ($marks >= 50) {
             return 'D';
         }
+        if ($marks >= 40) {
+            return 'E';
+        }
 
-        return 'F';
+        return 'F'; // Below 40% is a Fail
     }
 
     public static function getRelations(): array

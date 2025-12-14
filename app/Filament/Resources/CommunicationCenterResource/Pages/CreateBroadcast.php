@@ -8,6 +8,9 @@ use App\Models\MessageBroadcast;
 use App\Models\MessageTemplate;
 use App\Models\ParentGuardian;
 use App\Models\Student;
+use App\Models\Teacher;
+use App\Models\ClassSection;
+use App\Constants\RoleConstants;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Forms\Get;
@@ -73,15 +76,49 @@ class CreateBroadcast extends CreateRecord
                                     Forms\Components\Grid::make()
                                         ->schema([
                                             Forms\Components\Select::make('grade_id')
-                                                ->label('Grade')
+                                                ->label('Grade/Class')
                                                 ->options(function () {
+                                                    $user = Auth::user();
+
+                                                    // If admin, show all grades
+                                                    if ($user->role_id === RoleConstants::ADMIN) {
+                                                        return Grade::query()
+                                                            ->where('is_active', true)
+                                                            ->orderBy('level')
+                                                            ->pluck('name', 'id')
+                                                            ->toArray();
+                                                    }
+
+                                                    // For teachers, only show grades they teach
+                                                    $teacher = Teacher::where('user_id', $user->id)->first();
+                                                    if (!$teacher) {
+                                                        return [];
+                                                    }
+
+                                                    // Get grades from teacher's class section assignments
+                                                    $gradeIds = DB::table('subject_teachings')
+                                                        ->where('teacher_id', $teacher->id)
+                                                        ->join('class_sections', 'subject_teachings.class_section_id', '=', 'class_sections.id')
+                                                        ->distinct()
+                                                        ->pluck('class_sections.grade_id')
+                                                        ->toArray();
+
+                                                    // Also include teacher's direct class assignment
+                                                    if ($teacher->class_section_id) {
+                                                        $classSection = ClassSection::find($teacher->class_section_id);
+                                                        if ($classSection && !in_array($classSection->grade_id, $gradeIds)) {
+                                                            $gradeIds[] = $classSection->grade_id;
+                                                        }
+                                                    }
+
                                                     return Grade::query()
+                                                        ->whereIn('id', $gradeIds)
                                                         ->where('is_active', true)
                                                         ->orderBy('level')
                                                         ->pluck('name', 'id')
                                                         ->toArray();
                                                 })
-                                                ->placeholder('All Grades')
+                                                ->placeholder('Select Grade/Class')
                                                 ->live(),
 
                                             Forms\Components\Select::make('fee_status')

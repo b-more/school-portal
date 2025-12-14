@@ -2,6 +2,7 @@
 
 namespace App\Policies;
 
+use App\Constants\RoleConstants;
 use App\Models\Result;
 use App\Models\User;
 use App\Models\Employee;
@@ -26,42 +27,32 @@ class ResultPolicy
     public function view(User $user, Result $result)
     {
         // Admin can view all results
-        if ($user->hasRole('admin')) {
+        if ($user->hasRole('admin') || $user->role_id === RoleConstants::ADMIN) {
             return true;
         }
 
-        // Get the employee record for this user
-        $employee = Employee::where('user_id', $user->id)->first();
-
-        if (!$employee) {
-            return false;
-        }
-
-        // Teachers can view results they recorded
-        if ($result->recorded_by === $employee->id) {
+        // Teachers can view all results
+        if (in_array($user->role_id, RoleConstants::teaching())) {
             return true;
         }
 
-        // Teachers can view results for homework they created
-        if ($result->homework_id && $result->homework && $result->homework->assigned_by === $employee->id) {
-            return true;
+        // Students can view their own results
+        if ($user->role_id === RoleConstants::STUDENT) {
+            $student = Student::where('user_id', $user->id)->first();
+            if ($student && $result->student_id === $student->id) {
+                return true;
+            }
         }
 
-        // Teachers can view results from students in their classes and for their subjects
-        if ($employee->role === 'teacher' && $result->student) {
-            // Get teacher's classes
-            $teacherClassIds = $employee->classes()->pluck('id')->toArray();
-
-            // Get teacher's subjects
-            $teacherSubjectIds = $employee->subjects()->pluck('id')->toArray();
-
-            // Get student's class
-            $studentClass = Student::find($result->student_id)->class_id ?? null;
-
-            // Teacher can access if the student is in their class and the result is for their subject
-            return $studentClass &&
-                   in_array($studentClass, $teacherClassIds) &&
-                   in_array($result->subject_id, $teacherSubjectIds);
+        // Parents can view their children's results
+        if ($user->role_id === RoleConstants::PARENT) {
+            $parent = $user->parentGuardian;
+            if ($parent) {
+                $childrenIds = $parent->students()->pluck('id')->toArray();
+                if (in_array($result->student_id, $childrenIds)) {
+                    return true;
+                }
+            }
         }
 
         return false;
@@ -73,13 +64,16 @@ class ResultPolicy
     public function create(User $user)
     {
         // Admin can create results
-        if ($user->hasRole('admin')) {
+        if ($user->hasRole('admin') || $user->role_id === RoleConstants::ADMIN) {
             return true;
         }
 
         // Teachers can create results
-        $employee = Employee::where('user_id', $user->id)->first();
-        return $employee && $employee->role === 'teacher';
+        if (in_array($user->role_id, RoleConstants::teaching())) {
+            return true;
+        }
+
+        return false;
     }
 
     /**
@@ -88,37 +82,13 @@ class ResultPolicy
     public function update(User $user, Result $result)
     {
         // Admin can update any result
-        if ($user->hasRole('admin')) {
+        if ($user->hasRole('admin') || $user->role_id === RoleConstants::ADMIN) {
             return true;
         }
 
-        // Get the employee record
-        $employee = Employee::where('user_id', $user->id)->first();
-
-        if (!$employee) {
-            return false;
-        }
-
-        // Teachers can only update results they recorded
-        if ($result->recorded_by === $employee->id) {
+        // Teachers can update results
+        if (in_array($user->role_id, RoleConstants::teaching())) {
             return true;
-        }
-
-        // Teachers can update results for their classes and subjects (if they have override permission)
-        if ($employee->role === 'teacher' && $employee->can_override_results && $result->student) {
-            // Get teacher's classes
-            $teacherClassIds = $employee->classes()->pluck('id')->toArray();
-
-            // Get teacher's subjects
-            $teacherSubjectIds = $employee->subjects()->pluck('id')->toArray();
-
-            // Get student's class
-            $studentClass = Student::find($result->student_id)->class_id ?? null;
-
-            // Teacher can access if the student is in their class and the result is for their subject
-            return $studentClass &&
-                   in_array($studentClass, $teacherClassIds) &&
-                   in_array($result->subject_id, $teacherSubjectIds);
         }
 
         return false;
@@ -130,6 +100,6 @@ class ResultPolicy
     public function delete(User $user, Result $result)
     {
         // Only admin can delete results
-        return $user->hasRole('admin');
+        return $user->hasRole('admin') || $user->role_id === RoleConstants::ADMIN;
     }
 }

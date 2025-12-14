@@ -141,15 +141,19 @@ class StudentDashboard extends Page
         }
 
         $homeworkIds = Homework::where('grade_id', $student->grade_id)->pluck('id');
-        $submissions = HomeworkSubmission::where('student_id', $student->id);
-        $results = Result::where('student_id', $student->id);
+
+        // Get submissions as a collection to allow multiple operations
+        $submissions = HomeworkSubmission::where('student_id', $student->id)->get();
+
+        // Get average from results
+        $averageGrade = Result::where('student_id', $student->id)->avg('marks');
 
         return [
             'total_homework' => $homeworkIds->count(),
             'submitted' => $submissions->count(),
             'pending' => $this->getPendingHomework()->count(),
             'graded' => $submissions->whereNotNull('marks')->count(),
-            'average_grade' => $results->avg('marks'),
+            'average_grade' => $averageGrade,
         ];
     }
 

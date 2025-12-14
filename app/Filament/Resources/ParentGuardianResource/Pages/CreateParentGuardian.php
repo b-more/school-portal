@@ -167,10 +167,23 @@ class CreateParentGuardian extends CreateRecord
                 'message' => substr($message_string, 0, 30) . '...' // Only log beginning of message for privacy
             ]);
 
-            $url_encoded_message = urlencode($message_string);
+            // Build URL with query parameters (GET request - matching working format)
+            $queryParams = http_build_query([
+                'username' => env('SMS_USERNAME', 'Blessmore'),
+                'password' => env('SMS_PASSWORD', 'Blessmore'),
+                'msg' => $message_string,
+                'shortcode' => env('SMS_SHORTCODE', '2343'),
+                'sender_id' => env('SMS_SENDER_ID', 'StFrancis'),
+                'phone' => '+' . $phone_number,
+                'api_key' => env('SMS_API_KEY', '121231313213123123'),
+            ]);
 
+            $apiUrl = env('SMS_API_URL', 'https://www.cloudservicezm.com/smsservice/httpapi');
+
+            // Send as GET request
             $sendSenderSMS = Http::withoutVerifying()
-                ->post('https://www.cloudservicezm.com/smsservice/httpapi?username=Blessmore&password=Blessmore&msg=' . $url_encoded_message . '&shortcode=2343&sender_id=StFrancis&phone=' . $phone_number . '&api_key=121231313213123123');
+                ->timeout(15)
+                ->get($apiUrl . '?' . $queryParams);
 
             // Log the response
             Log::info('SMS API Response', [
@@ -179,7 +192,7 @@ class CreateParentGuardian extends CreateRecord
                 'to' => substr($phone_number, 0, 6) . '****' . substr($phone_number, -3),
             ]);
 
-            return $sendSenderSMS->successful();
+            return $sendSenderSMS->successful() && (strtolower(trim($sendSenderSMS->body())) === 'success');
         } catch (\Exception $e) {
             Log::error('SMS sending failed', [
                 'error' => $e->getMessage(),

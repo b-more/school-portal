@@ -20,7 +20,7 @@ class GradeSubjectResource extends Resource
 {
     protected static ?string $model = GradeSubject::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-academic-cap';
+    protected static ?string $navigationIcon = 'heroicon-o-squares-2x2';
 
     protected static ?string $navigationGroup = 'Academic Management';
 
@@ -84,9 +84,9 @@ class GradeSubjectResource extends Resource
                     ->falseIcon('heroicon-o-x-circle')
                     ->trueColor('success')
                     ->falseColor('gray'),
-                Tables\Columns\TextColumn::make('teachers')
+                Tables\Columns\TextColumn::make('teachers_display')
                     ->label('Teachers Assigned')
-                    ->formatStateUsing(function ($record) {
+                    ->getStateUsing(function ($record) {
                         $teachers = $record->teachers;
 
                         if ($teachers->isEmpty()) {

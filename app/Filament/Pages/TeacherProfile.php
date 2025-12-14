@@ -47,8 +47,17 @@ class TeacherProfile extends Page implements HasForms
                 'bank_branch' => $teacher->bank_branch,
                 'biography' => $teacher->biography,
                 'profile_photo' => $teacher->profile_photo,
+                'cv_document' => $teacher->cv_document,
+                'police_clearance' => $teacher->police_clearance,
+                'teaching_license' => $teacher->teaching_license,
+                'nrc_copy' => $teacher->nrc_copy,
             ]);
         }
+    }
+
+    protected function getFormStatePath(): ?string
+    {
+        return 'data';
     }
 
     public function getTeacher()
@@ -65,7 +74,6 @@ class TeacherProfile extends Page implements HasForms
                 ->schema([
                     TextInput::make('name')
                         ->label('Full Name')
-                        ->required()
                         ->maxLength(255)
                         ->disabled()
                         ->dehydrated(false),
@@ -73,13 +81,11 @@ class TeacherProfile extends Page implements HasForms
                     TextInput::make('email')
                         ->label('Email Address')
                         ->email()
-                        ->required()
                         ->maxLength(255),
 
                     TextInput::make('phone')
                         ->label('Phone Number')
                         ->tel()
-                        ->required()
                         ->maxLength(20),
 
                     Textarea::make('address')
@@ -90,7 +96,12 @@ class TeacherProfile extends Page implements HasForms
                     FileUpload::make('profile_photo')
                         ->label('Profile Photo')
                         ->image()
+                        ->disk('public')
                         ->directory('teacher-photos')
+                        ->visibility('public')
+                        ->preserveFilenames()
+                        ->openable()
+                        ->downloadable()
                         ->imageResizeMode('cover')
                         ->imageCropAspectRatio('1:1')
                         ->imageResizeTargetWidth('300')
@@ -136,6 +147,63 @@ class TeacherProfile extends Page implements HasForms
                         ->maxLength(1000)
                         ->columnSpanFull(),
                 ]),
+
+            Section::make('Required Documents')
+                ->description('Please upload the following documents for your profile to be complete')
+                ->schema([
+                    FileUpload::make('cv_document')
+                        ->label('Curriculum Vitae (CV)')
+                        ->disk('public')
+                        ->directory('teacher-documents/cv')
+                        ->visibility('public')
+                        ->preserveFilenames()
+                        ->openable()
+                        ->downloadable()
+                        ->previewable()
+                        ->acceptedFileTypes(['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'])
+                        ->maxSize(10240)
+                        ->helperText('Upload your CV (PDF or Word, max 10MB)'),
+
+                    FileUpload::make('police_clearance')
+                        ->label('Police Clearance Certificate')
+                        ->disk('public')
+                        ->directory('teacher-documents/police-clearance')
+                        ->visibility('public')
+                        ->preserveFilenames()
+                        ->openable()
+                        ->downloadable()
+                        ->previewable()
+                        ->acceptedFileTypes(['application/pdf', 'image/jpeg', 'image/png'])
+                        ->maxSize(10240)
+                        ->helperText('Upload your police clearance certificate (PDF or Image, max 10MB)'),
+
+                    FileUpload::make('teaching_license')
+                        ->label('Teaching License')
+                        ->disk('public')
+                        ->directory('teacher-documents/teaching-license')
+                        ->visibility('public')
+                        ->preserveFilenames()
+                        ->openable()
+                        ->downloadable()
+                        ->previewable()
+                        ->acceptedFileTypes(['application/pdf', 'image/jpeg', 'image/png'])
+                        ->maxSize(10240)
+                        ->helperText('Upload your teaching license/certificate (PDF or Image, max 10MB)'),
+
+                    FileUpload::make('nrc_copy')
+                        ->label('NRC Scanned Copy')
+                        ->disk('public')
+                        ->directory('teacher-documents/nrc')
+                        ->visibility('public')
+                        ->preserveFilenames()
+                        ->openable()
+                        ->downloadable()
+                        ->previewable()
+                        ->acceptedFileTypes(['application/pdf', 'image/jpeg', 'image/png'])
+                        ->maxSize(10240)
+                        ->helperText('Upload scanned copy of your NRC (PDF or Image, max 10MB)'),
+                ])
+                ->columns(2),
         ];
     }
 
@@ -153,26 +221,28 @@ class TeacherProfile extends Page implements HasForms
             return;
         }
 
-        // Update teacher profile
-        $teacher->update([
-            'name' => $data['name'],
-            'email' => $data['email'],
-            'phone' => $data['phone'],
-            'address' => $data['address'],
-            'nrc' => $data['nrc'],
-            'tpin' => $data['tpin'],
-            'account_number' => $data['account_number'],
-            'bank_name' => $data['bank_name'],
-            'bank_branch' => $data['bank_branch'],
-            'biography' => $data['biography'],
-            'profile_photo' => $data['profile_photo'],
-        ]);
+        // Update teacher profile - only include fields that are in the form state
+        $updateData = [];
+
+        if (isset($data['email'])) $updateData['email'] = $data['email'];
+        if (isset($data['phone'])) $updateData['phone'] = $data['phone'];
+        if (isset($data['address'])) $updateData['address'] = $data['address'];
+        if (isset($data['account_number'])) $updateData['account_number'] = $data['account_number'];
+        if (isset($data['bank_name'])) $updateData['bank_name'] = $data['bank_name'];
+        if (isset($data['bank_branch'])) $updateData['bank_branch'] = $data['bank_branch'];
+        if (isset($data['biography'])) $updateData['biography'] = $data['biography'];
+        if (array_key_exists('profile_photo', $data)) $updateData['profile_photo'] = $data['profile_photo'];
+        if (array_key_exists('cv_document', $data)) $updateData['cv_document'] = $data['cv_document'];
+        if (array_key_exists('police_clearance', $data)) $updateData['police_clearance'] = $data['police_clearance'];
+        if (array_key_exists('teaching_license', $data)) $updateData['teaching_license'] = $data['teaching_license'];
+        if (array_key_exists('nrc_copy', $data)) $updateData['nrc_copy'] = $data['nrc_copy'];
+
+        $teacher->update($updateData);
 
         // Update user email if changed
-        if ($teacher->user && $teacher->user->email !== $data['email']) {
+        if ($teacher->user && isset($data['email']) && $teacher->user->email !== $data['email']) {
             $teacher->user->update([
                 'email' => $data['email'],
-                'name' => $data['name'],
             ]);
         }
 

@@ -7,9 +7,13 @@ use App\Models\AcademicYear;
 use App\Models\Attendance;
 use App\Models\ClassSection;
 use App\Models\Grade;
+use App\Models\SchoolSettings;
 use App\Models\Student;
+use App\Models\SubjectTeaching;
+use App\Models\Teacher;
 use App\Models\Term;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Concerns\InteractsWithForms;
@@ -44,7 +48,28 @@ class AttendanceReports extends Page implements HasForms, HasTable
 
     public static function shouldRegisterNavigation(): bool
     {
-        return auth()->user()?->role_id === RoleConstants::ADMIN ?? false;
+        $user = auth()->user();
+        if (!$user) {
+            return false;
+        }
+
+        return in_array($user->role_id, [
+            RoleConstants::ADMIN,
+            RoleConstants::TEACHER,
+        ]);
+    }
+
+    public static function canAccess(): bool
+    {
+        $user = auth()->user();
+        if (!$user) {
+            return false;
+        }
+
+        return in_array($user->role_id, [
+            RoleConstants::ADMIN,
+            RoleConstants::TEACHER,
+        ]);
     }
 
     public function mount(): void
@@ -301,6 +326,66 @@ class AttendanceReports extends Page implements HasForms, HasTable
                     ->deselectRecordsAfterCompletion(),
             ])
             ->headerActions([
+                Action::make('export_monthly_register')
+                    ->label('Monthly Register')
+                    ->icon('heroicon-o-table-cells')
+                    ->color('primary')
+                    ->form([
+                        Select::make('class_section_id')
+                            ->label('Class')
+                            ->options(function () {
+                                $user = auth()->user();
+                                $query = ClassSection::with('grade')->where('is_active', true);
+
+                                // If teacher, filter to their assigned classes only
+                                if ($user->role_id === RoleConstants::TEACHER) {
+                                    $teacher = Teacher::where('user_id', $user->id)->first();
+                                    if ($teacher) {
+                                        $classTeacherSections = ClassSection::where('class_teacher_id', $teacher->id)
+                                            ->where('is_active', true)
+                                            ->pluck('id');
+
+                                        $subjectSections = SubjectTeaching::where('teacher_id', $teacher->id)
+                                            ->currentYear()
+                                            ->pluck('class_section_id');
+
+                                        $allowedSections = $classTeacherSections->merge($subjectSections)->unique();
+                                        $query->whereIn('id', $allowedSections);
+                                    }
+                                }
+
+                                return $query->get()
+                                    ->mapWithKeys(fn ($s) => [$s->id => ($s->grade->name ?? '') . ' - ' . $s->name]);
+                            })
+                            ->required()
+                            ->searchable(),
+                        Select::make('month')
+                            ->label('Month')
+                            ->options([
+                                1 => 'January', 2 => 'February', 3 => 'March',
+                                4 => 'April', 5 => 'May', 6 => 'June',
+                                7 => 'July', 8 => 'August', 9 => 'September',
+                                10 => 'October', 11 => 'November', 12 => 'December',
+                            ])
+                            ->default(now()->month)
+                            ->required(),
+                        Select::make('year')
+                            ->label('Year')
+                            ->options(function () {
+                                $year = now()->year;
+                                return [$year - 1 => $year - 1, $year => $year, $year + 1 => $year + 1];
+                            })
+                            ->default(now()->year)
+                            ->required(),
+                        Select::make('format')
+                            ->label('Format')
+                            ->options(['pdf' => 'PDF (Print)', 'csv' => 'CSV (Excel)'])
+                            ->default('pdf')
+                            ->required(),
+                    ])
+                    ->action(function (array $data) {
+                        return $this->exportMonthlyRegister($data);
+                    }),
                 Action::make('export_summary')
                     ->label('Export Summary PDF')
                     ->icon('heroicon-o-document-text')
@@ -441,5 +526,176 @@ class AttendanceReports extends Page implements HasForms, HasTable
                 ->danger()
                 ->send();
         }
+    }
+
+    /**
+     * Export monthly attendance register (matrix format)
+     */
+    protected function exportMonthlyRegister(array $data)
+    {
+        try {
+            $classSectionId = $data['class_section_id'];
+            $month = $data['month'];
+            $year = $data['year'];
+            $format = $data['format'];
+
+            $classSection = ClassSection::with('grade')->find($classSectionId);
+            if (!$classSection) {
+                Notification::make()->title('Class not found')->danger()->send();
+                return;
+            }
+
+            // Get all students in this class
+            $students = Student::where('class_section_id', $classSectionId)
+                ->where('enrollment_status', 'active')
+                ->orderBy('name')
+                ->get();
+
+            // Get date range for the month
+            $startDate = Carbon::create($year, $month, 1)->startOfMonth();
+            $endDate = Carbon::create($year, $month, 1)->endOfMonth();
+            $daysInMonth = $endDate->day;
+
+            // Get all attendance records for this class and month
+            $attendanceRecords = Attendance::where('class_section_id', $classSectionId)
+                ->whereBetween('attendance_date', [$startDate, $endDate])
+                ->get()
+                ->groupBy(function ($record) {
+                    return $record->student_id . '-' . $record->attendance_date->format('Y-m-d');
+                });
+
+            // Build the attendance matrix
+            $attendanceMatrix = [];
+            foreach ($students as $student) {
+                $studentData = [
+                    'id' => $student->id,
+                    'name' => $student->name,
+                    'student_id_number' => $student->student_id_number,
+                    'days' => [],
+                    'present' => 0,
+                    'absent' => 0,
+                    'late' => 0,
+                    'sick' => 0,
+                ];
+
+                for ($day = 1; $day <= $daysInMonth; $day++) {
+                    $date = Carbon::create($year, $month, $day)->format('Y-m-d');
+                    $key = $student->id . '-' . $date;
+
+                    if (isset($attendanceRecords[$key])) {
+                        $record = $attendanceRecords[$key]->first();
+                        $status = $this->getStatusCode($record->status);
+                        $studentData['days'][$day] = $status;
+
+                        if ($status === 'P') $studentData['present']++;
+                        elseif ($status === 'A') $studentData['absent']++;
+                        elseif ($status === 'L') $studentData['late']++;
+                        elseif ($status === 'S') $studentData['sick']++;
+                    } else {
+                        $studentData['days'][$day] = '-';
+                    }
+                }
+
+                $attendanceMatrix[] = $studentData;
+            }
+
+            $schoolSettings = SchoolSettings::getInstance();
+
+            $viewData = [
+                'schoolName' => $schoolSettings->school_name ?? 'School',
+                'schoolLogo' => $schoolSettings->school_logo,
+                'schoolSettings' => $schoolSettings,
+                'classSection' => $classSection,
+                'month' => $startDate->format('F'),
+                'year' => $year,
+                'daysInMonth' => $daysInMonth,
+                'students' => $attendanceMatrix,
+                'reportDate' => now()->format('d/m/Y H:i'),
+                'startDate' => $startDate,
+            ];
+
+            if ($format === 'csv') {
+                return $this->exportMonthlyCSV($viewData);
+            }
+
+            // PDF export
+            $pdf = Pdf::loadView('pdf.attendance-register', $viewData);
+            $pdf->setPaper('a4', 'landscape');
+
+            $filename = 'attendance-register-' . strtolower($startDate->format('F')) . '-' . $year . '.pdf';
+
+            return response()->streamDownload(
+                fn () => print($pdf->output()),
+                $filename,
+                ['Content-Type' => 'application/pdf']
+            );
+
+        } catch (\Exception $e) {
+            Notification::make()
+                ->title('Export Failed')
+                ->body('Error: ' . $e->getMessage())
+                ->danger()
+                ->send();
+        }
+    }
+
+    /**
+     * Get status code letter
+     */
+    protected function getStatusCode(string $status): string
+    {
+        return match ($status) {
+            'present' => 'P',
+            'absent' => 'A',
+            'late' => 'L',
+            'excused', 'sick' => 'S',
+            default => '-',
+        };
+    }
+
+    /**
+     * Export monthly attendance as CSV
+     */
+    protected function exportMonthlyCSV(array $data)
+    {
+        $filename = 'attendance_' . strtolower($data['month']) . '_' . $data['year'] . '.csv';
+
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
+        ];
+
+        $callback = function () use ($data) {
+            $file = fopen('php://output', 'w');
+
+            // Header row with dates
+            $headerRow = ['#', 'Student Name'];
+            for ($day = 1; $day <= $data['daysInMonth']; $day++) {
+                $headerRow[] = $day;
+            }
+            $headerRow[] = 'P';
+            $headerRow[] = 'A';
+            $headerRow[] = 'L';
+            $headerRow[] = 'S';
+            fputcsv($file, $headerRow);
+
+            // Student rows
+            $rowNum = 1;
+            foreach ($data['students'] as $student) {
+                $row = [$rowNum++, $student['name']];
+                for ($day = 1; $day <= $data['daysInMonth']; $day++) {
+                    $row[] = $student['days'][$day] ?? '-';
+                }
+                $row[] = $student['present'];
+                $row[] = $student['absent'];
+                $row[] = $student['late'];
+                $row[] = $student['sick'];
+                fputcsv($file, $row);
+            }
+
+            fclose($file);
+        };
+
+        return response()->stream($callback, 200, $headers);
     }
 }

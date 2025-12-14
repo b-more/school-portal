@@ -11,6 +11,7 @@ use App\Models\AcademicYear;
 use App\Models\Term;
 use App\Models\Grade;
 use App\Services\StudentFeeService;
+use App\Services\SmsService;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Resources\Resource;
@@ -19,7 +20,6 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Http;
 use Carbon\Carbon;
 use App\Constants\RoleConstants;
 use Illuminate\Support\Facades\Auth;
@@ -327,7 +327,10 @@ class StudentFeeResource extends Resource
                                     ->required()
                                     ->default('unpaid')
                                     ->live()
-                                    ->reactive(),
+                                    ->reactive()
+                                    ->disabled()
+                                    ->dehydrated()
+                                    ->helperText('Automatically calculated based on amount paid'),
 
                                 Forms\Components\TextInput::make('amount_paid')
                                     ->numeric()
@@ -1167,29 +1170,29 @@ class StudentFeeResource extends Resource
                $message .= "Status: PARTIALLY PAID. Receipt No: {$studentFee->receipt_number}.";
            }
 
-           // Format phone number
-           $phoneNumber = self::formatPhoneNumber($parentGuardian->phone);
+           // Send SMS using SmsService (handles logging automatically)
+           $smsService = app(SmsService::class);
+           $success = $smsService->send(
+               $message,
+               $parentGuardian->phone,
+               'fee_reminder',
+               $studentFee->id
+           );
 
-           // Send the SMS
-           self::sendMessage($message, $phoneNumber);
-
-           // Log successful SMS
-           Log::info('Fee payment notification sent', [
-               'student_fee_id' => $studentFee->id,
-               'student_id' => $student->id,
-               'parent_id' => $parentGuardian->id,
-               'amount' => $paymentAmount,
-               'total_amount' => $studentFee->feeStructure->total_fee,
-               'balance' => $studentFee->balance,
-               'receipt' => $studentFee->receipt_number
-           ]);
-
-           // Show success notification
-           Notification::make()
-               ->title('Payment Notification Sent')
-               ->body("SMS notification sent to {$parentGuardian->name}.")
-               ->success()
-               ->send();
+           if ($success) {
+               // Show success notification
+               Notification::make()
+                   ->title('Payment Notification Sent')
+                   ->body("SMS notification sent to {$parentGuardian->name}.")
+                   ->success()
+                   ->send();
+           } else {
+               Notification::make()
+                   ->title('SMS Notification Failed')
+                   ->body('Failed to send SMS. Check logs for details.')
+                   ->danger()
+                   ->send();
+           }
 
        } catch (\Exception $e) {
            // Log error
@@ -1209,67 +1212,6 @@ class StudentFeeResource extends Resource
 
            // Re-throw the exception to be caught by the caller
            throw $e;
-       }
-   }
-
-   /**
-    * Format phone number to ensure it has the country code
-    */
-   protected static function formatPhoneNumber(string $phoneNumber): string
-   {
-       // Remove any non-numeric characters
-       $phoneNumber = preg_replace('/[^0-9]/', '', $phoneNumber);
-
-       // Check if number already has country code (260 for Zambia)
-       if (substr($phoneNumber, 0, 3) === '260') {
-           // Number already has country code
-           return $phoneNumber;
-       }
-
-       // If starting with 0, replace with country code
-       if (substr($phoneNumber, 0, 1) === '0') {
-           return '260' . substr($phoneNumber, 1);
-       }
-
-       // If number doesn't have country code, add it
-       if (strlen($phoneNumber) === 9) {
-           return '260' . $phoneNumber;
-       }
-
-       return $phoneNumber;
-   }
-
-   /**
-    * Send a message via SMS
-    */
-   protected static function sendMessage($message_string, $phone_number)
-   {
-       try {
-           // Log the sending attempt
-           Log::info('Sending fee payment SMS notification', [
-               'phone' => $phone_number,
-               'message' => substr($message_string, 0, 30) . '...' // Only log beginning of message for privacy
-           ]);
-
-           $url_encoded_message = urlencode($message_string);
-
-           $sendSenderSMS = Http::withoutVerifying()
-               ->post(env('SMS_API_URL') . '?username=' . env('SMS_USERNAME') . '&password=' . env('SMS_PASSWORD') . '&msg=' . $url_encoded_message . '&shortcode=' . env('SMS_SHORTCODE') . '&sender_id=' . env('SMS_SENDER_ID') . '&phone=' . $phone_number . '&api_key=' . env('SMS_API_KEY'));
-
-           // Log the response
-           Log::info('SMS API Response for fee payment', [
-               'status' => $sendSenderSMS->status(),
-               'body' => $sendSenderSMS->body(),
-               'to' => substr($phone_number, 0, 6) . '****' . substr($phone_number, -3),
-           ]);
-
-           return $sendSenderSMS->successful();
-       } catch (\Exception $e) {
-           Log::error('Fee payment SMS sending failed', [
-               'error' => $e->getMessage(),
-               'phone' => $phone_number,
-           ]);
-           throw $e; // Re-throw to be caught by the calling method
        }
    }
 

@@ -2,6 +2,7 @@
 
 namespace App\Policies;
 
+use App\Constants\RoleConstants;
 use App\Models\HomeworkSubmission;
 use App\Models\User;
 use App\Models\Employee;
@@ -26,45 +27,34 @@ class HomeworkSubmissionPolicy
     public function view(User $user, HomeworkSubmission $submission)
     {
         // Admin can view all submissions
-        if ($user->hasRole('admin')) {
+        if ($user->hasRole('admin') || $user->role_id === RoleConstants::ADMIN) {
             return true;
         }
 
-        // Get the employee record for this user
-        $employee = Employee::where('user_id', $user->id)->first();
+        // Teachers can view all submissions
+        if (in_array($user->role_id, RoleConstants::teaching())) {
+            return true;
+        }
 
-        if (!$employee) {
+        // Students can view their own submissions
+        if ($user->role_id === RoleConstants::STUDENT) {
+            $student = Student::where('user_id', $user->id)->first();
+            if ($student && $submission->student_id === $student->id) {
+                return true;
+            }
             return false;
         }
 
-        // Teachers can view submissions they graded
-        if ($submission->graded_by === $employee->id) {
-            return true;
-        }
-
-        // Teachers can view submissions for homework they created
-        if ($submission->homework && $submission->homework->assigned_by === $employee->id) {
-            return true;
-        }
-
-        // Teachers can view submissions from students in their classes and for their subjects
-        if ($employee->role === 'teacher' && $submission->student && $submission->homework) {
-            // Get teacher's classes
-            $teacherClassIds = $employee->classes()->pluck('id')->toArray();
-
-            // Get teacher's subjects
-            $teacherSubjectIds = $employee->subjects()->pluck('id')->toArray();
-
-            // Get student's class
-            $studentClass = Student::find($submission->student_id)->class_id ?? null;
-
-            // Get homework subject
-            $homeworkSubject = $submission->homework->subject_id ?? null;
-
-            // Teacher can access if the student is in their class and the homework is for their subject
-            return $studentClass && $homeworkSubject &&
-                   in_array($studentClass, $teacherClassIds) &&
-                   in_array($homeworkSubject, $teacherSubjectIds);
+        // Parents can view their children's submissions
+        if ($user->role_id === RoleConstants::PARENT) {
+            $parent = $user->parentGuardian;
+            if ($parent) {
+                $childrenIds = $parent->students()->pluck('id')->toArray();
+                if (in_array($submission->student_id, $childrenIds)) {
+                    return true;
+                }
+            }
+            return false;
         }
 
         return false;
@@ -76,13 +66,23 @@ class HomeworkSubmissionPolicy
     public function create(User $user)
     {
         // Admin can create submissions
-        if ($user->hasRole('admin')) {
+        if ($user->hasRole('admin') || $user->role_id === RoleConstants::ADMIN) {
             return true;
         }
 
         // Teachers can create submissions on behalf of students
-        $employee = Employee::where('user_id', $user->id)->first();
-        return $employee && $employee->role === 'teacher';
+        if (in_array($user->role_id, RoleConstants::teaching())) {
+            return true;
+        }
+
+        // Students can create their own submissions
+        if ($user->role_id === RoleConstants::STUDENT) {
+            $student = Student::where('user_id', $user->id)->first();
+            // Student must exist and be actively enrolled
+            return $student && $student->enrollment_status === 'active';
+        }
+
+        return false;
     }
 
     /**
@@ -91,45 +91,23 @@ class HomeworkSubmissionPolicy
     public function update(User $user, HomeworkSubmission $submission)
     {
         // Admin can update any submission
-        if ($user->hasRole('admin')) {
+        if ($user->hasRole('admin') || $user->role_id === RoleConstants::ADMIN) {
             return true;
         }
 
-        // Get the employee record
-        $employee = Employee::where('user_id', $user->id)->first();
+        // Teachers can update any submission
+        if (in_array($user->role_id, RoleConstants::teaching())) {
+            return true;
+        }
 
-        if (!$employee) {
+        // Students can update their own submissions if not yet graded
+        if ($user->role_id === RoleConstants::STUDENT) {
+            $student = Student::where('user_id', $user->id)->first();
+            if ($student && $submission->student_id === $student->id) {
+                // Only allow updates if submission hasn't been graded yet
+                return $submission->status !== 'graded' && $submission->marks === null;
+            }
             return false;
-        }
-
-        // Teachers can update submissions they graded
-        if ($submission->graded_by === $employee->id) {
-            return true;
-        }
-
-        // Teachers can update submissions for homework they created
-        if ($submission->homework && $submission->homework->assigned_by === $employee->id) {
-            return true;
-        }
-
-        // Teachers can update submissions from students in their classes and for their subjects
-        if ($employee->role === 'teacher' && $submission->student && $submission->homework) {
-            // Get teacher's classes
-            $teacherClassIds = $employee->classes()->pluck('id')->toArray();
-
-            // Get teacher's subjects
-            $teacherSubjectIds = $employee->subjects()->pluck('id')->toArray();
-
-            // Get student's class
-            $studentClass = Student::find($submission->student_id)->class_id ?? null;
-
-            // Get homework subject
-            $homeworkSubject = $submission->homework->subject_id ?? null;
-
-            // Teacher can access if the student is in their class and the homework is for their subject
-            return $studentClass && $homeworkSubject &&
-                   in_array($studentClass, $teacherClassIds) &&
-                   in_array($homeworkSubject, $teacherSubjectIds);
         }
 
         return false;

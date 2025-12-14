@@ -19,7 +19,7 @@ class BusPaymentResource extends Resource
 {
     protected static ?string $model = BusPayment::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-banknotes';
+    protected static ?string $navigationIcon = 'heroicon-o-credit-card';
 
     protected static ?string $navigationGroup = 'Finance Management';
 

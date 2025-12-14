@@ -26,7 +26,7 @@ class StudentResource extends Resource
 {
     protected static ?string $model = Student::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-academic-cap';
+    protected static ?string $navigationIcon = 'heroicon-o-user-group';
 
     protected static ?string $navigationGroup = 'Student Management';
 
@@ -798,19 +798,30 @@ class StudentResource extends Resource
                             $formattedPhone = self::formatPhoneNumber($parentGuardian->phone);
 
                             // Send the SMS with specific message type and reference
-                            $sent = self::sendMessage(
+                            $result = self::sendMessage(
                                 $message,
                                 $formattedPhone,
-                                'student_notification',
+                                'general',
                                 $record->id
                             );
 
-                            // Show success notification
-                            Notification::make()
-                                ->title('SMS Sent')
-                                ->body("Message sent to {$parentGuardian->name} successfully.")
-                                ->success()
-                                ->send();
+                            // Handle result (now returns array)
+                            $success = is_array($result) ? ($result['success'] ?? false) : $result;
+
+                            if ($success) {
+                                Notification::make()
+                                    ->title('SMS Sent')
+                                    ->body("Message sent to {$parentGuardian->name} successfully.")
+                                    ->success()
+                                    ->send();
+                            } else {
+                                $reason = is_array($result) ? ($result['reason'] ?? 'Unknown error') : 'Failed to send SMS';
+                                Notification::make()
+                                    ->title('SMS Failed')
+                                    ->body($reason)
+                                    ->danger()
+                                    ->send();
+                            }
 
                         } catch (\Exception $e) {
                             // Log the error
@@ -1047,6 +1058,20 @@ class StudentResource extends Resource
                         ->action(function ($records, array $data): void {
                             $successCount = 0;
                             $failedCount = 0;
+                            $skippedNoCreditCount = 0;
+
+                            // Check credit balance upfront
+                            $smsService = app(\App\Services\SmsService::class);
+                            $creditCheck = $smsService->canSend($data['message']);
+
+                            if (!$creditCheck['allowed']) {
+                                Notification::make()
+                                    ->title('Cannot Send SMS')
+                                    ->body($creditCheck['reason'] . ' Please top up SMS credits first.')
+                                    ->danger()
+                                    ->send();
+                                return;
+                            }
 
                             foreach ($records as $student) {
                                 // Ensure we have the necessary relationships loaded
@@ -1060,7 +1085,6 @@ class StudentResource extends Resource
                                 // Check if parent guardian exists and has phone
                                 if (! $student->parentGuardian || ! $student->parentGuardian->phone) {
                                     $failedCount++;
-
                                     continue;
                                 }
 
@@ -1080,16 +1104,26 @@ class StudentResource extends Resource
                                     $formattedPhone = self::formatPhoneNumber($student->parentGuardian->phone);
 
                                     // Send the SMS with specific message type and reference
-                                    $sent = self::sendMessage(
+                                    $result = self::sendMessage(
                                         $personalizedMessage,
                                         $formattedPhone,
-                                        'student_bulk_notification',
+                                        'general',
                                         $student->id
                                     );
 
-                                    if ($sent) {
+                                    // Handle result (now returns array)
+                                    $success = is_array($result) ? ($result['success'] ?? false) : $result;
+
+                                    if ($success) {
                                         $successCount++;
                                     } else {
+                                        // Check if it was a credit issue
+                                        $reason = is_array($result) ? ($result['reason'] ?? '') : '';
+                                        if (str_contains(strtolower($reason), 'credit') || str_contains(strtolower($reason), 'insufficient')) {
+                                            $skippedNoCreditCount++;
+                                            // Stop sending if we run out of credit
+                                            break;
+                                        }
                                         $failedCount++;
                                     }
                                 } catch (\Exception $e) {
@@ -1105,11 +1139,16 @@ class StudentResource extends Resource
                             }
 
                             // Show notification with results
+                            $body = "Sent: {$successCount}, Failed: {$failedCount}";
+                            if ($skippedNoCreditCount > 0) {
+                                $body .= ", Skipped (no credit): {$skippedNoCreditCount}";
+                            }
+
                             Notification::make()
                                 ->title('Bulk SMS Results')
-                                ->body("Successfully sent: {$successCount}, Failed: {$failedCount}")
-                                ->success($successCount > 0)
-                                ->warning($failedCount > 0)
+                                ->body($body)
+                                ->success($successCount > 0 && $skippedNoCreditCount === 0)
+                                ->warning($failedCount > 0 || $skippedNoCreditCount > 0)
                                 ->send();
                         })
                         ->deselectRecordsAfterCompletion()
@@ -1234,21 +1273,38 @@ class StudentResource extends Resource
     }
 
     /**
-     * Send a message via SMS and log it
+     * Send a message via SMS using SmsService (with credit checking)
      *
      * @param  string  $message_string  The message content
      * @param  string  $phone_number  The recipient's phone number
      * @param  string  $message_type  The type of message (general, student_notification, etc.)
      * @param  int|null  $reference_id  The ID of the related record (e.g., student ID)
-     * @return bool Whether the message was sent successfully
+     * @return array ['success' => bool, 'reason' => string|null]
      */
     public static function sendMessage($message_string, $phone_number, $message_type = 'general', $reference_id = null)
     {
         try {
-            // Send the SMS
-            $url_encoded_message = urlencode($message_string);
-            $sendSenderSMS = Http::withoutVerifying()
-                ->post('https://www.cloudservicezm.com/smsservice/httpapi?username=Blessmore&password=Blessmore&msg='.$url_encoded_message.'&shortcode=2343&sender_id=StFrancis&phone='.$phone_number.'&api_key=121231313213123123');
+            // Use the SmsService which handles credit checking
+            $smsService = app(\App\Services\SmsService::class);
+
+            // Check if we can send (credit check)
+            $canSend = $smsService->canSend($message_string);
+
+            if (!$canSend['allowed']) {
+                Log::warning('SMS blocked - insufficient credit', [
+                    'reason' => $canSend['reason'],
+                    'balance' => $canSend['balance'] ?? 0,
+                    'cost' => $canSend['cost'] ?? 0,
+                ]);
+
+                // Return array with reason for the UI to display
+                return [
+                    'success' => false,
+                    'reason' => $canSend['reason'],
+                    'balance' => $canSend['balance'] ?? 0,
+                    'cost' => $canSend['cost'] ?? 0,
+                ];
+            }
 
             // Map custom message types to allowed enum values
             $allowedMessageTypes = [
@@ -1258,71 +1314,36 @@ class StudentResource extends Resource
                 'event_notification',
                 'general',
                 'other',
+                'student_credentials',
+                'staff_credentials',
             ];
 
-            // Map your custom types to valid enum values
-            $mappedMessageType = 'general'; // Default
+            $mappedMessageType = in_array($message_type, $allowedMessageTypes)
+                ? $message_type
+                : 'general';
 
-            if ($message_type === 'student_notification' || $message_type === 'student_bulk_notification') {
-                $mappedMessageType = 'general';
-            } elseif (in_array($message_type, $allowedMessageTypes)) {
-                $mappedMessageType = $message_type;
-            }
+            // Send the SMS using SmsService
+            $success = $smsService->send(
+                $message_string,
+                $phone_number,
+                $mappedMessageType,
+                $reference_id
+            );
 
-            // Calculate message cost
-            $messageParts = ceil(strlen($message_string) / 160);
-            $cost = 0.50 * $messageParts;
-
-            // Create log entry
-            DB::table('sms_logs')->insert([
-                'recipient' => $phone_number,
-                'message' => $message_string,
-                'status' => $sendSenderSMS->successful() ? 'sent' : 'failed',
-                'message_type' => $mappedMessageType,
-                'reference_id' => $reference_id,
-                'cost' => $cost,
-                'provider_reference' => $sendSenderSMS->json('message_id') ?? null,
-                'error_message' => $sendSenderSMS->successful() ? null : $sendSenderSMS->body(),
-                'sent_by' => Auth::id(),
-                'created_at' => now(),
-                'updated_at' => now(),
-            ]);
-
-            // Log the response
-            Log::info('SMS API Response', [
-                'status' => $sendSenderSMS->status(),
-                'body' => $sendSenderSMS->body(),
-                'to' => substr($phone_number, 0, 6).'****'.substr($phone_number, -3),
-                'successful' => $sendSenderSMS->successful(),
-            ]);
-
-            return $sendSenderSMS->successful();
+            return [
+                'success' => $success,
+                'reason' => $success ? null : 'Failed to deliver SMS',
+            ];
         } catch (\Exception $e) {
-            // Log the error
             Log::error('SMS sending failed', [
                 'error' => $e->getMessage(),
                 'phone' => $phone_number,
             ]);
 
-            // Try to log the failure
-            try {
-                DB::table('sms_logs')->insert([
-                    'recipient' => $phone_number,
-                    'message' => $message_string,
-                    'status' => 'failed',
-                    'message_type' => 'general', // Safe fallback
-                    'reference_id' => $reference_id,
-                    'cost' => ceil(strlen($message_string) / 160) * 0.50,
-                    'error_message' => $e->getMessage(),
-                    'sent_by' => Auth::id(),
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]);
-            } catch (\Exception $logException) {
-                Log::critical('Could not log SMS failure: '.$logException->getMessage());
-            }
-
-            throw $e; // Re-throw to be caught by the calling method
+            return [
+                'success' => false,
+                'reason' => $e->getMessage(),
+            ];
         }
     }
 

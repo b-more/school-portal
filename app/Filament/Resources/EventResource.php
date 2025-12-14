@@ -23,7 +23,7 @@ class EventResource extends Resource
 {
     protected static ?string $model = Event::class;
 
-    protected static ?string $navigationIcon = 'heroicon-o-calendar';
+    protected static ?string $navigationIcon = 'heroicon-o-calendar-days';
 
     protected static ?string $navigationGroup = 'Website Management';
 
@@ -337,21 +337,20 @@ class EventResource extends Resource
             }
 
             try {
-                // Send SMS
-                SmsService::send($message, $student->parentGuardian->phone);
+                // Send SMS using SmsService (handles logging automatically)
+                $smsService = app(SmsService::class);
+                $success = $smsService->send(
+                    $message,
+                    $student->parentGuardian->phone,
+                    'event_notification',
+                    $event->id
+                );
 
-                // Log the SMS
-                SmsLog::create([
-                    'recipient' => $student->parentGuardian->phone,
-                    'message' => $message,
-                    'status' => 'sent',
-                    'message_type' => 'event_notification',
-                    'reference_id' => $event->id,
-                    'cost' => 1, // Assuming cost per SMS, adjust as needed
-                    'sent_by' => auth()->id(),
-                ]);
-
-                $successCount++;
+                if ($success) {
+                    $successCount++;
+                } else {
+                    $failedCount++;
+                }
             } catch (\Exception $e) {
                 // Log the error
                 Log::error('Failed to send event notification SMS', [
@@ -359,17 +358,6 @@ class EventResource extends Resource
                     'parent_phone' => $student->parentGuardian->phone,
                     'event_id' => $event->id,
                     'error' => $e->getMessage()
-                ]);
-
-                // Log the failed SMS
-                SmsLog::create([
-                    'recipient' => $student->parentGuardian->phone,
-                    'message' => $message,
-                    'status' => 'failed',
-                    'message_type' => 'event_notification',
-                    'reference_id' => $event->id,
-                    'error_message' => $e->getMessage(),
-                    'sent_by' => auth()->id(),
                 ]);
 
                 $failedCount++;

@@ -5,123 +5,180 @@ namespace App\Http\Controllers;
 use App\Constants\RoleConstants;
 use App\Models\Attendance;
 use App\Models\ClassSection;
+use App\Models\SchoolSettings;
 use App\Models\Student;
 use App\Models\Teacher;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class AttendanceController extends Controller
 {
     /**
-     * Export attendance report
+     * Export attendance report - Monthly Register Format
      */
     public function export(Request $request)
     {
         $user = Auth::user();
 
         // Get filter parameters
-        $classSection = $request->get('class_section_id');
-        $startDate = $request->get('start_date', now()->startOfMonth());
-        $endDate = $request->get('end_date', now()->endOfMonth());
-        $format = $request->get('format', 'html'); // html or csv
+        $classSectionId = $request->get('class_section_id');
+        $month = $request->get('month', now()->month);
+        $year = $request->get('year', now()->year);
+        $format = $request->get('format', 'pdf'); // pdf or csv
 
-        // Build query with access control
-        $query = Attendance::with(['student', 'classSection.grade', 'markedBy'])
-            ->whereBetween('attendance_date', [$startDate, $endDate]);
+        if (!$classSectionId) {
+            return back()->with('error', 'Please select a class');
+        }
 
-        // Apply role-based filtering
+        $classSection = ClassSection::with('grade')->find($classSectionId);
+        if (!$classSection) {
+            return back()->with('error', 'Class not found');
+        }
+
+        // Check access
         if ($user->role_id === RoleConstants::TEACHER) {
             $teacher = Teacher::where('user_id', $user->id)->first();
             if ($teacher) {
-                $classSectionIds = $teacher->classSections()->pluck('class_sections.id')->toArray();
-                $query->whereIn('class_section_id', $classSectionIds);
-            }
-        } elseif ($user->role_id === RoleConstants::STUDENT) {
-            $student = Student::where('user_id', $user->id)->first();
-            if ($student) {
-                $query->where('student_id', $student->id);
+                $allowedSections = $teacher->classSections()->pluck('class_sections.id')->toArray();
+                if (!in_array($classSectionId, $allowedSections)) {
+                    return back()->with('error', 'Access denied');
+                }
             }
         }
 
-        // Apply class section filter
-        if ($classSection) {
-            $query->where('class_section_id', $classSection);
-        }
-
-        $attendanceRecords = $query->orderBy('attendance_date', 'desc')
-            ->orderBy('student_id')
+        // Get all students in this class
+        $students = Student::where('class_section_id', $classSectionId)
+            ->where('enrollment_status', 'active')
+            ->orderBy('name')
             ->get();
 
-        // Calculate statistics
-        $totalRecords = $attendanceRecords->count();
-        $presentCount = $attendanceRecords->where('status', 'present')->count();
-        $absentCount = $attendanceRecords->where('status', 'absent')->count();
-        $lateCount = $attendanceRecords->where('status', 'late')->count();
-        $excusedCount = $attendanceRecords->where('status', 'excused')->count();
+        // Get date range for the month
+        $startDate = Carbon::create($year, $month, 1)->startOfMonth();
+        $endDate = Carbon::create($year, $month, 1)->endOfMonth();
+        $daysInMonth = $endDate->day;
 
-        $statistics = [
-            'total' => $totalRecords,
-            'present' => $presentCount,
-            'absent' => $absentCount,
-            'late' => $lateCount,
-            'excused' => $excusedCount,
-            'present_percentage' => $totalRecords > 0 ? round(($presentCount / $totalRecords) * 100, 2) : 0,
-            'absent_percentage' => $totalRecords > 0 ? round(($absentCount / $totalRecords) * 100, 2) : 0,
+        // Get all attendance records for this class and month
+        $attendanceRecords = Attendance::where('class_section_id', $classSectionId)
+            ->whereBetween('attendance_date', [$startDate, $endDate])
+            ->get()
+            ->groupBy(function ($record) {
+                return $record->student_id . '-' . $record->attendance_date->format('Y-m-d');
+            });
+
+        // Build the attendance matrix
+        $attendanceMatrix = [];
+        $totals = [];
+
+        foreach ($students as $student) {
+            $studentData = [
+                'id' => $student->id,
+                'name' => $student->name,
+                'student_id_number' => $student->student_id_number,
+                'days' => [],
+                'present' => 0,
+                'absent' => 0,
+                'late' => 0,
+                'sick' => 0,
+            ];
+
+            for ($day = 1; $day <= $daysInMonth; $day++) {
+                $date = Carbon::create($year, $month, $day)->format('Y-m-d');
+                $key = $student->id . '-' . $date;
+
+                if (isset($attendanceRecords[$key])) {
+                    $record = $attendanceRecords[$key]->first();
+                    $status = $this->getStatusCode($record->status);
+                    $studentData['days'][$day] = $status;
+
+                    // Count totals
+                    if ($status === 'P') $studentData['present']++;
+                    elseif ($status === 'A') $studentData['absent']++;
+                    elseif ($status === 'L') $studentData['late']++;
+                    elseif ($status === 'S') $studentData['sick']++;
+                } else {
+                    $studentData['days'][$day] = '-';
+                }
+            }
+
+            $attendanceMatrix[] = $studentData;
+        }
+
+        // Get school settings
+        $schoolSettings = SchoolSettings::getInstance();
+
+        $data = [
+            'schoolName' => $schoolSettings->school_name ?? 'School',
+            'schoolLogo' => $schoolSettings->school_logo,
+            'classSection' => $classSection,
+            'month' => $startDate->format('F'),
+            'year' => $year,
+            'daysInMonth' => $daysInMonth,
+            'students' => $attendanceMatrix,
+            'reportDate' => now()->format('d/m/Y H:i'),
+            'startDate' => $startDate,
         ];
 
         if ($format === 'csv') {
-            return $this->exportCSV($attendanceRecords, $startDate, $endDate);
+            return $this->exportMonthlyCSV($data);
         }
 
-        // Return HTML view for printing
-        return view('attendance.report', [
-            'records' => $attendanceRecords,
-            'statistics' => $statistics,
-            'startDate' => $startDate,
-            'endDate' => $endDate,
-            'classSection' => $classSection ? ClassSection::find($classSection) : null,
-        ]);
+        // Return PDF/HTML view
+        return view('pdf.attendance-register', $data);
     }
 
     /**
-     * Export attendance as CSV
+     * Get status code letter
      */
-    protected function exportCSV($records, $startDate, $endDate)
+    protected function getStatusCode(string $status): string
     {
-        $filename = 'attendance_report_'.date('Y-m-d').'.csv';
+        return match ($status) {
+            'present' => 'P',
+            'absent' => 'A',
+            'late' => 'L',
+            'excused', 'sick' => 'S',
+            default => '-',
+        };
+    }
+
+    /**
+     * Export monthly attendance as CSV (matrix format)
+     */
+    protected function exportMonthlyCSV(array $data)
+    {
+        $filename = 'attendance_' . strtolower($data['month']) . '_' . $data['year'] . '.csv';
 
         $headers = [
             'Content-Type' => 'text/csv',
-            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+            'Content-Disposition' => 'attachment; filename="' . $filename . '"',
         ];
 
-        $callback = function () use ($records) {
+        $callback = function () use ($data) {
             $file = fopen('php://output', 'w');
 
-            // CSV headers
-            fputcsv($file, [
-                'Date',
-                'Student',
-                'Class',
-                'Status',
-                'Check In',
-                'Check Out',
-                'Notes',
-                'Marked By',
-            ]);
+            // Header row with dates
+            $headerRow = ['#', 'Student Name'];
+            for ($day = 1; $day <= $data['daysInMonth']; $day++) {
+                $headerRow[] = $day;
+            }
+            $headerRow[] = 'P';
+            $headerRow[] = 'A';
+            $headerRow[] = 'L';
+            $headerRow[] = 'S';
+            fputcsv($file, $headerRow);
 
-            // CSV rows
-            foreach ($records as $record) {
-                fputcsv($file, [
-                    $record->attendance_date->format('d/m/Y'),
-                    $record->student->name,
-                    $record->grade->name.' - '.$record->classSection->name,
-                    ucfirst($record->status),
-                    $record->check_in_time ? $record->check_in_time->format('H:i') : '-',
-                    $record->check_out_time ? $record->check_out_time->format('H:i') : '-',
-                    $record->notes ?? '-',
-                    $record->markedBy->name ?? '-',
-                ]);
+            // Student rows
+            $rowNum = 1;
+            foreach ($data['students'] as $student) {
+                $row = [$rowNum++, $student['name']];
+                for ($day = 1; $day <= $data['daysInMonth']; $day++) {
+                    $row[] = $student['days'][$day] ?? '-';
+                }
+                $row[] = $student['present'];
+                $row[] = $student['absent'];
+                $row[] = $student['late'];
+                $row[] = $student['sick'];
+                fputcsv($file, $row);
             }
 
             fclose($file);

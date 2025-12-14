@@ -113,7 +113,7 @@
     </x-filament::section>
 
     <!-- Quick Stats -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
         <x-filament::section>
             <div class="text-center">
                 <x-heroicon-o-user-group class="w-8 h-8 mx-auto text-blue-600 mb-2" />
@@ -127,14 +127,6 @@
                 <x-heroicon-o-book-open class="w-8 h-8 mx-auto text-purple-600 mb-2" />
                 <div class="text-3xl font-bold text-gray-900 dark:text-gray-100">{{ $subjects->count() }}</div>
                 <div class="text-sm text-gray-500 dark:text-gray-400">Subjects</div>
-            </div>
-        </x-filament::section>
-
-        <x-filament::section>
-            <div class="text-center">
-                <x-heroicon-o-calendar class="w-8 h-8 mx-auto text-green-600 mb-2" />
-                <div class="text-3xl font-bold text-gray-900 dark:text-gray-100">{{ $teacher?->join_date ? $teacher->join_date->diffInYears(now()) : 0 }}</div>
-                <div class="text-sm text-gray-500 dark:text-gray-400">Years Teaching</div>
             </div>
         </x-filament::section>
     </div>

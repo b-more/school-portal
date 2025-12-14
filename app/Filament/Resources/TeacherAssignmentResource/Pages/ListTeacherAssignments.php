@@ -49,8 +49,15 @@ class ListTeacherAssignments extends ListRecords
                                 ->multiple()
                                 ->searchable()
                                 ->preload()
-                                ->relationship('parentGuardians', 'name')
-                                ->getOptionLabelFromRecordUsing(fn($record) => "{$record->name} ({$record->phone})")
+                                ->options(function () {
+                                    return ParentGuardian::whereNotNull('phone')
+                                        ->orderBy('name')
+                                        ->get()
+                                        ->mapWithKeys(fn ($parent) => [
+                                            $parent->id => "{$parent->name} ({$parent->phone})"
+                                        ])
+                                        ->toArray();
+                                })
                                 ->visible(fn ($get) => $get('selection_type') === 'manual')
                                 ->required(fn ($get) => $get('selection_type') === 'manual'),
 
@@ -244,14 +251,9 @@ class ListTeacherAssignments extends ListRecords
                             try {
                                 $formattedPhone = $this->formatPhoneNumber($parent->phone);
                                 $this->sendMessage($personalized, $formattedPhone);
-
-                                // Log successful SMS
-                                $this->logSms($parent, $personalized, 'sent');
                                 $successCount++;
 
                             } catch (\Exception $e) {
-                                // Log failed SMS
-                                $this->logSms($parent, $personalized, 'failed', $e->getMessage());
                                 $failCount++;
 
                                 // Log the error
@@ -259,6 +261,17 @@ class ListTeacherAssignments extends ListRecords
                                     'parent_id' => $parent->id,
                                     'error' => $e->getMessage()
                                 ]);
+
+                                // If it's a credit issue, stop sending
+                                if (str_contains(strtolower($e->getMessage()), 'credit') ||
+                                    str_contains(strtolower($e->getMessage()), 'insufficient')) {
+                                    Notification::make()
+                                        ->title('SMS Credits Exhausted')
+                                        ->body('Stopped sending: ' . $e->getMessage())
+                                        ->danger()
+                                        ->send();
+                                    break;
+                                }
                             }
                         }
 
@@ -321,54 +334,32 @@ class ListTeacherAssignments extends ListRecords
     }
 
     /**
-     * Send a message via SMS
+     * Send a message via SMS using SmsService
      */
     protected function sendMessage($message_string, $phone_number)
     {
-        try {
-            // Log the sending attempt
-            Log::info('Sending broadcast SMS', [
-                'phone' => $phone_number,
-                'message' => substr($message_string, 0, 30) . '...' // Only log beginning of message for privacy
-            ]);
+        $smsService = app(SmsService::class);
 
-            $url_encoded_message = urlencode($message_string);
+        // Check if we can send (credit check)
+        $canSend = $smsService->canSend($message_string);
 
-            $sendSenderSMS = \Illuminate\Support\Facades\Http::withoutVerifying()
-                ->post('https://www.cloudservicezm.com/smsservice/httpapi?username=Blessmore&password=Blessmore&msg=' . $url_encoded_message . '&shortcode=2343&sender_id=StFrancis&phone=' . $phone_number . '&api_key=121231313213123123');
-
-            // Log the response
-            Log::info('SMS API Response', [
-                'status' => $sendSenderSMS->status(),
-                'body' => $sendSenderSMS->body(),
-                'to' => substr($phone_number, 0, 6) . '****' . substr($phone_number, -3),
-            ]);
-
-            return $sendSenderSMS->successful();
-        } catch (\Exception $e) {
-            Log::error('SMS sending failed', [
-                'error' => $e->getMessage(),
-                'phone' => $phone_number,
-            ]);
-            throw $e; // Re-throw to be caught by the calling method
+        if (!$canSend['allowed']) {
+            throw new \Exception($canSend['reason'] ?? 'Insufficient SMS credits');
         }
+
+        // Send the SMS (using 'general' type - 'broadcast' added via migration)
+        $success = $smsService->send(
+            $message_string,
+            $phone_number,
+            'general',
+            null
+        );
+
+        if (!$success) {
+            throw new \Exception('Failed to send SMS');
+        }
+
+        return true;
     }
 
-    /**
-     * Log the SMS to the database
-     */
-    protected function logSms($parent, $message, $status, $errorMessage = null)
-    {
-        // Create a log record in the SMS logs table
-        \App\Models\SmsLog::create([
-            'recipient' => $parent->phone,
-            'message' => $message,
-            'status' => $status,
-            'message_type' => 'broadcast',
-            'reference_id' => $parent->id,
-            'cost' => 0.5, // Assuming standard cost per SMS
-            'error_message' => $errorMessage,
-            'sent_by' => auth()->id(),
-        ]);
-    }
 }

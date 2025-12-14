@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Constants\RoleConstants;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -19,6 +20,7 @@ class Teacher extends Model
         'user_id',
         'name',
         'role_id',
+        'school_section_id',
         'is_grade_teacher',
         'employee_id',
         'nrc',
@@ -35,8 +37,12 @@ class Teacher extends Model
         'is_active',
         'is_class_teacher',
         'class_section_id',
-        'grade_id', // Added this field
+        'grade_id',
         'profile_photo',
+        'cv_document',
+        'police_clearance',
+        'teaching_license',
+        'nrc_copy',
         'application_letter',
         'scanned_contract',
         'biography',
@@ -93,6 +99,45 @@ class Teacher extends Model
     public function employee(): BelongsTo
     {
         return $this->belongsTo(Employee::class, 'employee_id');
+    }
+
+    /**
+     * Get the school section for this teacher
+     */
+    public function schoolSection(): BelongsTo
+    {
+        return $this->belongsTo(SchoolSection::class);
+    }
+
+    /**
+     * Get all staff designations for this teacher
+     */
+    public function designations(): BelongsToMany
+    {
+        return $this->belongsToMany(StaffDesignation::class, 'teacher_designations')
+            ->withPivot(['school_section_id', 'assigned_date', 'end_date', 'is_active', 'notes'])
+            ->withTimestamps();
+    }
+
+    /**
+     * Get active designations only
+     */
+    public function activeDesignations(): BelongsToMany
+    {
+        return $this->designations()
+            ->wherePivot('is_active', true)
+            ->where(function ($q) {
+                $q->whereNull('teacher_designations.end_date')
+                  ->orWhere('teacher_designations.end_date', '>=', now());
+            });
+    }
+
+    /**
+     * Get all teacher designation records
+     */
+    public function teacherDesignations(): HasMany
+    {
+        return $this->hasMany(TeacherDesignation::class);
     }
 
     // ============================================
@@ -241,6 +286,32 @@ class Teacher extends Model
         return $query->whereNotNull('specialization');
     }
 
+    /**
+     * Scope for teachers in a specific school section
+     */
+    public function scopeInSection($query, $sectionId)
+    {
+        return $query->where('school_section_id', $sectionId);
+    }
+
+    /**
+     * Scope for teachers with a specific designation code
+     */
+    public function scopeWithDesignation($query, string $code)
+    {
+        return $query->whereHas('designations', function ($q) use ($code) {
+            $q->where('code', $code)->where('teacher_designations.is_active', true);
+        });
+    }
+
+    /**
+     * Scope for section heads (head teachers and deputies)
+     */
+    public function scopeSectionHeads($query)
+    {
+        return $query->whereIn('role_id', RoleConstants::sectionHeads());
+    }
+
     // ============================================
     // HELPER METHODS
     // ============================================
@@ -259,6 +330,128 @@ class Teacher extends Model
     public function isSecondaryTeacher(): bool
     {
         return !empty($this->specialization);
+    }
+
+    /**
+     * Check if teacher has a specific designation by code
+     */
+    public function hasDesignation(string $code): bool
+    {
+        return $this->activeDesignations()
+            ->where('code', $code)
+            ->exists();
+    }
+
+    /**
+     * Check if teacher is a Dean of Teachers
+     */
+    public function isDeanOfTeachers(): bool
+    {
+        return $this->hasDesignation(StaffDesignation::DEAN_OF_TEACHERS);
+    }
+
+    /**
+     * Check if teacher is a Senior Teacher
+     */
+    public function isSeniorTeacher(): bool
+    {
+        return $this->hasDesignation(StaffDesignation::SENIOR_TEACHER);
+    }
+
+    /**
+     * Check if teacher is a Head Teacher (Primary or Secondary)
+     */
+    public function isHeadTeacher(): bool
+    {
+        return RoleConstants::isHeadTeacher($this->role_id ?? 0);
+    }
+
+    /**
+     * Check if teacher is a Deputy Head Teacher (Primary or Secondary)
+     */
+    public function isDeputyHeadTeacher(): bool
+    {
+        return RoleConstants::isDeputyHeadTeacher($this->role_id ?? 0);
+    }
+
+    /**
+     * Check if teacher is a Section Head (Head Teacher or Deputy)
+     */
+    public function isSectionHead(): bool
+    {
+        return RoleConstants::isSectionHead($this->role_id ?? 0);
+    }
+
+    /**
+     * Get the teacher's section (from role or school_section)
+     */
+    public function getSection(): ?SchoolSection
+    {
+        // First check if teacher has a direct school section assigned
+        if ($this->school_section_id) {
+            return $this->schoolSection;
+        }
+
+        // Otherwise, derive from role
+        $sectionCode = RoleConstants::getSectionForRole($this->role_id ?? 0);
+
+        if ($sectionCode) {
+            return SchoolSection::where('code', $sectionCode)->first();
+        }
+
+        return null;
+    }
+
+    /**
+     * Get the section code for this teacher
+     */
+    public function getSectionCode(): ?string
+    {
+        if ($this->school_section_id && $this->schoolSection) {
+            return $this->schoolSection->code;
+        }
+
+        return RoleConstants::getSectionForRole($this->role_id ?? 0);
+    }
+
+    /**
+     * Get merged permissions from all active designations
+     */
+    public function getDesignationPermissions(): array
+    {
+        $permissions = [];
+
+        foreach ($this->activeDesignations as $designation) {
+            if ($designation->permissions) {
+                $permissions = array_merge($permissions, $designation->permissions);
+            }
+        }
+
+        return array_unique($permissions);
+    }
+
+    /**
+     * Get the teacher's hierarchy level (lowest level from designations)
+     */
+    public function getHierarchyLevel(): int
+    {
+        $lowestLevel = 5; // Default to lowest
+
+        // Check role-based hierarchy
+        if ($this->isHeadTeacher()) {
+            $lowestLevel = 1;
+        } elseif ($this->isDeputyHeadTeacher()) {
+            $lowestLevel = 2;
+        }
+
+        // Check designation-based hierarchy
+        foreach ($this->activeDesignations as $designation) {
+            if ($designation->hierarchy_level < $lowestLevel) {
+                $lowestLevel = $designation->hierarchy_level;
+            }
+        }
+
+        return $lowestLevel;
     }
 
     /**

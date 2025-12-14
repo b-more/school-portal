@@ -64,8 +64,8 @@ return [
     */
 
     'temporary_file_upload' => [
-        'disk' => 'public',    // Use public disk for file uploads
-        'rules' => null,       // Example: ['file', 'mimes:png,jpg']  | Default: ['required', 'file', 'max:12288'] (12MB)
+        'disk' => 'local',    // Use local disk for temporary file uploads
+        'rules' => ['file', 'max:51200'],  // 50MB max
         'directory' => 'livewire-tmp',   // Temporary upload directory
         'middleware' => null,  // Example: 'throttle:5,1'             | Default: 'throttle:60,1'
         'preview_mimes' => [   // Supported file types for temporary pre-signed file URLs...
@@ -73,7 +73,7 @@ return [
             'mov', 'avi', 'wmv', 'mp3', 'm4a',
             'jpg', 'jpeg', 'mpga', 'webp', 'wma', 'pdf',
         ],
-        'max_upload_time' => 5, // Max duration (in minutes) before an upload is invalidated...
+        'max_upload_time' => 30, // Max duration (in minutes) before an upload is invalidated...
         'cleanup' => true, // Should cleanup temporary uploads older than 24 hrs...
     ],
 

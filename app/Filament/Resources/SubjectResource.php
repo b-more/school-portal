@@ -20,7 +20,7 @@ use Illuminate\Support\Facades\Auth;
 class SubjectResource extends Resource
 {
     protected static ?string $model = Subject::class;
-    protected static ?string $navigationIcon = 'heroicon-o-book-open';
+    protected static ?string $navigationIcon = 'heroicon-o-puzzle-piece';
     protected static ?string $navigationGroup = 'Academic Configuration';
     protected static ?int $navigationSort = 5;
 

@@ -153,27 +153,37 @@ class UserCredentialResource extends Resource
                         try {
                             $message = "Hello {$record->user->name}, your account credentials: Username: {$record->username}, Password: {$record->password}. Please log in and change your password.";
 
-                            SmsService::send($message, $data['phone']);
+                            // Use SmsService instance instead of static call
+                            $smsService = app(SmsService::class);
+                            $success = $smsService->send($message, $data['phone'], 'student_credentials', $record->id);
 
-                            // Update the credential record
-                            $record->update([
-                                'is_sent' => true,
-                                'sent_at' => now(),
-                                'delivery_method' => 'sms',
-                            ]);
+                            if ($success) {
+                                // Update the credential record
+                                $record->update([
+                                    'is_sent' => true,
+                                    'sent_at' => now(),
+                                    'delivery_method' => 'sms',
+                                ]);
 
-                            // Log success
-                            Log::info('Credentials resent via SMS', [
-                                'user_id' => $record->user_id,
-                                'username' => $record->username,
-                                'phone' => $data['phone'],
-                            ]);
+                                // Log success
+                                Log::info('Credentials resent via SMS', [
+                                    'user_id' => $record->user_id,
+                                    'username' => $record->username,
+                                    'phone' => $data['phone'],
+                                ]);
 
-                            Notification::make()
-                                ->title('Credentials Sent')
-                                ->body("Login credentials successfully sent to {$data['phone']}")
-                                ->success()
-                                ->send();
+                                Notification::make()
+                                    ->title('Credentials Sent')
+                                    ->body("Login credentials successfully sent to {$data['phone']}")
+                                    ->success()
+                                    ->send();
+                            } else {
+                                Notification::make()
+                                    ->title('SMS Failed')
+                                    ->body('Failed to send SMS. Check logs for details.')
+                                    ->danger()
+                                    ->send();
+                            }
 
                         } catch (\Exception $e) {
                             Log::error('Failed to resend credentials via SMS', [

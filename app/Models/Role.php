@@ -194,6 +194,68 @@ class Role extends Model
                 'manage_bus_attendance' => true,
                 'view_assigned_students' => true,
             ],
+            'Head Teacher Primary' => [
+                // Full access to primary section
+                'manage_school_settings' => true,
+                'manage_homework' => true,
+                'manage_results' => true,
+                'view_all_students' => true,
+                'view_all_reports' => true,
+                'create_class_content' => true,
+                // Primary section specific
+                'manage_primary_teachers' => true,
+                'view_primary_students' => true,
+                'manage_primary_curriculum' => true,
+                'view_primary_reports' => true,
+                'manage_primary_staff' => true,
+                'manage_primary_classes' => true,
+                'approve_primary_decisions' => true,
+            ],
+            'Head Teacher Secondary' => [
+                // Full access to secondary section
+                'manage_school_settings' => true,
+                'manage_homework' => true,
+                'manage_results' => true,
+                'view_all_students' => true,
+                'view_all_reports' => true,
+                'create_class_content' => true,
+                // Secondary section specific
+                'manage_secondary_teachers' => true,
+                'view_secondary_students' => true,
+                'manage_secondary_curriculum' => true,
+                'view_secondary_reports' => true,
+                'manage_secondary_staff' => true,
+                'manage_secondary_classes' => true,
+                'approve_secondary_decisions' => true,
+            ],
+            'Deputy Head Primary' => [
+                // Full access to primary section (no system settings)
+                'manage_homework' => true,
+                'manage_results' => true,
+                'view_all_students' => true,
+                'view_all_reports' => true,
+                'create_class_content' => true,
+                // Primary section specific
+                'manage_primary_teachers' => true,
+                'view_primary_students' => true,
+                'manage_primary_curriculum' => true,
+                'view_primary_reports' => true,
+                'manage_primary_classes' => true,
+            ],
+            'Deputy Head Secondary' => [
+                // Full access to secondary section (no system settings)
+                'manage_homework' => true,
+                'manage_results' => true,
+                'view_all_students' => true,
+                'view_all_reports' => true,
+                'create_class_content' => true,
+                // Secondary section specific
+                'manage_secondary_teachers' => true,
+                'view_secondary_students' => true,
+                'manage_secondary_curriculum' => true,
+                'view_secondary_reports' => true,
+                'manage_secondary_classes' => true,
+            ],
         ];
 
         return $defaultPermissions[$this->name] ?? [];

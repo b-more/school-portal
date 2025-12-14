@@ -1,0 +1,4 @@
+name,student_id_number,gender,date_of_birth,place_of_birth,address,grade_id,class_section_id,enrollment_term_id,standard_of_education,enrollment_status,admission_date,previous_school,religious_denomination,medical_information,notes
+John Banda,STU-2025-001,male,2015-05-20,Lusaka,123 Main Street,Grade 2,Grade 2 A,Term 1,Primary,active,2025-01-15,ABC Primary,Catholic,None,
+Jane Mwila,STU-2025-002,female,2014-03-10,Kitwe,45 Independence Ave,Grade 3,Grade 3 A,Term 1,Primary,active,2025-01-15,Nkana Primary,UCZ,Healthy,
+Peter Zulu,STU-2025-003,male,2013-11-22,Ndola,12 Kabelenga Rd,Grade 4,Grade 4 A,Term 1,Primary,active,2025-01-16,Ndola Trust,Catholic,Asthmatic,
