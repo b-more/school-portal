@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages;
 
+use App\Models\Attendance;
 use App\Models\Employee;
 use App\Models\Event;
 use App\Models\Homework;
@@ -12,13 +13,19 @@ use App\Models\Student;
 use App\Models\StudentFee;
 use App\Models\FeeStructure;
 use App\Models\Grade;
-use App\Constants\RoleConstants; // Add this import for role constants
+use App\Models\Subject;
+use App\Models\Term;
+use App\Models\AcademicYear;
+use App\Models\Teacher;
+use App\Constants\RoleConstants;
 use Carbon\Carbon;
 use Filament\Pages\Page;
 use Filament\Widgets\StatsOverviewWidget\Stat;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
 
 class Dashboard extends Page
 {
@@ -251,6 +258,16 @@ class Dashboard extends Page
             ];
         }
 
+        // Add Quick Guide action
+        if ($this->routeExists('quick-guide.view')) {
+            $actions[] = [
+                'title' => 'Quick Guide',
+                'icon' => 'heroicon-o-book-open',
+                'color' => 'violet',
+                'url' => route('quick-guide.view'),
+            ];
+        }
+
         return $actions;
     }
 
@@ -406,6 +423,25 @@ class Dashboard extends Page
         }
     }
 
+    /**
+     * Get the active academic year name
+     */
+    public function getActiveAcademicYear(): string
+    {
+        $academicYear = AcademicYear::current();
+        return $academicYear?->name ?? now()->year;
+    }
+
+    /**
+     * Get academic year and term display string
+     */
+    public function getAcademicYearTermDisplay(): string
+    {
+        $academicYear = $this->getActiveAcademicYear();
+        $term = $this->getCurrentTerm();
+        return "{$academicYear} - {$term}";
+    }
+
     public function getViewData(): array
     {
         return [
@@ -414,6 +450,312 @@ class Dashboard extends Page
             'recentActivity' => $this->getRecentActivity(),
             'upcomingEvents' => $this->getUpcomingEvents(),
             'chartData' => $this->getChartData(),
+            'compactStats' => $this->getCompactStats(),
+            'attendanceStats' => $this->getAttendanceStats(),
+            'financialSummary' => $this->getFinancialSummary(),
+            'topPerformers' => $this->getTopPerformers(),
+            'pendingTasks' => $this->getPendingTasks(),
+            'recentPayments' => $this->getRecentPayments(),
+            'pendingSubmissions' => $this->getPendingSubmissions(),
+            'overdueFeees' => $this->getOverdueFees(),
         ];
+    }
+
+    /**
+     * Get compact statistics for the stats row (7 cards in 3 columns)
+     */
+    public function getCompactStats(): array
+    {
+        return Cache::remember('dashboard_compact_stats', 60, function () {
+            $activeStudents = Student::where('enrollment_status', 'active')->count();
+            $totalTeachers = Teacher::count();
+
+            // Fee calculations
+            $totalCollected = StudentFee::sum('amount_paid');
+            $totalBalance = StudentFee::sum('balance');
+            $totalExpected = $totalCollected + $totalBalance;
+            $collectionRate = $totalExpected > 0 ? round(($totalCollected / $totalExpected) * 100) : 0;
+
+            // Attendance today
+            $today = now()->toDateString();
+            $presentToday = Attendance::where('attendance_date', $today)->where('status', 'present')->count();
+            $attendanceRate = $activeStudents > 0 ? round(($presentToday / $activeStudents) * 100) : 0;
+
+            // Homework
+            $activeHomework = Homework::where('status', 'active')->count();
+            $pendingSubmissions = HomeworkSubmission::where('status', 'submitted')->count();
+
+            // Results - average this term
+            $currentTerm = Term::whereHas('academicYear', fn($q) => $q->where('is_active', true))
+                ->where('is_current', true)->first();
+            $avgMarks = $currentTerm
+                ? Result::where('term', $currentTerm->id)->where('year', now()->year)->avg('marks')
+                : 0;
+
+            // Events this week
+            $eventsThisWeek = Event::whereBetween('start_date', [now()->startOfWeek(), now()->endOfWeek()])->count();
+            $upcomingEvents = Event::where('start_date', '>=', now())->count();
+
+            return [
+                'students' => [
+                    'value' => $activeStudents,
+                    'label' => 'Students',
+                    'icon' => 'academic-cap',
+                    'color' => 'blue',
+                    'subtitle' => 'Active enrolled',
+                ],
+                'teachers' => [
+                    'value' => $totalTeachers,
+                    'label' => 'Teachers',
+                    'icon' => 'users',
+                    'color' => 'indigo',
+                    'subtitle' => 'Teaching staff',
+                ],
+                'fees' => [
+                    'value' => 'K' . number_format($totalCollected, 0),
+                    'label' => 'Fees Collected',
+                    'icon' => 'banknotes',
+                    'color' => 'emerald',
+                    'subtitle' => $collectionRate . '% collection rate',
+                ],
+                'attendance' => [
+                    'value' => $attendanceRate . '%',
+                    'label' => 'Attendance',
+                    'icon' => 'clipboard-document-check',
+                    'color' => 'cyan',
+                    'subtitle' => $presentToday . ' present today',
+                ],
+                'homework' => [
+                    'value' => $activeHomework,
+                    'label' => 'Active H/W',
+                    'icon' => 'document-text',
+                    'color' => 'amber',
+                    'subtitle' => $pendingSubmissions . ' submissions pending',
+                ],
+                'events' => [
+                    'value' => $upcomingEvents,
+                    'label' => 'Events',
+                    'icon' => 'calendar-days',
+                    'color' => 'rose',
+                    'subtitle' => $eventsThisWeek . ' this week',
+                ],
+            ];
+        });
+    }
+
+    /**
+     * Get today's attendance statistics
+     */
+    public function getAttendanceStats(): array
+    {
+        $today = now()->toDateString();
+        $totalStudents = Student::where('enrollment_status', 'active')->count();
+
+        $presentToday = Attendance::where('attendance_date', $today)
+            ->where('status', 'present')->count();
+        $absentToday = Attendance::where('attendance_date', $today)
+            ->where('status', 'absent')->count();
+        $lateToday = Attendance::where('attendance_date', $today)
+            ->where('status', 'late')->count();
+        $excusedToday = Attendance::where('attendance_date', $today)
+            ->where('status', 'excused')->count();
+
+        // Weekly trend
+        $weeklyData = [];
+        for ($i = 6; $i >= 0; $i--) {
+            $date = now()->subDays($i)->toDateString();
+            $present = Attendance::where('attendance_date', $date)
+                ->where('status', 'present')->count();
+            $weeklyData[] = [
+                'date' => now()->subDays($i)->format('D'),
+                'present' => $present,
+                'rate' => $totalStudents > 0 ? round(($present / $totalStudents) * 100) : 0,
+            ];
+        }
+
+        return [
+            'total' => $totalStudents,
+            'present' => $presentToday,
+            'absent' => $absentToday,
+            'late' => $lateToday,
+            'excused' => $excusedToday,
+            'rate' => $totalStudents > 0 ? round(($presentToday / $totalStudents) * 100) : 0,
+            'weekly' => $weeklyData,
+        ];
+    }
+
+    /**
+     * Get financial summary for charts
+     */
+    public function getFinancialSummary(): array
+    {
+        // Monthly collection trend (last 6 months)
+        $monthlyData = [];
+        for ($i = 5; $i >= 0; $i--) {
+            $month = now()->subMonths($i);
+            $collected = StudentFee::whereMonth('updated_at', $month->month)
+                ->whereYear('updated_at', $month->year)
+                ->where('amount_paid', '>', 0)
+                ->sum('amount_paid');
+            $monthlyData[] = [
+                'month' => $month->format('M'),
+                'collected' => $collected,
+            ];
+        }
+
+        // Collection by grade (for donut chart)
+        $byGrade = StudentFee::join('students', 'student_fees.student_id', '=', 'students.id')
+            ->join('grades', 'students.grade_id', '=', 'grades.id')
+            ->select('grades.name as grade', DB::raw('sum(student_fees.amount_paid) as collected'))
+            ->groupBy('grades.id', 'grades.name')
+            ->orderBy('grades.level')
+            ->get()
+            ->toArray();
+
+        // Outstanding balances
+        $totalOutstanding = StudentFee::where('balance', '>', 0)->sum('balance');
+        $studentsWithBalance = StudentFee::where('balance', '>', 0)->distinct('student_id')->count('student_id');
+
+        return [
+            'monthly' => $monthlyData,
+            'byGrade' => $byGrade,
+            'totalOutstanding' => $totalOutstanding,
+            'studentsWithBalance' => $studentsWithBalance,
+        ];
+    }
+
+    /**
+     * Get top performing students
+     */
+    public function getTopPerformers(int $limit = 5): array
+    {
+        $currentTerm = Term::whereHas('academicYear', fn($q) => $q->where('is_active', true))
+            ->where('is_current', true)->first();
+
+        if (!$currentTerm) {
+            return [];
+        }
+
+        return Result::where('term', $currentTerm->id)
+            ->where('year', now()->year)
+            ->select('student_id', DB::raw('AVG(marks) as average'), DB::raw('COUNT(*) as subjects'))
+            ->groupBy('student_id')
+            ->having('subjects', '>=', 3)
+            ->orderByDesc('average')
+            ->limit($limit)
+            ->with('student:id,name,student_id_number')
+            ->get()
+            ->map(function ($result, $index) {
+                return [
+                    'rank' => $index + 1,
+                    'name' => $result->student->name ?? 'Unknown',
+                    'student_id' => $result->student->student_id_number ?? '-',
+                    'average' => round($result->average, 1),
+                    'subjects' => $result->subjects,
+                ];
+            })
+            ->toArray();
+    }
+
+    /**
+     * Get pending tasks requiring attention
+     */
+    public function getPendingTasks(): array
+    {
+        // Ungraded submissions
+        $ungradedSubmissions = HomeworkSubmission::where('status', 'submitted')
+            ->whereNull('marks')
+            ->count();
+
+        // Overdue homework
+        $overdueHomework = Homework::where('status', 'active')
+            ->where('due_date', '<', now())
+            ->count();
+
+        // Students without fees assigned
+        $studentsWithoutFees = Student::where('enrollment_status', 'active')
+            ->whereDoesntHave('fees')
+            ->count();
+
+        // Overdue fee balances (more than 30 days)
+        $overdueBalances = StudentFee::where('balance', '>', 0)
+            ->where('updated_at', '<', now()->subDays(30))
+            ->count();
+
+        return [
+            'ungraded' => $ungradedSubmissions,
+            'overdueHomework' => $overdueHomework,
+            'noFees' => $studentsWithoutFees,
+            'overdueBalances' => $overdueBalances,
+            'total' => $ungradedSubmissions + $overdueHomework + $studentsWithoutFees + $overdueBalances,
+        ];
+    }
+
+    /**
+     * Get recent payments for mini table
+     */
+    public function getRecentPayments(int $limit = 7): array
+    {
+        return StudentFee::where('amount_paid', '>', 0)
+            ->with(['student:id,name', 'feeStructure.grade:id,name'])
+            ->orderByDesc('updated_at')
+            ->limit($limit)
+            ->get()
+            ->map(function ($fee) {
+                return [
+                    'student' => $fee->student->name ?? 'Unknown',
+                    'amount' => $fee->amount_paid,
+                    'grade' => $fee->feeStructure?->grade?->name ?? '-',
+                    'date' => $fee->updated_at->format('M d'),
+                    'status' => $fee->payment_status,
+                ];
+            })
+            ->toArray();
+    }
+
+    /**
+     * Get pending homework submissions for mini table
+     */
+    public function getPendingSubmissions(int $limit = 7): array
+    {
+        return HomeworkSubmission::where('status', 'submitted')
+            ->whereNull('marks')
+            ->with(['student:id,name', 'homework:id,title,subject_id,due_date', 'homework.subject:id,name'])
+            ->orderByDesc('created_at')
+            ->limit($limit)
+            ->get()
+            ->map(function ($submission) {
+                return [
+                    'student' => $submission->student->name ?? 'Unknown',
+                    'homework' => $submission->homework->title ?? '-',
+                    'subject' => $submission->homework?->subject?->name ?? '-',
+                    'submitted' => $submission->created_at->diffForHumans(),
+                    'due' => $submission->homework?->due_date?->format('M d') ?? '-',
+                ];
+            })
+            ->toArray();
+    }
+
+    /**
+     * Get overdue fee balances for mini table
+     */
+    public function getOverdueFees(int $limit = 7): array
+    {
+        return StudentFee::where('balance', '>', 0)
+            ->with(['student:id,name', 'feeStructure.grade:id,name'])
+            ->orderByDesc('balance')
+            ->limit($limit)
+            ->get()
+            ->map(function ($fee) {
+                $daysOverdue = $fee->updated_at->diffInDays(now());
+                return [
+                    'student' => $fee->student->name ?? 'Unknown',
+                    'balance' => $fee->balance,
+                    'grade' => $fee->feeStructure?->grade?->name ?? '-',
+                    'days' => $daysOverdue,
+                    'status' => $daysOverdue > 30 ? 'critical' : ($daysOverdue > 14 ? 'warning' : 'normal'),
+                ];
+            })
+            ->toArray();
     }
 }

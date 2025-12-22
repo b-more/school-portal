@@ -10,32 +10,38 @@ export default {
     theme: {
         extend: {
             colors: {
+                // St. Francis of Assisi School Corporate Colors
+                // Navy Blue Primary, Crimson Red Secondary
                 primary: {
-                    50: '#e6edff',
-                    100: '#ccdaff',
-                    200: '#99b5ff',
-                    300: '#668fff',
-                    400: '#3366ff',
-                    500: '#1D4ED8', // Royal Blue
-                    600: '#0033cc',
-                    700: '#002699',
-                    800: '#001966',
-                    900: '#000d33',
-                    950: '#000619',
+                    50: '#f0f4f8',
+                    100: '#d9e2ec',
+                    200: '#bcccdc',
+                    300: '#9fb3c8',
+                    400: '#829ab1',
+                    500: '#2c5282',     // Lighter navy
+                    600: '#1e3a5f',     // Main Navy Blue
+                    700: '#1a3352',
+                    800: '#162c46',
+                    900: '#12243a',
+                    950: '#0d1a2a',
                 },
                 secondary: {
-                    50: '#fefbf0',
-                    100: '#fef7e1',
-                    200: '#fcefc3',
-                    300: '#fbe7a5',
-                    400: '#f9df87',
-                    500: '#FFC107', // Yellow
-                    600: '#cc9a05',
-                    700: '#997404',
-                    800: '#664d03',
-                    900: '#332601',
-                    950: '#1a1301',
-                }
+                    50: '#fef2f2',
+                    100: '#fee2e2',
+                    200: '#fecaca',
+                    300: '#fca5a5',
+                    400: '#f87171',
+                    500: '#dc2626',     // School Crimson Red
+                    600: '#b91c1c',
+                    700: '#991b1b',
+                    800: '#7f1d1d',
+                    900: '#6b1a1a',
+                    950: '#450a0a',
+                },
+                // Additional school-themed colors
+                'school-navy': '#1e3a5f',
+                'school-red': '#dc2626',
+                'school-gold': '#d97706',
             }
         }
     }

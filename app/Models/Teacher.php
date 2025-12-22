@@ -153,6 +153,23 @@ class Teacher extends Model
     }
 
     /**
+     * Get all timetable entries for this teacher
+     */
+    public function timetableEntries(): HasMany
+    {
+        return $this->hasMany(TimetableEntry::class);
+    }
+
+    /**
+     * Get timetable for a specific academic year
+     */
+    public function getTimetable(?int $academicYearId = null): array
+    {
+        $yearId = $academicYearId ?? AcademicYear::current()?->id;
+        return $yearId ? TimetableEntry::getTeacherTimetable($this->id, $yearId) : [];
+    }
+
+    /**
      * Get all subjects taught by this teacher
      */
     public function subjects(): BelongsToMany

@@ -73,6 +73,23 @@ class ClassSection extends Model
     }
 
     /**
+     * Get all timetable entries for this class section
+     */
+    public function timetableEntries(): HasMany
+    {
+        return $this->hasMany(TimetableEntry::class);
+    }
+
+    /**
+     * Get timetable for a specific academic year
+     */
+    public function getTimetable(?int $academicYearId = null): array
+    {
+        $yearId = $academicYearId ?? AcademicYear::current()?->id;
+        return $yearId ? TimetableEntry::getClassTimetable($this->id, $yearId) : [];
+    }
+
+    /**
      * Get the employees associated with this class section through teachers
      */
     public function employees(): BelongsToMany
