@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Constants\RoleConstants;
 use App\Filament\Resources\AttendanceResource\Pages;
+use App\Filament\Resources\AttendanceResource\Widgets;
 use App\Models\Attendance;
 use App\Models\ClassSection;
 use App\Models\Student;
@@ -150,6 +151,7 @@ class AttendanceResource extends Resource
                             ->options([
                                 'present' => 'Present',
                                 'absent' => 'Absent',
+                                'sick' => 'Sick',
                                 'late' => 'Late',
                                 'excused' => 'Excused',
                             ])
@@ -234,14 +236,16 @@ class AttendanceResource extends Resource
                     ->colors([
                         'success' => 'present',
                         'danger' => 'absent',
+                        'info' => 'sick',
                         'warning' => 'late',
-                        'info' => 'excused',
+                        'purple' => 'excused',
                     ])
                     ->formatStateUsing(fn (string $state): string => ucfirst($state))
                     ->size('lg')
                     ->icons([
                         'heroicon-o-check-circle' => 'present',
                         'heroicon-o-x-circle' => 'absent',
+                        'heroicon-o-heart' => 'sick',
                         'heroicon-o-clock' => 'late',
                         'heroicon-o-shield-check' => 'excused',
                     ]),
@@ -281,6 +285,7 @@ class AttendanceResource extends Resource
                     ->options([
                         'present' => 'Present',
                         'absent' => 'Absent',
+                        'sick' => 'Sick',
                         'late' => 'Late',
                         'excused' => 'Excused',
                     ]),
@@ -380,6 +385,14 @@ class AttendanceResource extends Resource
                     ->visible($canEdit),
             ])
             ->defaultSort('attendance_date', 'desc');
+    }
+
+    public static function getWidgets(): array
+    {
+        return [
+            Widgets\AttendanceDailyRegister::class,
+            Widgets\FlaggedStudentsWidget::class,
+        ];
     }
 
     public static function getRelations(): array

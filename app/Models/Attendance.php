@@ -135,6 +135,21 @@ class Attendance extends Model
     }
 
     /**
+     * Get the status symbol (single source of truth for P/X/S/Y/L mapping)
+     */
+    public static function getStatusSymbol(string $status): string
+    {
+        return match ($status) {
+            'present' => 'P',
+            'absent' => 'X',
+            'sick' => 'S',
+            'late' => 'Y',
+            'excused' => 'L',
+            default => '-',
+        };
+    }
+
+    /**
      * Get formatted status
      */
     public function getFormattedStatusAttribute(): string
@@ -142,6 +157,7 @@ class Attendance extends Model
         return match ($this->status) {
             'present' => 'Present',
             'absent' => 'Absent',
+            'sick' => 'Sick',
             'late' => 'Late',
             'excused' => 'Excused',
             default => 'Unknown'
@@ -170,5 +186,13 @@ class Attendance extends Model
     public function wasLate(): bool
     {
         return $this->status === 'late';
+    }
+
+    /**
+     * Check if student was sick
+     */
+    public function wasSick(): bool
+    {
+        return $this->status === 'sick';
     }
 }

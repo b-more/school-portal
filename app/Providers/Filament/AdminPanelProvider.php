@@ -6,6 +6,7 @@ use App\Filament\Pages\Dashboard;  // Your custom admin dashboard
 use App\Filament\Pages\TeacherDashboard;
 use App\Filament\Pages\TeacherProfile;
 use App\Filament\Pages\MySchedule;
+use App\Filament\Pages\MyTeachingDocuments;
 use App\Filament\Pages\MyReports;
 use App\Filament\Pages\ParentDashboard;
 use App\Filament\Pages\StudentDashboard;
@@ -144,6 +145,7 @@ class AdminPanelProvider extends PanelProvider
                 TeacherDashboard::class,
                 TeacherProfile::class,
                 MySchedule::class,
+                MyTeachingDocuments::class,
                 MyReports::class,
                 ParentDashboard::class,
                 StudentDashboard::class,
@@ -204,172 +206,151 @@ class AdminPanelProvider extends PanelProvider
                 'panels::styles.after',
                 fn () => new \Illuminate\Support\HtmlString('
                     <style>
-                        /* St. Francis of Assisi School - Corporate Colors */
-                        /* Navy Blue: #1e3a5f | Crimson Red: #dc2626 */
+                        /* =============================================
+                           St. Francis of Assisi — Corporate Panel Theme
+                           Navy: #1e3a5f  |  Red: #dc2626
+                           ============================================= */
 
                         :root {
-                            --school-navy: 30, 58, 95;
-                            --school-red: 220, 38, 38;
+                            --sfa-navy: #1e3a5f;
+                            --sfa-navy-deep: #162c46;
+                            --sfa-red: #dc2626;
+                            --sfa-red-dark: #b91c1c;
                         }
 
-                        /* Login Page Styling */
+                        /* ---- LOGIN ---- */
                         .fi-simple-layout {
                             background: linear-gradient(135deg, #1e3a5f 0%, #2c5282 50%, #1e3a5f 100%) !important;
                         }
 
-                        /* ===== SIDEBAR - Navy Blue Background ===== */
+                        /* ---- SIDEBAR — Dark Navy ---- */
                         .fi-sidebar {
-                            background: linear-gradient(180deg, #1e3a5f 0%, #162c46 100%) !important;
+                            background: linear-gradient(180deg, #1e3a5f 0%, #142638 100%) !important;
+                            border-right: none !important;
                         }
 
                         .fi-sidebar-header {
-                            border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+                            border-bottom: 1px solid rgba(255,255,255,0.08) !important;
+                            background: transparent !important;
                         }
 
-                        /* Sidebar Nav Items - White Text */
+                        /* Brand text in sidebar */
+                        .fi-sidebar-header a span,
+                        .fi-sidebar-header a {
+                            color: #ffffff !important;
+                        }
+
+                        .fi-sidebar-nav {
+                            padding: 8px 0 !important;
+                        }
+
+                        /* Nav items */
+                        .fi-sidebar-item {
+                            background: transparent !important;
+                        }
+
+                        .fi-sidebar-item-button {
+                            background: transparent !important;
+                            border-radius: 8px !important;
+                            margin: 1px 10px !important;
+                            padding: 8px 12px !important;
+                            transition: all 0.15s ease !important;
+                        }
+
                         .fi-sidebar-item-label {
-                            color: rgba(255, 255, 255, 0.85) !important;
-                            font-weight: 500;
+                            color: rgba(255,255,255,0.75) !important;
+                            font-weight: 500 !important;
+                            font-size: 0.835rem !important;
                         }
 
                         .fi-sidebar-item-icon {
-                            color: rgba(255, 255, 255, 0.7) !important;
+                            color: rgba(255,255,255,0.5) !important;
+                            width: 18px !important;
+                            height: 18px !important;
                         }
 
-                        /* Sidebar Hover */
+                        /* Hover */
                         .fi-sidebar-item-button:hover {
-                            background: rgba(255, 255, 255, 0.1) !important;
-                            border-radius: 0.5rem;
+                            background: rgba(255,255,255,0.08) !important;
                         }
-
-                        .fi-sidebar-item-button:hover .fi-sidebar-item-label,
+                        .fi-sidebar-item-button:hover .fi-sidebar-item-label {
+                            color: #ffffff !important;
+                        }
                         .fi-sidebar-item-button:hover .fi-sidebar-item-icon {
-                            color: white !important;
+                            color: rgba(255,255,255,0.85) !important;
                         }
 
-                        /* ===== ACTIVE MENU - Red Background ===== */
+                        /* Active item — Red accent */
                         .fi-sidebar-item-active .fi-sidebar-item-button {
-                            background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%) !important;
-                            border-radius: 0.5rem;
-                            margin: 0 0.5rem;
-                            box-shadow: 0 4px 12px rgba(220, 38, 38, 0.4);
+                            background: var(--sfa-red) !important;
+                            box-shadow: 0 4px 14px rgba(220,38,38,0.35) !important;
                         }
-
                         .fi-sidebar-item-active .fi-sidebar-item-label {
-                            color: white !important;
-                            font-weight: 600;
+                            color: #ffffff !important;
+                            font-weight: 600 !important;
                         }
-
                         .fi-sidebar-item-active .fi-sidebar-item-icon {
-                            color: white !important;
+                            color: #ffffff !important;
                         }
 
-                        /* Sidebar Group Labels */
+                        /* Group labels */
                         .fi-sidebar-group-label {
-                            color: rgba(255, 255, 255, 0.5) !important;
-                            font-size: 0.7rem;
-                            text-transform: uppercase;
-                            letter-spacing: 0.05em;
+                            color: rgba(255,255,255,0.35) !important;
+                            font-size: 0.65rem !important;
+                            font-weight: 700 !important;
+                            text-transform: uppercase !important;
+                            letter-spacing: 0.08em !important;
+                            padding-left: 22px !important;
+                            padding-right: 12px !important;
                         }
 
-                        /* Sidebar Collapse Button */
+                        /* Collapse buttons */
                         .fi-sidebar-close-btn,
                         .fi-sidebar-open-btn {
-                            color: white !important;
+                            color: rgba(255,255,255,0.6) !important;
+                        }
+                        .fi-sidebar-close-btn:hover,
+                        .fi-sidebar-open-btn:hover {
+                            color: #ffffff !important;
                         }
 
-                        /* Topbar */
+                        /* Sidebar footer / user */
+                        .fi-sidebar-footer {
+                            border-top: 1px solid rgba(255,255,255,0.08) !important;
+                        }
+
+                        /* Sidebar scrollbar */
+                        .fi-sidebar::-webkit-scrollbar { width: 4px; }
+                        .fi-sidebar::-webkit-scrollbar-track { background: transparent; }
+                        .fi-sidebar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 2px; }
+
+                        /* ---- TOPBAR ---- */
                         .fi-topbar {
-                            background: white !important;
-                            border-bottom: 1px solid #e5e7eb;
+                            background: #ffffff !important;
+                            border-bottom: 1px solid #e5e7eb !important;
+                            box-shadow: 0 1px 2px rgba(0,0,0,0.04) !important;
                         }
-
+                        .fi-topbar nav { background: transparent !important; }
                         .dark .fi-topbar {
-                            background: #1f2937 !important;
-                            border-bottom: 1px solid #374151;
+                            background: #111827 !important;
+                            border-bottom-color: #1f2937 !important;
                         }
 
-                        /* Primary Buttons */
-                        .fi-btn-primary {
-                            background: linear-gradient(135deg, #1e3a5f, #2c5282) !important;
-                            box-shadow: 0 4px 12px rgba(30, 58, 95, 0.25);
-                        }
+                        /* ---- BODY ---- */
+                        .fi-body { background: #f8fafc !important; }
+                        .fi-main { background: #f8fafc !important; }
+                        .dark .fi-body { background: #0f172a !important; }
+                        .dark .fi-main { background: #0f172a !important; }
 
-                        .fi-btn-primary:hover {
-                            background: linear-gradient(135deg, #162c46, #1e3a5f) !important;
+                        /* ---- DARK MODE SIDEBAR ---- */
+                        .dark .fi-sidebar {
+                            background: linear-gradient(180deg, #0f172a 0%, #0a1120 100%) !important;
                         }
-
-                        /* Table Headers */
-                        .fi-ta-header-cell {
-                            background: rgba(30, 58, 95, 0.05) !important;
+                        .dark .fi-sidebar-header {
+                            border-bottom-color: rgba(255,255,255,0.06) !important;
                         }
-
-                        .dark .fi-ta-header-cell {
-                            background: rgba(30, 58, 95, 0.2) !important;
-                        }
-
-                        /* Section Headers */
-                        .fi-header-heading {
-                            color: #1e3a5f !important;
-                        }
-
-                        .dark .fi-header-heading {
-                            color: #93c5fd !important;
-                        }
-
-                        /* Pagination Active */
-                        .fi-pagination-item-active {
-                            background: #1e3a5f !important;
-                        }
-
-                        /* Tabs */
-                        .fi-tabs-tab-active {
-                            border-color: #1e3a5f !important;
-                            color: #1e3a5f !important;
-                        }
-
-                        .dark .fi-tabs-tab-active {
-                            border-color: #93c5fd !important;
-                            color: #93c5fd !important;
-                        }
-
-                        /* Toggle */
-                        .fi-toggle-input:checked {
-                            background-color: #1e3a5f !important;
-                        }
-
-                        /* Custom Scrollbar */
-                        ::-webkit-scrollbar {
-                            width: 8px;
-                            height: 8px;
-                        }
-                        ::-webkit-scrollbar-track {
-                            background: #f1f5f9;
-                        }
-                        ::-webkit-scrollbar-thumb {
-                            background: #cbd5e1;
-                            border-radius: 4px;
-                        }
-                        ::-webkit-scrollbar-thumb:hover {
-                            background: #94a3b8;
-                        }
-
-                        /* Sidebar Scrollbar */
-                        .fi-sidebar::-webkit-scrollbar-track {
-                            background: rgba(255, 255, 255, 0.05);
-                        }
-                        .fi-sidebar::-webkit-scrollbar-thumb {
-                            background: rgba(255, 255, 255, 0.2);
-                        }
-                        .fi-sidebar::-webkit-scrollbar-thumb:hover {
-                            background: rgba(255, 255, 255, 0.3);
-                        }
-
-                        .dark ::-webkit-scrollbar-track {
-                            background: #1e293b;
-                        }
-                        .dark ::-webkit-scrollbar-thumb {
-                            background: #475569;
+                        .dark .fi-sidebar-item-active .fi-sidebar-item-button {
+                            background: var(--sfa-red) !important;
                         }
                     </style>
                 ')

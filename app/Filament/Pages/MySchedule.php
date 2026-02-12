@@ -4,9 +4,10 @@ namespace App\Filament\Pages;
 
 use App\Constants\RoleConstants;
 use App\Models\AcademicYear;
+use App\Models\Homework;
+use App\Models\Student;
 use App\Models\Teacher;
-use App\Models\TimetableEntry;
-use App\Models\TimetablePeriod;
+use App\Models\Term;
 use Filament\Pages\Page;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -23,8 +24,24 @@ class MySchedule extends Page
     {
         $user = Auth::user();
         return Teacher::where('user_id', $user->id)
-            ->with(['subjectTeachings.subject', 'subjectTeachings.classSection.grade', 'grade', 'classSection'])
+            ->with([
+                'subjectTeachings.subject',
+                'subjectTeachings.classSection.grade',
+                'subjectTeachings.classSection.students',
+                'grade',
+                'classSection',
+            ])
             ->first();
+    }
+
+    public function getAcademicYear(): ?AcademicYear
+    {
+        return AcademicYear::current();
+    }
+
+    public function getCurrentTerm(): ?Term
+    {
+        return Term::current();
     }
 
     public function getMyClasses(): Collection
@@ -35,10 +52,13 @@ class MySchedule extends Page
             return collect();
         }
 
+        $currentYear = $this->getAcademicYear();
+
         return $teacher->subjectTeachings()
-            ->with(['subject', 'classSection.grade'])
+            ->when($currentYear, fn($q) => $q->where('academic_year_id', $currentYear->id))
+            ->with(['subject', 'classSection.grade', 'classSection.students'])
             ->get()
-            ->groupBy('classSection.id');
+            ->groupBy('class_section_id');
     }
 
     public function getMySubjects(): Collection
@@ -53,115 +73,52 @@ class MySchedule extends Page
     }
 
     /**
-     * Get the current academic year
+     * Get total students across all teaching assignments
      */
-    public function getAcademicYear(): ?AcademicYear
+    public function getTotalStudents(): int
     {
-        return AcademicYear::current();
+        $classes = $this->getMyClasses();
+
+        return $classes->sum(function ($teachings) {
+            $classSection = $teachings->first()->classSection;
+            return $classSection ? $classSection->students->where('enrollment_status', 'active')->count() : 0;
+        });
     }
 
     /**
-     * Get all timetable periods for the current academic year
+     * Get homework statistics for this teacher
      */
-    public function getPeriods(): Collection
-    {
-        $academicYear = $this->getAcademicYear();
-        if (!$academicYear) {
-            return collect();
-        }
-
-        return TimetablePeriod::where('academic_year_id', $academicYear->id)
-            ->where('is_active', true)
-            ->orderBy('order')
-            ->get();
-    }
-
-    /**
-     * Get the days of the week
-     */
-    public function getDays(): array
-    {
-        return TimetableEntry::DAYS;
-    }
-
-    /**
-     * Get the teacher's timetable data organized by period and day
-     */
-    public function getTimetableData(): array
+    public function getHomeworkStats(): array
     {
         $teacher = $this->getTeacher();
-        $academicYear = $this->getAcademicYear();
+        $currentYear = $this->getAcademicYear();
 
-        if (!$teacher || !$academicYear) {
-            return [];
-        }
-
-        $entries = TimetableEntry::with(['subject', 'classSection.grade', 'period'])
-            ->where('teacher_id', $teacher->id)
-            ->where('academic_year_id', $academicYear->id)
-            ->where('is_active', true)
-            ->get();
-
-        // Organize by period_id => day => entry
-        $timetable = [];
-        foreach ($entries as $entry) {
-            $timetable[$entry->timetable_period_id][$entry->day_of_week] = $entry;
-        }
-
-        return $timetable;
-    }
-
-    /**
-     * Get teaching load statistics
-     */
-    public function getTeachingLoad(): array
-    {
-        $teacher = $this->getTeacher();
-        $academicYear = $this->getAcademicYear();
-
-        if (!$teacher || !$academicYear) {
+        if (!$teacher || !$currentYear) {
             return [
-                'total_periods' => 0,
-                'periods_per_day' => [],
-                'subjects_taught' => 0,
-                'classes_taught' => 0,
+                'total' => 0,
+                'active' => 0,
+                'pending_review' => 0,
+                'recent' => collect(),
             ];
         }
 
-        $entries = TimetableEntry::where('teacher_id', $teacher->id)
-            ->where('academic_year_id', $academicYear->id)
-            ->where('is_active', true)
+        $homework = Homework::where('assigned_by', $teacher->id)
+            ->where('academic_year_id', $currentYear->id)
             ->get();
 
-        $periodsPerDay = [];
-        foreach ($this->getDays() as $day) {
-            $periodsPerDay[$day] = $entries->where('day_of_week', $day)->count();
-        }
+        $now = now();
 
         return [
-            'total_periods' => $entries->count(),
-            'periods_per_day' => $periodsPerDay,
-            'subjects_taught' => $entries->pluck('subject_id')->unique()->count(),
-            'classes_taught' => $entries->pluck('class_section_id')->unique()->count(),
+            'total' => $homework->count(),
+            'active' => $homework->where('due_date', '>=', $now->toDateString())->count(),
+            'past_due' => $homework->where('due_date', '<', $now->toDateString())->count(),
+            'recent' => Homework::where('assigned_by', $teacher->id)
+                ->where('academic_year_id', $currentYear->id)
+                ->with('subject')
+                ->latest()
+                ->limit(5)
+                ->get(),
         ];
-    }
-
-    /**
-     * Get the print URL for teacher schedule
-     */
-    public function getPrintUrl(): ?string
-    {
-        $teacher = $this->getTeacher();
-        $academicYear = $this->getAcademicYear();
-
-        if (!$teacher || !$academicYear) {
-            return null;
-        }
-
-        return route('timetable.print.teacher', [
-            'teacher' => $teacher->id,
-            'academicYear' => $academicYear->id,
-        ]);
     }
 
     public static function canAccess(): bool

@@ -12,6 +12,7 @@ use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
+
 class AttendanceController extends Controller
 {
     /**
@@ -78,8 +79,9 @@ class AttendanceController extends Controller
                 'days' => [],
                 'present' => 0,
                 'absent' => 0,
-                'late' => 0,
                 'sick' => 0,
+                'late' => 0,
+                'excused' => 0,
             ];
 
             for ($day = 1; $day <= $daysInMonth; $day++) {
@@ -88,14 +90,17 @@ class AttendanceController extends Controller
 
                 if (isset($attendanceRecords[$key])) {
                     $record = $attendanceRecords[$key]->first();
-                    $status = $this->getStatusCode($record->status);
-                    $studentData['days'][$day] = $status;
+                    $symbol = $this->getStatusCode($record->status);
+                    $studentData['days'][$day] = $symbol;
 
-                    // Count totals
-                    if ($status === 'P') $studentData['present']++;
-                    elseif ($status === 'A') $studentData['absent']++;
-                    elseif ($status === 'L') $studentData['late']++;
-                    elseif ($status === 'S') $studentData['sick']++;
+                    match ($symbol) {
+                        'P' => $studentData['present']++,
+                        'X' => $studentData['absent']++,
+                        'S' => $studentData['sick']++,
+                        'Y' => $studentData['late']++,
+                        'L' => $studentData['excused']++,
+                        default => null,
+                    };
                 } else {
                     $studentData['days'][$day] = '-';
                 }
@@ -132,13 +137,7 @@ class AttendanceController extends Controller
      */
     protected function getStatusCode(string $status): string
     {
-        return match ($status) {
-            'present' => 'P',
-            'absent' => 'A',
-            'late' => 'L',
-            'excused', 'sick' => 'S',
-            default => '-',
-        };
+        return Attendance::getStatusSymbol($status);
     }
 
     /**
@@ -162,9 +161,10 @@ class AttendanceController extends Controller
                 $headerRow[] = $day;
             }
             $headerRow[] = 'P';
-            $headerRow[] = 'A';
-            $headerRow[] = 'L';
+            $headerRow[] = 'X';
             $headerRow[] = 'S';
+            $headerRow[] = 'Y';
+            $headerRow[] = 'L';
             fputcsv($file, $headerRow);
 
             // Student rows
@@ -176,8 +176,9 @@ class AttendanceController extends Controller
                 }
                 $row[] = $student['present'];
                 $row[] = $student['absent'];
-                $row[] = $student['late'];
                 $row[] = $student['sick'];
+                $row[] = $student['late'];
+                $row[] = $student['excused'];
                 fputcsv($file, $row);
             }
 

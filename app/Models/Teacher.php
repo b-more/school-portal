@@ -228,6 +228,14 @@ class Teacher extends Model
     // ============================================
 
     /**
+     * Get all teaching documents uploaded by this teacher
+     */
+    public function teachingDocuments(): HasMany
+    {
+        return $this->hasMany(TeachingDocument::class);
+    }
+
+    /**
      * Get homework assigned by this teacher
      */
     public function homework(): HasMany

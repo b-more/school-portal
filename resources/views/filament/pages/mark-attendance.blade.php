@@ -59,15 +59,29 @@
                         <span class="text-gray-500">Absent</span>
                     </span>
                     <span class="flex items-center gap-1">
+                        <span class="w-3 h-3 bg-blue-500 rounded-full"></span>
+                        <span class="text-blue-700 dark:text-blue-400 font-semibold">
+                            {{ collect($attendanceData)->filter(fn($s) => $s === 'sick')->count() }}
+                        </span>
+                        <span class="text-gray-500">Sick</span>
+                    </span>
+                    <span class="flex items-center gap-1">
                         <span class="w-3 h-3 bg-orange-500 rounded-full"></span>
                         <span class="text-orange-700 dark:text-orange-400 font-semibold">
                             {{ collect($attendanceData)->filter(fn($s) => $s === 'late')->count() }}
                         </span>
                         <span class="text-gray-500">Late</span>
                     </span>
+                    <span class="flex items-center gap-1">
+                        <span class="w-3 h-3 bg-purple-500 rounded-full"></span>
+                        <span class="text-purple-700 dark:text-purple-400 font-semibold">
+                            {{ collect($attendanceData)->filter(fn($s) => $s === 'excused')->count() }}
+                        </span>
+                        <span class="text-gray-500">Excused</span>
+                    </span>
                 </div>
                 <div class="text-xs text-gray-500">
-                    Tap student to toggle: Present > Absent > Late
+                    Tap student to toggle: Present > Absent > Sick > Late > Excused
                 </div>
             </div>
 
@@ -79,18 +93,21 @@
                         $statusColors = [
                             'present' => 'bg-green-100 dark:bg-green-900/30 border-green-400 dark:border-green-700 hover:bg-green-200',
                             'absent' => 'bg-red-100 dark:bg-red-900/30 border-red-400 dark:border-red-700 hover:bg-red-200',
+                            'sick' => 'bg-blue-100 dark:bg-blue-900/30 border-blue-400 dark:border-blue-700 hover:bg-blue-200',
                             'late' => 'bg-orange-100 dark:bg-orange-900/30 border-orange-400 dark:border-orange-700 hover:bg-orange-200',
-                            'excused' => 'bg-blue-100 dark:bg-blue-900/30 border-blue-400 dark:border-blue-700 hover:bg-blue-200',
+                            'excused' => 'bg-purple-100 dark:bg-purple-900/30 border-purple-400 dark:border-purple-700 hover:bg-purple-200',
                         ];
                         $textColors = [
                             'present' => 'text-green-800 dark:text-green-200',
                             'absent' => 'text-red-800 dark:text-red-200',
+                            'sick' => 'text-blue-800 dark:text-blue-200',
                             'late' => 'text-orange-800 dark:text-orange-200',
-                            'excused' => 'text-blue-800 dark:text-blue-200',
+                            'excused' => 'text-purple-800 dark:text-purple-200',
                         ];
                         $statusIcons = [
                             'present' => 'M5 13l4 4L19 7',
                             'absent' => 'M6 18L18 6M6 6l12 12',
+                            'sick' => 'M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z',
                             'late' => 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
                             'excused' => 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
                         ];
@@ -110,8 +127,10 @@
                         <div class="w-8 h-8 rounded-full flex items-center justify-center mb-1
                             @if($status === 'present') bg-green-500
                             @elseif($status === 'absent') bg-red-500
+                            @elseif($status === 'sick') bg-blue-500
                             @elseif($status === 'late') bg-orange-500
-                            @else bg-blue-500
+                            @elseif($status === 'excused') bg-purple-500
+                            @else bg-gray-500
                             @endif
                         ">
                             <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">

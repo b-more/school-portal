@@ -208,6 +208,12 @@ Route::prefix('pay')->group(function () {
 Route::middleware(['auth'])->group(function () {
     Route::get('/attendance/export', [\App\Http\Controllers\AttendanceController::class, 'export'])
         ->name('attendance.export');
+
+    Route::get('/attendance/register/download', [\App\Http\Controllers\AttendanceRegisterController::class, 'download'])
+        ->name('attendance.register.download');
+
+    Route::get('/attendance/register/download-excel', [\App\Http\Controllers\AttendanceRegisterController::class, 'downloadExcel'])
+        ->name('attendance.register.download-excel');
 });
 
 // Report Card Routes
