@@ -39,7 +39,7 @@ class GetInTouchResource extends Resource
 
     public static function shouldRegisterNavigation(): bool
     {
-        return auth()->user()?->role_id === RoleConstants::ADMIN ?? false;
+        return in_array(auth()->user()?->role_id, [RoleConstants::ADMIN, RoleConstants::SCHOOL_SECRETARY]);
     }
 
     public static function form(Form $form): Form

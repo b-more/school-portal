@@ -143,12 +143,37 @@ class PaymentTransactionResource extends Resource
                     ->weight('bold')
                     ->color('success')
                     ->size('lg')
+                    ->description(fn (PaymentTransaction $record): string => $record->studentFee?->feeStructure?->total_fee
+                        ? 'of ZMW '.number_format($record->studentFee->feeStructure->total_fee, 2).' total'
+                        : ''
+                    )
                     ->summarize([
                         Tables\Columns\Summarizers\Sum::make()
                             ->money('ZMW')
                             ->label('Total Payments')
                             ->formatStateUsing(fn ($state) => 'Total: '.$state),
                     ]),
+
+                Tables\Columns\TextColumn::make('type')
+                    ->label('Type')
+                    ->badge()
+                    ->formatStateUsing(fn ($state) => match ($state) {
+                        'payment' => 'Payment',
+                        'refund' => 'Refund',
+                        'adjustment' => 'Adjustment',
+                        'balance_forward' => 'Balance Forward',
+                        'overpayment' => 'Overpayment',
+                        'credit_applied' => 'Credit Applied',
+                        default => ucfirst($state ?? 'N/A'),
+                    })
+                    ->color(fn ($state) => match ($state) {
+                        'payment' => 'success',
+                        'refund' => 'danger',
+                        'adjustment' => 'warning',
+                        'overpayment' => 'info',
+                        default => 'gray',
+                    })
+                    ->toggleable(isToggledHiddenByDefault: true),
 
                 Tables\Columns\TextColumn::make('payment_method')
                     ->label('Payment Method')
@@ -166,6 +191,38 @@ class PaymentTransactionResource extends Resource
                         'mobile_money' => 'info',
                         'bank_transfer' => 'warning',
                         'cheque' => 'primary',
+                        default => 'gray',
+                    }),
+
+                Tables\Columns\TextColumn::make('studentFee.feeStructure.total_fee')
+                    ->label('Total Fee')
+                    ->money('ZMW')
+                    ->sortable()
+                    ->color('gray')
+                    ->toggleable(isToggledHiddenByDefault: true),
+
+                Tables\Columns\TextColumn::make('studentFee.balance')
+                    ->label('Balance')
+                    ->money('ZMW')
+                    ->sortable()
+                    ->badge()
+                    ->color(fn ($state) => $state > 0 ? 'danger' : 'success'),
+
+                Tables\Columns\TextColumn::make('studentFee.payment_status')
+                    ->label('Fee Status')
+                    ->badge()
+                    ->formatStateUsing(fn ($state) => match ($state) {
+                        'paid' => 'Paid',
+                        'partial' => 'Partial',
+                        'unpaid' => 'Unpaid',
+                        'overpaid' => 'Overpaid',
+                        default => ucfirst($state ?? 'N/A'),
+                    })
+                    ->color(fn ($state) => match ($state) {
+                        'paid' => 'success',
+                        'partial' => 'warning',
+                        'unpaid' => 'danger',
+                        'overpaid' => 'info',
                         default => 'gray',
                     }),
 
@@ -277,8 +334,8 @@ class PaymentTransactionResource extends Resource
                     ->label('View Details')
                     ->icon('heroicon-m-eye')
                     ->color('info')
-                    ->modalHeading('Payment Transaction Details')
-                    ->modalWidth('3xl'),
+                    ->modalHeading(fn (PaymentTransaction $record) => 'Payment: '.$record->studentFee?->student?->name.' — '.$record->reference_number)
+                    ->modalWidth('5xl'),
                 Tables\Actions\Action::make('printReceipt')
                     ->label('Receipt')
                     ->icon('heroicon-m-printer')
@@ -331,6 +388,9 @@ class PaymentTransactionResource extends Resource
         $query = parent::getEloquentQuery()
             ->with([
                 'studentFee.student.grade',
+                'studentFee.student.classSection',
+                'studentFee.student.parentGuardian',
+                'studentFee.feeStructure',
                 'studentFee.feeStructure.term',
                 'studentFee.feeStructure.academicYear',
                 'processedBy',

@@ -359,9 +359,9 @@ class ParentGuardianResource extends Resource
 
         $user = auth()->user();
 
-        // Admin can see all parents
-        if ($user->role_id === RoleConstants::ADMIN) {
-            \Log::info('ParentGuardian query: Admin access - showing all parents');
+        // Admin and School Secretary can see all parents
+        if (in_array($user->role_id, [RoleConstants::ADMIN, RoleConstants::SCHOOL_SECRETARY])) {
+            \Log::info('ParentGuardian query: Admin/Secretary access - showing all parents');
             return $query;
         }
 

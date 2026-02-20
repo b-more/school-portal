@@ -121,6 +121,12 @@ class RoleSeeder extends Seeder
                 'description' => 'Deputy head of secondary section',
                 'is_active' => true,
             ],
+            // ID 19
+            [
+                'name' => 'School Secretary',
+                'description' => 'School secretary with access to student records, attendance, communication, and events',
+                'is_active' => true,
+            ],
         ];
 
         foreach ($roles as $role) {

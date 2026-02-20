@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\StudentResource\Pages;
 
 use App\Filament\Resources\StudentResource;
+use App\Filament\Resources\StudentResource\Widgets\StudentGradeSummary;
 use App\Filament\Imports\StudentImporter;
 use Filament\Actions;
 use Filament\Resources\Pages\ListRecords;
@@ -11,6 +12,13 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 class ListStudents extends ListRecords
 {
     protected static string $resource = StudentResource::class;
+
+    protected function getHeaderWidgets(): array
+    {
+        return [
+            StudentGradeSummary::class,
+        ];
+    }
 
     protected function getHeaderActions(): array
     {

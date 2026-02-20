@@ -10,8 +10,11 @@ use App\Filament\Resources\PaymentTransactionResource\Widgets\Term2PaymentsWidge
 use App\Filament\Resources\PaymentTransactionResource\Widgets\Term3PaymentsWidget;
 use App\Filament\Resources\PaymentTransactionResource\Widgets\TermPaymentsWidget;
 use App\Filament\Resources\PaymentTransactionResource\Widgets\TodayPaymentsWidget;
+use App\Models\AcademicYear;
+use App\Models\Term;
 use Filament\Resources\Pages\ListRecords;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 
 class ListPaymentTransactions extends ListRecords
 {
@@ -30,8 +33,22 @@ class ListPaymentTransactions extends ListRecords
         $user = Auth::user();
         $isStudent = $user && $user->role_id === RoleConstants::STUDENT;
 
-        return $isStudent
-            ? 'View all your payment transactions and download receipts'
+        if ($isStudent) {
+            return 'View all your payment transactions and download receipts';
+        }
+
+        $academicYear = Cache::remember('current_academic_year_name', 3600, function () {
+            return AcademicYear::where('is_current', true)->value('name');
+        });
+
+        $term = Cache::remember('current_term_name', 3600, function () {
+            return Term::where('is_current', true)->value('name');
+        });
+
+        $context = collect([$term, $academicYear])->filter()->implode(' — ');
+
+        return $context
+            ? "Showing payments for: {$context}"
             : 'Track and manage all payment transactions received';
     }
 

@@ -36,8 +36,8 @@ class AttendanceResource extends Resource
         $query = parent::getEloquentQuery();
         $user = Auth::user();
 
-        // Admin can see all attendance
-        if ($user->role_id === RoleConstants::ADMIN) {
+        // Admin and School Secretary can see all attendance
+        if (in_array($user->role_id, [RoleConstants::ADMIN, RoleConstants::SCHOOL_SECRETARY])) {
             return $query;
         }
 
@@ -424,6 +424,7 @@ class AttendanceResource extends Resource
             RoleConstants::TEACHER,
             RoleConstants::STUDENT,
             RoleConstants::PARENT,
+            RoleConstants::SCHOOL_SECRETARY,
         ]);
     }
 

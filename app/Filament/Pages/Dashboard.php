@@ -37,12 +37,12 @@ class Dashboard extends Page
     // Add access control methods
     public static function canAccess(): bool
     {
-        return auth()->user()?->role_id === RoleConstants::ADMIN ?? false;
+        return in_array(auth()->user()?->role_id, [RoleConstants::ADMIN, RoleConstants::SCHOOL_SECRETARY]) ?? false;
     }
 
     public static function shouldRegisterNavigation(): bool
     {
-        return auth()->user()?->role_id === RoleConstants::ADMIN ?? false;
+        return in_array(auth()->user()?->role_id, [RoleConstants::ADMIN, RoleConstants::SCHOOL_SECRETARY]) ?? false;
     }
 
     public function mount()

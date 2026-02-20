@@ -27,7 +27,22 @@ class GradeResource extends Resource
 
     public static function shouldRegisterNavigation(): bool
     {
-        return auth()->user()?->role_id === RoleConstants::ADMIN ?? false;
+        return in_array(auth()->user()?->role_id, [RoleConstants::ADMIN, RoleConstants::SCHOOL_SECRETARY]) ?? false;
+    }
+
+    public static function canCreate(): bool
+    {
+        return auth()->user()?->role_id === RoleConstants::ADMIN;
+    }
+
+    public static function canEdit($record): bool
+    {
+        return auth()->user()?->role_id === RoleConstants::ADMIN;
+    }
+
+    public static function canDelete($record): bool
+    {
+        return auth()->user()?->role_id === RoleConstants::ADMIN;
     }
 
     public static function form(Form $form): Form
@@ -198,6 +213,17 @@ class GradeResource extends Resource
                     ->boolean(),
             ])
             ->filters([
+                Tables\Filters\SelectFilter::make('academic_year')
+                    ->label('Academic Year')
+                    ->options(fn () => AcademicYear::orderByDesc('is_active')->orderByDesc('start_date')->pluck('name', 'id'))
+                    ->default(fn () => AcademicYear::where('is_active', true)->first()?->id)
+                    ->query(function (Builder $query, array $data): Builder {
+                        if (filled($data['value'])) {
+                            return $query->whereHas('classSections', fn (Builder $q) => $q->where('academic_year_id', $data['value']));
+                        }
+                        return $query;
+                    }),
+
                 Tables\Filters\SelectFilter::make('school_section')
                     ->relationship('schoolSection', 'name'),
 

@@ -571,7 +571,8 @@ class StudentFeeResource extends Resource
                         return AcademicYear::orderBy('name')
                             ->pluck('name', 'id')
                             ->toArray();
-                    }),
+                    })
+                    ->default(fn () => AcademicYear::where('is_active', true)->first()?->id),
                 Tables\Filters\SelectFilter::make('term_id')
                     ->label('Term')
                     ->options(function() {

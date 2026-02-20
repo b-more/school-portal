@@ -26,8 +26,8 @@ class HomeworkSubmissionPolicy
      */
     public function view(User $user, HomeworkSubmission $submission)
     {
-        // Admin can view all submissions
-        if ($user->hasRole('admin') || $user->role_id === RoleConstants::ADMIN) {
+        // Admin and Secretary can view all submissions
+        if ($user->hasRole('admin') || in_array($user->role_id, [RoleConstants::ADMIN, RoleConstants::SCHOOL_SECRETARY])) {
             return true;
         }
 

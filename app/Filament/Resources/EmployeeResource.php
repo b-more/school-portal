@@ -33,7 +33,22 @@ class EmployeeResource extends Resource
 
     public static function shouldRegisterNavigation(): bool
     {
-        return auth()->user()?->role_id === RoleConstants::ADMIN ?? false;
+        return in_array(auth()->user()?->role_id, [RoleConstants::ADMIN, RoleConstants::SCHOOL_SECRETARY]);
+    }
+
+    public static function canCreate(): bool
+    {
+        return auth()->user()?->role_id === RoleConstants::ADMIN;
+    }
+
+    public static function canEdit($record): bool
+    {
+        return auth()->user()?->role_id === RoleConstants::ADMIN;
+    }
+
+    public static function canDelete($record): bool
+    {
+        return auth()->user()?->role_id === RoleConstants::ADMIN;
     }
 
     public static function form(Form $form): Form
@@ -121,15 +136,18 @@ class EmployeeResource extends Resource
                                         Forms\Components\TextInput::make('napsa_number')
                                             ->label('NAPSA Number')
                                             ->maxLength(50)
-                                            ->helperText('National Pension Scheme Authority'),
+                                            ->helperText('National Pension Scheme Authority')
+                                            ->visible(fn () => auth()->user()?->role_id === RoleConstants::ADMIN),
                                         Forms\Components\TextInput::make('tpin_number')
                                             ->label('TPIN')
                                             ->maxLength(50)
-                                            ->helperText('Taxpayer Identification Number (ZRA)'),
+                                            ->helperText('Taxpayer Identification Number (ZRA)')
+                                            ->visible(fn () => auth()->user()?->role_id === RoleConstants::ADMIN),
                                         Forms\Components\TextInput::make('nhima_number')
                                             ->label('NHIMA Number')
                                             ->maxLength(50)
-                                            ->helperText('National Health Insurance Number'),
+                                            ->helperText('National Health Insurance Number')
+                                            ->visible(fn () => auth()->user()?->role_id === RoleConstants::ADMIN),
                                     ])->columns(2),
                             ]),
 
@@ -177,14 +195,16 @@ class EmployeeResource extends Resource
                                                     }
                                                 }
                                             })
-                                            ->helperText('Select salary grade to auto-fill basic salary'),
+                                            ->helperText('Select salary grade to auto-fill basic salary')
+                                            ->visible(fn () => auth()->user()?->role_id === RoleConstants::ADMIN),
                                         Forms\Components\TextInput::make('basic_salary')
                                             ->label('Basic Salary')
                                             ->numeric()
                                             ->prefix('ZMW')
                                             ->disabled()
                                             ->dehydrated()
-                                            ->helperText('Derived from salary grade'),
+                                            ->helperText('Derived from salary grade')
+                                            ->visible(fn () => auth()->user()?->role_id === RoleConstants::ADMIN),
                                         Forms\Components\Select::make('employment_type')
                                             ->options([
                                                 'permanent' => 'Permanent',
@@ -314,6 +334,7 @@ class EmployeeResource extends Resource
                         // Bank Details Tab
                         Forms\Components\Tabs\Tab::make('Bank Details')
                             ->icon('heroicon-o-building-library')
+                            ->visible(fn () => auth()->user()?->role_id === RoleConstants::ADMIN)
                             ->schema([
                                 Forms\Components\Section::make('Bank Account Information')
                                     ->description('For salary payments')
@@ -430,11 +451,13 @@ class EmployeeResource extends Resource
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
-                Tables\Actions\EditAction::make(),
+                Tables\Actions\EditAction::make()
+                    ->visible(fn () => auth()->user()?->role_id === RoleConstants::ADMIN),
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->visible(fn () => auth()->user()?->role_id === RoleConstants::ADMIN),
                 ]),
             ]);
     }

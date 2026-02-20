@@ -39,7 +39,7 @@ class TeacherResource extends Resource
 
     public static function shouldRegisterNavigation(): bool
     {
-        return in_array(auth()->user()?->role_id, [RoleConstants::ADMIN]) ?? false;
+        return in_array(auth()->user()?->role_id, [RoleConstants::ADMIN, RoleConstants::SCHOOL_SECRETARY]) ?? false;
     }
 
     public static function canCreate(): bool

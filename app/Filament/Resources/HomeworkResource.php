@@ -44,7 +44,7 @@ class HomeworkResource extends Resource
             return false;
         }
 
-        return in_array($user->role_id, [RoleConstants::ADMIN, RoleConstants::TEACHER, RoleConstants::PARENT, RoleConstants::STUDENT]);
+        return in_array($user->role_id, [RoleConstants::ADMIN, RoleConstants::TEACHER, RoleConstants::PARENT, RoleConstants::STUDENT, RoleConstants::SCHOOL_SECRETARY]);
     }
 
     public static function canCreate(): bool
@@ -612,6 +612,11 @@ class HomeworkResource extends Resource
             ->withCount('submissions');
 
         $user = Auth::user();
+
+        // Admin and Secretary see all homework
+        if ($user && $user->role_id === RoleConstants::SCHOOL_SECRETARY) {
+            return $query;
+        }
 
         // Apply role-based filtering
         if ($user && $user->role_id === RoleConstants::TEACHER) {

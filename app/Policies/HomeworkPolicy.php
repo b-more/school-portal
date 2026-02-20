@@ -26,8 +26,8 @@ class HomeworkPolicy
      */
     public function view(User $user, Homework $homework)
     {
-        // Admin can view all homework
-        if ($user->role_id === RoleConstants::ADMIN) {
+        // Admin and Secretary can view all homework
+        if (in_array($user->role_id, [RoleConstants::ADMIN, RoleConstants::SCHOOL_SECRETARY])) {
             return true;
         }
 

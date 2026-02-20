@@ -26,7 +26,22 @@ class SubjectResource extends Resource
 
     public static function shouldRegisterNavigation(): bool
     {
-        return auth()->user()?->role_id === RoleConstants::ADMIN ?? false;
+        return in_array(auth()->user()?->role_id, [RoleConstants::ADMIN, RoleConstants::SCHOOL_SECRETARY]) ?? false;
+    }
+
+    public static function canCreate(): bool
+    {
+        return auth()->user()?->role_id === RoleConstants::ADMIN;
+    }
+
+    public static function canEdit($record): bool
+    {
+        return auth()->user()?->role_id === RoleConstants::ADMIN;
+    }
+
+    public static function canDelete($record): bool
+    {
+        return auth()->user()?->role_id === RoleConstants::ADMIN;
     }
 
     public static function form(Form $form): Form
@@ -152,7 +167,8 @@ class SubjectResource extends Resource
                     ]),
 
                 Tables\Filters\SelectFilter::make('academic_year')
-                    ->relationship('academicYear', 'name'),
+                    ->relationship('academicYear', 'name')
+                    ->default(fn () => AcademicYear::where('is_active', true)->first()?->id),
 
                 Tables\Filters\Filter::make('is_active')
                     ->query(fn (Builder $query): Builder => $query->where('is_active', true))
