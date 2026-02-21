@@ -4,6 +4,7 @@ namespace App\Filament\Resources\StudentResource\Pages;
 
 use App\Filament\Resources\StudentResource;
 use App\Filament\Resources\StudentResource\Widgets\StudentGradeSummary;
+use App\Filament\Resources\StudentResource\Widgets\StudentStatsOverview;
 use App\Filament\Imports\StudentImporter;
 use Filament\Actions;
 use Filament\Resources\Pages\ListRecords;
@@ -16,6 +17,7 @@ class ListStudents extends ListRecords
     protected function getHeaderWidgets(): array
     {
         return [
+            StudentStatsOverview::class,
             StudentGradeSummary::class,
         ];
     }

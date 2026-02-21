@@ -10,6 +10,7 @@ use App\Models\Grade;
 use App\Models\ParentGuardian;
 use App\Models\Student;
 use App\Models\Teacher;
+use App\Models\Term;
 use Filament\Forms;
 use Filament\Forms\Form;
 use Filament\Notifications\Notification;
@@ -662,6 +663,21 @@ class StudentResource extends Resource
                     ->visible($isAdmin)
                     ->default(true)
                     ->toggle(),
+
+                Tables\Filters\SelectFilter::make('enrollment_term_id')
+                    ->label('Enrollment Term')
+                    ->options(function () {
+                        $activeYear = AcademicYear::where('is_active', true)->first();
+                        if (!$activeYear) {
+                            return Term::orderBy('name')->pluck('name', 'id')->toArray();
+                        }
+                        return Term::where('academic_year_id', $activeYear->id)
+                            ->orderBy('start_date')
+                            ->pluck('name', 'id')
+                            ->toArray();
+                    })
+                    ->default(fn () => Term::where('is_active', true)->first()?->id)
+                    ->visible($isAdmin),
             ])
             ->actions([
                 Tables\Actions\ViewAction::make(),
@@ -1160,6 +1176,7 @@ class StudentResource extends Resource
     public static function getWidgets(): array
     {
         return [
+            StudentResource\Widgets\StudentStatsOverview::class,
             StudentResource\Widgets\StudentGradeSummary::class,
         ];
     }

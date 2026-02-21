@@ -576,10 +576,16 @@ class StudentFeeResource extends Resource
                 Tables\Filters\SelectFilter::make('term_id')
                     ->label('Term')
                     ->options(function() {
-                        return Term::orderBy('name')
+                        $activeYear = AcademicYear::where('is_active', true)->first();
+                        if (!$activeYear) {
+                            return Term::orderBy('name')->pluck('name', 'id')->toArray();
+                        }
+                        return Term::where('academic_year_id', $activeYear->id)
+                            ->orderBy('start_date')
                             ->pluck('name', 'id')
                             ->toArray();
-                    }),
+                    })
+                    ->default(fn () => Term::where('is_active', true)->first()?->id),
                 Tables\Filters\SelectFilter::make('grade_id')
                     ->label('Grade')
                     ->options(function() {
@@ -1214,6 +1220,13 @@ class StudentFeeResource extends Resource
            // Re-throw the exception to be caught by the caller
            throw $e;
        }
+   }
+
+   public static function getWidgets(): array
+   {
+       return [
+           StudentFeeResource\Widgets\StudentFeeStatsWidget::class,
+       ];
    }
 
    public static function getRelations(): array
