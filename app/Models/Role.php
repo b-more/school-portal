@@ -256,6 +256,15 @@ class Role extends Model
                 'view_secondary_reports' => true,
                 'manage_secondary_classes' => true,
             ],
+            'School Secretary' => [
+                'view_all_students' => true,
+                'manage_student_records' => true,
+                'view_all_reports' => true,
+                'manage_attendance' => true,
+                'manage_communications' => true,
+                'view_staff_directory' => true,
+                'manage_events' => true,
+            ],
         ];
 
         return $defaultPermissions[$this->name] ?? [];

@@ -30,8 +30,8 @@ class CommunicationCenterResource extends Resource
 
     public static function shouldRegisterNavigation(): bool
     {
-        $teachingRoles = RoleConstants::teaching();
-        return in_array(auth()->user()?->role_id, $teachingRoles) ?? false;
+        $roleId = auth()->user()?->role_id;
+        return in_array($roleId, RoleConstants::teaching()) || $roleId === RoleConstants::SCHOOL_SECRETARY;
     }
 
     public static function form(Form $form): Form

@@ -35,7 +35,7 @@ class HomeworkSubmissionResource extends Resource
             return false;
         }
 
-        return in_array($user->role_id, [RoleConstants::ADMIN, RoleConstants::TEACHER, RoleConstants::STUDENT, RoleConstants::PARENT]);
+        return in_array($user->role_id, [RoleConstants::ADMIN, RoleConstants::TEACHER, RoleConstants::STUDENT, RoleConstants::PARENT, RoleConstants::SCHOOL_SECRETARY]);
     }
 
     public static function form(Form $form): Form
@@ -741,8 +741,8 @@ class HomeworkSubmissionResource extends Resource
 
         $user = Auth::user();
 
-        // Admin and teachers can see all submissions
-        if (in_array($user->role_id, [RoleConstants::ADMIN, ...RoleConstants::teaching()])) {
+        // Admin, teachers, and secretary can see all submissions
+        if (in_array($user->role_id, [RoleConstants::ADMIN, RoleConstants::SCHOOL_SECRETARY, ...RoleConstants::teaching()])) {
             return $query;
         }
 

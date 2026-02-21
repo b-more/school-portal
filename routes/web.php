@@ -7,6 +7,7 @@ use App\Http\Controllers\HomeworkController;
 use App\Http\Controllers\PaymentStatementController;
 use App\Http\Controllers\PayslipController;
 use App\Http\Controllers\PublicPaymentController;
+use App\Http\Controllers\QuickGuideController;
 use App\Http\Controllers\ReportCardController;
 use App\Http\Controllers\StudentFeeController;
 use Illuminate\Support\Facades\Route;
@@ -159,11 +160,15 @@ Route::middleware(['auth'])->group(function () {
 
 // Payslip Routes
 Route::middleware(['auth'])->group(function () {
-    // View payslip in browser
+    // View payslip in browser (HTML)
     Route::get('/payslips/{payroll}', [PayslipController::class, 'view'])
         ->name('payslips.view');
 
-    // Print payslip
+    // Stream payslip PDF in browser
+    Route::get('/payslips/{payroll}/pdf', [PayslipController::class, 'stream'])
+        ->name('payslips.stream');
+
+    // Print payslip (streams PDF)
     Route::get('/payslips/{payroll}/print', [PayslipController::class, 'print'])
         ->name('payslips.print');
 
@@ -203,6 +208,12 @@ Route::prefix('pay')->group(function () {
 Route::middleware(['auth'])->group(function () {
     Route::get('/attendance/export', [\App\Http\Controllers\AttendanceController::class, 'export'])
         ->name('attendance.export');
+
+    Route::get('/attendance/register/download', [\App\Http\Controllers\AttendanceRegisterController::class, 'download'])
+        ->name('attendance.register.download');
+
+    Route::get('/attendance/register/download-excel', [\App\Http\Controllers\AttendanceRegisterController::class, 'downloadExcel'])
+        ->name('attendance.register.download-excel');
 });
 
 // Report Card Routes
@@ -222,4 +233,81 @@ Route::middleware(['auth'])->group(function () {
     // API endpoint for report card data
     Route::get('/report-cards/{student}/{term}/data', [ReportCardController::class, 'getReportCardData'])
         ->name('report-cards.data');
+});
+
+// Quick Guide Routes
+Route::middleware(['auth'])->group(function () {
+    // View quick guide in browser (PDF viewer)
+    Route::get('/quick-guide', [QuickGuideController::class, 'stream'])
+        ->name('quick-guide.view');
+
+    // Download quick guide as PDF
+    Route::get('/quick-guide/download', [QuickGuideController::class, 'download'])
+        ->name('quick-guide.download');
+});
+
+// Leave Application Routes
+Route::middleware(['auth'])->group(function () {
+    // View leave approval letter in browser (PDF viewer)
+    Route::get('/leave-applications/{leaveApplication}/pdf', [\App\Http\Controllers\LeaveApplicationController::class, 'streamPdf'])
+        ->name('leave-applications.pdf');
+
+    // Download leave approval letter as PDF
+    Route::get('/leave-applications/{leaveApplication}/download', [\App\Http\Controllers\LeaveApplicationController::class, 'downloadPdf'])
+        ->name('leave-applications.download');
+});
+
+// Timetable Routes
+Route::middleware(['auth'])->group(function () {
+    // Print/Stream class timetable PDF
+    Route::get('/timetable/class/{classSection}/{academicYear}', [\App\Http\Controllers\TimetableController::class, 'printClassTimetable'])
+        ->name('timetable.print.class');
+
+    // Download class timetable PDF
+    Route::get('/timetable/class/{classSection}/{academicYear}/download', [\App\Http\Controllers\TimetableController::class, 'downloadClassTimetable'])
+        ->name('timetable.download.class');
+
+    // Print/Stream teacher schedule PDF
+    Route::get('/timetable/teacher/{teacher}/{academicYear}', [\App\Http\Controllers\TimetableController::class, 'printTeacherSchedule'])
+        ->name('timetable.print.teacher');
+
+    // Download teacher schedule PDF
+    Route::get('/timetable/teacher/{teacher}/{academicYear}/download', [\App\Http\Controllers\TimetableController::class, 'downloadTeacherSchedule'])
+        ->name('timetable.download.teacher');
+
+    // Print/Stream master timetable (all classes) PDF
+    Route::get('/timetable/master/{academicYear}', [\App\Http\Controllers\TimetableController::class, 'printMasterTimetable'])
+        ->name('timetable.print.master');
+
+    // Download master timetable (all classes) PDF
+    Route::get('/timetable/master/{academicYear}/download', [\App\Http\Controllers\TimetableController::class, 'downloadMasterTimetable'])
+        ->name('timetable.download.master');
+});
+
+// Financial Report PDF Routes
+Route::middleware(['auth'])->prefix('financial-reports')->group(function () {
+    Route::get('/income-expense', [\App\Http\Controllers\FinancialReportController::class, 'incomeExpenseReport'])
+        ->name('financial-reports.income-expense');
+
+    Route::get('/cash-flow', [\App\Http\Controllers\FinancialReportController::class, 'cashFlowReport'])
+        ->name('financial-reports.cash-flow');
+
+    Route::get('/expense-detail', [\App\Http\Controllers\FinancialReportController::class, 'expenseDetailReport'])
+        ->name('financial-reports.expense-detail');
+
+    Route::get('/income-detail', [\App\Http\Controllers\FinancialReportController::class, 'incomeDetailReport'])
+        ->name('financial-reports.income-detail');
+
+    Route::get('/payables', [\App\Http\Controllers\FinancialReportController::class, 'payablesReport'])
+        ->name('financial-reports.payables');
+});
+
+// Accountant User Guide
+Route::middleware(['auth'])->prefix('guides')->group(function () {
+    Route::get('/accountant', [\App\Http\Controllers\AccountantGuideController::class, 'show'])
+        ->name('guides.accountant');
+    Route::get('/accountant/download', [\App\Http\Controllers\AccountantGuideController::class, 'download'])
+        ->name('guides.accountant.download');
+    Route::get('/accountant/docx', [\App\Http\Controllers\AccountantGuideController::class, 'downloadDocx'])
+        ->name('guides.accountant.docx');
 });

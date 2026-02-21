@@ -1,0 +1,18 @@
+<?php
+
+namespace App\Filament\Resources\CallLogResource\Pages;
+
+use App\Filament\Resources\CallLogResource;
+use Filament\Resources\Pages\CreateRecord;
+
+class CreateCallLog extends CreateRecord
+{
+    protected static string $resource = CallLogResource::class;
+
+    protected function mutateFormDataBeforeCreate(array $data): array
+    {
+        $data['logged_by'] = auth()->id();
+
+        return $data;
+    }
+}

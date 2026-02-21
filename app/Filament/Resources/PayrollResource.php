@@ -384,12 +384,24 @@ class PayrollResource extends Resource
                     ->native(false),
             ], layout: Tables\Enums\FiltersLayout::AboveContentCollapsible)
             ->actions([
-                Tables\Actions\Action::make('view_payslip')
-                    ->label('View Payslip')
+                Tables\Actions\ActionGroup::make([
+                    Tables\Actions\Action::make('print_payslip')
+                        ->label('Print Payslip')
+                        ->icon('heroicon-o-printer')
+                        ->color('info')
+                        ->url(fn (Payroll $record) => route('payslips.stream', $record))
+                        ->openUrlInNewTab(),
+
+                    Tables\Actions\Action::make('download_payslip')
+                        ->label('Download PDF')
+                        ->icon('heroicon-o-arrow-down-tray')
+                        ->color('success')
+                        ->url(fn (Payroll $record) => route('payslips.download', $record)),
+                ])
+                    ->label('Payslip')
                     ->icon('heroicon-o-document-text')
-                    ->color('info')
-                    ->url(fn (Payroll $record) => route('payslips.view', $record))
-                    ->openUrlInNewTab(),
+                    ->color('primary')
+                    ->button(),
 
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make(),

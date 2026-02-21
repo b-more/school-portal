@@ -2,114 +2,283 @@
 
 @config "./tailwind.config.js";
 
-/* Sidebar Styles */
-.fi-sidebar {
-    @apply bg-primary-900/10 dark:bg-gray-900 !important;
-}
+/*
+ * St. Francis of Assisi Private School
+ * Corporate Colors Theme
+ * Navy Blue: #1e3a5f | Crimson Red: #dc2626
+ * Motto: Faith, Family, Future
+ */
 
-.fi-sidebar-header {
-    @apply bg-transparent shadow-transparent !important;
-}
-
-.fi-sidebar-item-label {
-    @apply text-primary-700 dark:text-white hover:text-primary-600 dark:hover:text-primary-400 !important;
-}
+/* ========================================
+   SIDEBAR STYLES
+   Sidebar is styled via renderHook in
+   AdminPanelProvider (dark navy theme).
+   These are supplementary rules only.
+   ======================================== */
 
 .fi-sidebar-item {
     @apply bg-transparent !important;
 }
 
-.fi-sidebar-item-button {
-    @apply bg-transparent hover:bg-primary-500/10 dark:hover:bg-primary-500/20 !important;
+/* ========================================
+   TOPBAR STYLES
+   ======================================== */
+
+.fi-topbar {
+    @apply bg-white dark:bg-gray-900 border-b border-primary-100 dark:border-gray-800 !important;
+    box-shadow: 0 1px 3px rgba(30, 58, 95, 0.08);
 }
 
-.fi-sidebar-item .fi-active .fi-sidebar-item-active {
-    @apply hover:bg-transparent border-r-8 border-secondary-500 bg-transparent !important;
-}
-
-.fi-sidebar-item-active .fi-sidebar-item-label {
-    @apply text-primary-700 dark:text-white hover:text-primary-600 !important;
-}
-
-.fi-sidebar-item-active .fi-sidebar-item-button {
-    @apply bg-primary-500/20 rounded-lg border-r-4 border-secondary-500 text-primary-700 dark:text-white !important;
-}
-
-.fi-sidebar-item-active .fi-sidebar-item-icon {
-    @apply p-1 rounded-lg bg-opacity-20 shadow-md border border-secondary-500 group-hover:border-transparent text-primary-700 dark:text-white !important;
-}
-
-.fi-sidebar-item-icon {
-    @apply p-1 rounded-lg bg-opacity-20 shadow-md border border-primary-300 group-hover:border-transparent text-primary-600 dark:text-primary-400 !important;
-}
-
-.fi-sidebar-group-label {
-    @apply text-primary-800 dark:text-primary-300 text-sm !important;
-}
-
-/* Topbar Styles */
 .fi-topbar nav {
     @apply bg-transparent !important;
 }
 
-.fi-topbar {
-    @apply shadow-primary-500/10 !important;
-}
+/* ========================================
+   BODY & MAIN CONTENT
+   ======================================== */
 
-/* Body Styles */
 .fi-body {
-    @apply bg-gray-50 dark:bg-gray-900 !important;
+    @apply bg-gray-50 dark:bg-gray-950 !important;
 }
 
-/* Header Styles */
+.fi-main {
+    @apply bg-gray-50 dark:bg-gray-950 !important;
+}
+
+/* ========================================
+   HEADER STYLES
+   ======================================== */
+
 .fi-header-heading {
-    @apply text-2xl text-primary-700 dark:text-primary-400 !important;
-}
-
-.fi-icon-btn-icon {
-    @apply text-secondary-600 dark:text-secondary-400 !important;
+    @apply text-2xl font-bold text-primary-800 dark:text-white !important;
 }
 
 .fi-header-subheading {
-    @apply text-sm !important;
+    @apply text-sm text-primary-600 dark:text-primary-400 !important;
 }
 
-/* Button Styles */
+/* ========================================
+   BUTTON STYLES
+   ======================================== */
+
+/* Primary Buttons - Navy Blue */
 .fi-btn-primary {
-    @apply bg-primary-600 hover:bg-primary-700 focus:ring-primary-600 !important;
+    @apply bg-primary-600 hover:bg-primary-700 focus:ring-primary-500 text-white shadow-lg shadow-primary-600/25 transition-all duration-200 !important;
 }
 
-.fi-btn-secondary {
-    @apply bg-secondary-500 hover:bg-secondary-600 text-gray-900 !important;
+.fi-btn-primary:hover {
+    @apply shadow-xl shadow-primary-600/30 transform -translate-y-0.5 !important;
 }
 
-/* Table Styles */
+/* Secondary/Danger Buttons - School Red */
+.fi-btn-danger {
+    @apply bg-secondary-500 hover:bg-secondary-600 focus:ring-secondary-500 text-white shadow-lg shadow-secondary-500/25 !important;
+}
+
+/* Outlined Buttons */
+.fi-btn-outlined {
+    @apply border-primary-600 text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/20 !important;
+}
+
+/* ========================================
+   TABLE STYLES
+   ======================================== */
+
 .fi-ta-header-cell {
-    @apply bg-primary-50 dark:bg-primary-950/50 !important;
+    @apply bg-primary-50/50 dark:bg-primary-950/30 text-primary-800 dark:text-primary-200 font-semibold !important;
 }
 
-/* Form Styles */
+.fi-ta-row:hover {
+    @apply bg-primary-50/30 dark:bg-primary-900/10 !important;
+}
+
+/* ========================================
+   FORM STYLES
+   ======================================== */
+
 .fi-input-wrapper {
-    @apply focus-within:ring-primary-600 !important;
+    @apply focus-within:ring-2 focus-within:ring-primary-500/50 focus-within:border-primary-500 transition-all duration-200 !important;
 }
 
 .fi-input {
-    @apply focus:border-primary-600 !important;
+    @apply focus:border-primary-500 focus:ring-primary-500/20 !important;
 }
 
-/* Badge Styles */
+/* Select & Dropdowns */
+.fi-select-option-is-selected {
+    @apply bg-primary-600 text-white !important;
+}
+
+/* ========================================
+   BADGE STYLES
+   ======================================== */
+
 .fi-badge.fi-badge-success {
-    @apply bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300 !important;
+    @apply bg-emerald-100 text-emerald-800 dark:bg-emerald-900/50 dark:text-emerald-300 ring-1 ring-emerald-500/20 !important;
 }
 
 .fi-badge.fi-badge-danger {
-    @apply bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300 !important;
+    @apply bg-secondary-100 text-secondary-800 dark:bg-secondary-900/50 dark:text-secondary-300 ring-1 ring-secondary-500/20 !important;
 }
 
 .fi-badge.fi-badge-warning {
-    @apply bg-secondary-100 text-secondary-800 dark:bg-secondary-900 dark:text-secondary-300 !important;
+    @apply bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300 ring-1 ring-amber-500/20 !important;
 }
 
 .fi-badge.fi-badge-info {
-    @apply bg-primary-100 text-primary-800 dark:bg-primary-900 dark:text-primary-300 !important;
+    @apply bg-primary-100 text-primary-800 dark:bg-primary-900/50 dark:text-primary-300 ring-1 ring-primary-500/20 !important;
+}
+
+.fi-badge.fi-badge-primary {
+    @apply bg-primary-100 text-primary-800 dark:bg-primary-900/50 dark:text-primary-300 ring-1 ring-primary-500/20 !important;
+}
+
+/* ========================================
+   CARD & WIDGET STYLES
+   ======================================== */
+
+.fi-wi-stats-overview-stat {
+    @apply bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-sm hover:shadow-md transition-shadow duration-200 !important;
+}
+
+.fi-section {
+    @apply bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl !important;
+}
+
+/* ========================================
+   MODAL STYLES
+   ======================================== */
+
+.fi-modal-window {
+    @apply border border-gray-200 dark:border-gray-700 shadow-2xl !important;
+}
+
+.fi-modal-header {
+    @apply bg-primary-50 dark:bg-primary-950/50 border-b border-primary-100 dark:border-primary-900 !important;
+}
+
+/* ========================================
+   NOTIFICATION STYLES
+   ======================================== */
+
+.fi-notification {
+    @apply shadow-xl border-l-4 !important;
+}
+
+.fi-notification-success {
+    @apply border-l-emerald-500 !important;
+}
+
+.fi-notification-danger {
+    @apply border-l-secondary-500 !important;
+}
+
+.fi-notification-warning {
+    @apply border-l-amber-500 !important;
+}
+
+.fi-notification-info {
+    @apply border-l-primary-500 !important;
+}
+
+/* ========================================
+   LOGIN PAGE STYLES
+   ======================================== */
+
+.fi-simple-layout {
+    background: linear-gradient(135deg, #1e3a5f 0%, #2c5282 50%, #1e3a5f 100%) !important;
+}
+
+.fi-simple-main {
+    @apply bg-white dark:bg-gray-800 shadow-2xl rounded-2xl !important;
+}
+
+.fi-simple-header {
+    @apply mb-6 !important;
+}
+
+/* ========================================
+   TABS STYLES
+   ======================================== */
+
+.fi-tabs-tab-active {
+    @apply text-primary-600 border-b-2 border-primary-600 dark:text-primary-400 dark:border-primary-400 !important;
+}
+
+.fi-tabs-tab {
+    @apply text-gray-600 hover:text-primary-600 dark:text-gray-400 dark:hover:text-primary-400 !important;
+}
+
+/* ========================================
+   PAGINATION STYLES
+   ======================================== */
+
+.fi-pagination-item-active {
+    @apply bg-primary-600 text-white !important;
+}
+
+/* ========================================
+   ICON BUTTON STYLES
+   ======================================== */
+
+.fi-icon-btn-icon {
+    @apply text-primary-600 dark:text-primary-400 !important;
+}
+
+.fi-icon-btn:hover .fi-icon-btn-icon {
+    @apply text-primary-700 dark:text-primary-300 !important;
+}
+
+/* ========================================
+   BREADCRUMB STYLES
+   ======================================== */
+
+.fi-breadcrumbs-item-label {
+    @apply text-primary-600 dark:text-primary-400 hover:text-primary-800 dark:hover:text-primary-300 !important;
+}
+
+/* ========================================
+   TOGGLE & SWITCH STYLES
+   ======================================== */
+
+.fi-toggle-input:checked {
+    @apply bg-primary-600 !important;
+}
+
+/* ========================================
+   PROGRESS & LOADING STYLES
+   ======================================== */
+
+.fi-loading-indicator {
+    @apply text-primary-600 !important;
+}
+
+/* ========================================
+   CUSTOM SCROLLBAR
+   ======================================== */
+
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    @apply bg-gray-100 dark:bg-gray-800;
+}
+
+::-webkit-scrollbar-thumb {
+    @apply bg-primary-300 dark:bg-primary-700 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    @apply bg-primary-400 dark:bg-primary-600;
+}
+
+/* ========================================
+   DARK MODE ENHANCEMENTS
+   Sidebar dark styles handled by renderHook.
+   ======================================== */
+
+.dark .fi-topbar {
+    @apply bg-gray-900 border-b border-gray-800 !important;
 }

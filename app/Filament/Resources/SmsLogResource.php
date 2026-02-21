@@ -36,7 +36,7 @@ class SmsLogResource extends Resource
             return false;
         }
 
-        return $user->role_id === RoleConstants::ADMIN;
+        return in_array($user->role_id, [RoleConstants::ADMIN, RoleConstants::SCHOOL_SECRETARY]);
     }
 
     // Disable resource creation

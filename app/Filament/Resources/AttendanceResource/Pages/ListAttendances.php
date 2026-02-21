@@ -4,6 +4,8 @@ namespace App\Filament\Resources\AttendanceResource\Pages;
 
 use App\Constants\RoleConstants;
 use App\Filament\Resources\AttendanceResource;
+use App\Filament\Resources\AttendanceResource\Widgets\AttendanceDailyRegister;
+use App\Filament\Resources\AttendanceResource\Widgets\FlaggedStudentsWidget;
 use App\Models\ClassSection;
 use App\Models\Student;
 use App\Models\Teacher;
@@ -16,6 +18,14 @@ use Illuminate\Support\Facades\Auth;
 class ListAttendances extends ListRecords
 {
     protected static string $resource = AttendanceResource::class;
+
+    protected function getHeaderWidgets(): array
+    {
+        return [
+            AttendanceDailyRegister::class,
+            FlaggedStudentsWidget::class,
+        ];
+    }
 
     protected function getHeaderActions(): array
     {
@@ -104,6 +114,7 @@ class ListAttendances extends ListRecords
                 ->options([
                     'present' => 'Present',
                     'absent' => 'Absent',
+                    'sick' => 'Sick',
                     'late' => 'Late',
                     'excused' => 'Excused',
                 ])

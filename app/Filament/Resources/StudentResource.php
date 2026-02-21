@@ -46,8 +46,8 @@ class StudentResource extends Resource
 
         $user = Auth::user();
 
-        // Admin can see all students
-        if ($user->role_id === RoleConstants::ADMIN) {
+        // Admin and School Secretary can see all students
+        if (in_array($user->role_id, [RoleConstants::ADMIN, RoleConstants::SCHOOL_SECRETARY])) {
             return $query;
         }
 
@@ -666,7 +666,7 @@ class StudentResource extends Resource
             ->actions([
                 Tables\Actions\ViewAction::make(),
                 Tables\Actions\EditAction::make()
-                    ->visible($isAdmin),
+                    ->visible($isAdmin || $user->role_id === RoleConstants::SCHOOL_SECRETARY),
 
                 Tables\Actions\Action::make('assignToSection')
                     ->label('Assign to Section')
@@ -1157,6 +1157,13 @@ class StudentResource extends Resource
             ]);
     }
 
+    public static function getWidgets(): array
+    {
+        return [
+            StudentResource\Widgets\StudentGradeSummary::class,
+        ];
+    }
+
     public static function getRelations(): array
     {
         return [
@@ -1355,12 +1362,13 @@ class StudentResource extends Resource
             return false;
         }
 
-        // Admin, Teachers, Nurses, and Parents can access
+        // Admin, Teachers, Nurses, Parents, and School Secretary can access
         if (in_array($user->role_id, [
             RoleConstants::ADMIN,
             RoleConstants::TEACHER,
             RoleConstants::NURSE,
             RoleConstants::PARENT,
+            RoleConstants::SCHOOL_SECRETARY,
         ])) {
             return true;
         }
@@ -1376,8 +1384,8 @@ class StudentResource extends Resource
 
     public static function canEditAny(): bool
     {
-        // Only admin can edit students
-        return Auth::user()?->role_id === RoleConstants::ADMIN ?? false;
+        // Admin and School Secretary can edit students
+        return in_array(Auth::user()?->role_id, [RoleConstants::ADMIN, RoleConstants::SCHOOL_SECRETARY]);
     }
 
     public static function canDeleteAny(): bool

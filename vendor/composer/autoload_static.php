@@ -54,26 +54,26 @@ class ComposerStaticInit88970a0117c062eed55fa8728fc43833
     );
 
     public static $prefixLengthsPsr4 = array (
-        'v' => 
+        'v' =>
         array (
             'voku\\' => 5,
         ),
-        'Z' => 
+        'Z' =>
         array (
             'ZipStream\\' => 10,
         ),
-        'W' => 
+        'W' =>
         array (
             'Whoops\\' => 7,
             'Webmozart\\Assert\\' => 17,
         ),
-        'T' => 
+        'T' =>
         array (
             'TijsVerkoyen\\CssToInlineStyles\\' => 31,
             'Tests\\' => 6,
             'Termwind\\' => 9,
         ),
-        'S' => 
+        'S' =>
         array (
             'Symfony\\Polyfill\\Uuid\\' => 22,
             'Symfony\\Polyfill\\Php83\\' => 23,
@@ -111,14 +111,14 @@ class ComposerStaticInit88970a0117c062eed55fa8728fc43833
             'SimpleSoftwareIO\\QrCode\\' => 24,
             'Sabberworm\\CSS\\' => 15,
         ),
-        'R' => 
+        'R' =>
         array (
             'RyanChandler\\BladeCaptureDirective\\Database\\Factories\\' => 54,
             'RyanChandler\\BladeCaptureDirective\\' => 35,
             'Ramsey\\Uuid\\' => 12,
             'Ramsey\\Collection\\' => 18,
         ),
-        'P' => 
+        'P' =>
         array (
             'Psy\\' => 4,
             'Psr\\SimpleCache\\' => 16,
@@ -131,17 +131,19 @@ class ComposerStaticInit88970a0117c062eed55fa8728fc43833
             'Psr\\Cache\\' => 10,
             'PhpParser\\' => 10,
             'PhpOption\\' => 10,
+            'PhpOffice\\PhpWord\\' => 18,
             'PhpOffice\\PhpSpreadsheet\\' => 25,
+            'PhpOffice\\Math\\' => 15,
         ),
-        'O' => 
+        'O' =>
         array (
             'OpenSpout\\' => 10,
         ),
-        'N' => 
+        'N' =>
         array (
             'NunoMaduro\\Collision\\' => 21,
         ),
-        'M' => 
+        'M' =>
         array (
             'Monolog\\' => 8,
             'Mockery\\' => 8,
@@ -149,7 +151,7 @@ class ComposerStaticInit88970a0117c062eed55fa8728fc43833
             'Masterminds\\' => 12,
             'Maatwebsite\\Excel\\' => 18,
         ),
-        'L' => 
+        'L' =>
         array (
             'Livewire\\' => 9,
             'League\\Uri\\' => 11,
@@ -165,16 +167,16 @@ class ComposerStaticInit88970a0117c062eed55fa8728fc43833
             'Laravel\\Prompts\\' => 16,
             'Laravel\\Pail\\' => 13,
         ),
-        'K' => 
+        'K' =>
         array (
             'Kirschbaum\\PowerJoins\\' => 22,
         ),
-        'I' => 
+        'I' =>
         array (
             'Illuminate\\Support\\' => 19,
             'Illuminate\\' => 11,
         ),
-        'G' => 
+        'G' =>
         array (
             'GuzzleHttp\\UriTemplate\\' => 23,
             'GuzzleHttp\\Psr7\\' => 16,
@@ -182,7 +184,7 @@ class ComposerStaticInit88970a0117c062eed55fa8728fc43833
             'GuzzleHttp\\' => 11,
             'GrahamCampbell\\ResultType\\' => 26,
         ),
-        'F' => 
+        'F' =>
         array (
             'Fruitcake\\Cors\\' => 15,
             'FontLib\\' => 8,
@@ -196,11 +198,11 @@ class ComposerStaticInit88970a0117c062eed55fa8728fc43833
             'Filament\\' => 9,
             'Faker\\' => 6,
         ),
-        'E' => 
+        'E' =>
         array (
             'Egulias\\EmailValidator\\' => 23,
         ),
-        'D' => 
+        'D' =>
         array (
             'Dotenv\\' => 7,
             'Dompdf\\' => 7,
@@ -216,7 +218,7 @@ class ComposerStaticInit88970a0117c062eed55fa8728fc43833
             'DanHarrin\\DateFormatConverter\\' => 30,
             'DASPRiD\\Enum\\' => 13,
         ),
-        'C' => 
+        'C' =>
         array (
             'Cron\\' => 5,
             'Composer\\Semver\\' => 16,
@@ -225,7 +227,7 @@ class ComposerStaticInit88970a0117c062eed55fa8728fc43833
             'Carbon\\Doctrine\\' => 16,
             'Carbon\\' => 7,
         ),
-        'B' => 
+        'B' =>
         array (
             'Brick\\Math\\' => 11,
             'BladeUI\\Icons\\' => 14,
@@ -233,7 +235,7 @@ class ComposerStaticInit88970a0117c062eed55fa8728fc43833
             'Barryvdh\\DomPDF\\' => 16,
             'BaconQrCode\\' => 12,
         ),
-        'A' => 
+        'A' =>
         array (
             'App\\' => 4,
             'AnourValar\\EloquentSerialize\\' => 29,
@@ -241,515 +243,523 @@ class ComposerStaticInit88970a0117c062eed55fa8728fc43833
     );
 
     public static $prefixDirsPsr4 = array (
-        'voku\\' => 
+        'voku\\' =>
         array (
             0 => __DIR__ . '/..' . '/voku/portable-ascii/src/voku',
         ),
-        'ZipStream\\' => 
+        'ZipStream\\' =>
         array (
             0 => __DIR__ . '/..' . '/maennchen/zipstream-php/src',
         ),
-        'Whoops\\' => 
+        'Whoops\\' =>
         array (
             0 => __DIR__ . '/..' . '/filp/whoops/src/Whoops',
         ),
-        'Webmozart\\Assert\\' => 
+        'Webmozart\\Assert\\' =>
         array (
             0 => __DIR__ . '/..' . '/webmozart/assert/src',
         ),
-        'TijsVerkoyen\\CssToInlineStyles\\' => 
+        'TijsVerkoyen\\CssToInlineStyles\\' =>
         array (
             0 => __DIR__ . '/..' . '/tijsverkoyen/css-to-inline-styles/src',
         ),
-        'Tests\\' => 
+        'Tests\\' =>
         array (
             0 => __DIR__ . '/../..' . '/tests',
         ),
-        'Termwind\\' => 
+        'Termwind\\' =>
         array (
             0 => __DIR__ . '/..' . '/nunomaduro/termwind/src',
         ),
-        'Symfony\\Polyfill\\Uuid\\' => 
+        'Symfony\\Polyfill\\Uuid\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/polyfill-uuid',
         ),
-        'Symfony\\Polyfill\\Php83\\' => 
+        'Symfony\\Polyfill\\Php83\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/polyfill-php83',
         ),
-        'Symfony\\Polyfill\\Php80\\' => 
+        'Symfony\\Polyfill\\Php80\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/polyfill-php80',
         ),
-        'Symfony\\Polyfill\\Mbstring\\' => 
+        'Symfony\\Polyfill\\Mbstring\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/polyfill-mbstring',
         ),
-        'Symfony\\Polyfill\\Intl\\Normalizer\\' => 
+        'Symfony\\Polyfill\\Intl\\Normalizer\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/polyfill-intl-normalizer',
         ),
-        'Symfony\\Polyfill\\Intl\\Idn\\' => 
+        'Symfony\\Polyfill\\Intl\\Idn\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/polyfill-intl-idn',
         ),
-        'Symfony\\Polyfill\\Intl\\Grapheme\\' => 
+        'Symfony\\Polyfill\\Intl\\Grapheme\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/polyfill-intl-grapheme',
         ),
-        'Symfony\\Polyfill\\Ctype\\' => 
+        'Symfony\\Polyfill\\Ctype\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/polyfill-ctype',
         ),
-        'Symfony\\Contracts\\Translation\\' => 
+        'Symfony\\Contracts\\Translation\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/translation-contracts',
         ),
-        'Symfony\\Contracts\\Service\\' => 
+        'Symfony\\Contracts\\Service\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/service-contracts',
         ),
-        'Symfony\\Contracts\\EventDispatcher\\' => 
+        'Symfony\\Contracts\\EventDispatcher\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/event-dispatcher-contracts',
         ),
-        'Symfony\\Component\\Yaml\\' => 
+        'Symfony\\Component\\Yaml\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/yaml',
         ),
-        'Symfony\\Component\\VarDumper\\' => 
+        'Symfony\\Component\\VarDumper\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/var-dumper',
         ),
-        'Symfony\\Component\\Uid\\' => 
+        'Symfony\\Component\\Uid\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/uid',
         ),
-        'Symfony\\Component\\Translation\\' => 
+        'Symfony\\Component\\Translation\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/translation',
         ),
-        'Symfony\\Component\\String\\' => 
+        'Symfony\\Component\\String\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/string',
         ),
-        'Symfony\\Component\\Routing\\' => 
+        'Symfony\\Component\\Routing\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/routing',
         ),
-        'Symfony\\Component\\Process\\' => 
+        'Symfony\\Component\\Process\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/process',
         ),
-        'Symfony\\Component\\Mime\\' => 
+        'Symfony\\Component\\Mime\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/mime',
         ),
-        'Symfony\\Component\\Mailer\\' => 
+        'Symfony\\Component\\Mailer\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/mailer',
         ),
-        'Symfony\\Component\\HttpKernel\\' => 
+        'Symfony\\Component\\HttpKernel\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/http-kernel',
         ),
-        'Symfony\\Component\\HttpFoundation\\' => 
+        'Symfony\\Component\\HttpFoundation\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/http-foundation',
         ),
-        'Symfony\\Component\\HtmlSanitizer\\' => 
+        'Symfony\\Component\\HtmlSanitizer\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/html-sanitizer',
         ),
-        'Symfony\\Component\\Finder\\' => 
+        'Symfony\\Component\\Finder\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/finder',
         ),
-        'Symfony\\Component\\EventDispatcher\\' => 
+        'Symfony\\Component\\EventDispatcher\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/event-dispatcher',
         ),
-        'Symfony\\Component\\ErrorHandler\\' => 
+        'Symfony\\Component\\ErrorHandler\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/error-handler',
         ),
-        'Symfony\\Component\\CssSelector\\' => 
+        'Symfony\\Component\\CssSelector\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/css-selector',
         ),
-        'Symfony\\Component\\Console\\' => 
+        'Symfony\\Component\\Console\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/console',
         ),
-        'Symfony\\Component\\Clock\\' => 
+        'Symfony\\Component\\Clock\\' =>
         array (
             0 => __DIR__ . '/..' . '/symfony/clock',
         ),
-        'Svg\\' => 
+        'Svg\\' =>
         array (
             0 => __DIR__ . '/..' . '/dompdf/php-svg-lib/src/Svg',
         ),
-        'Spatie\\LaravelPackageTools\\' => 
+        'Spatie\\LaravelPackageTools\\' =>
         array (
             0 => __DIR__ . '/..' . '/spatie/laravel-package-tools/src',
         ),
-        'Spatie\\Invade\\' => 
+        'Spatie\\Invade\\' =>
         array (
             0 => __DIR__ . '/..' . '/spatie/invade/src',
         ),
-        'Spatie\\Color\\' => 
+        'Spatie\\Color\\' =>
         array (
             0 => __DIR__ . '/..' . '/spatie/color/src',
         ),
-        'SimpleSoftwareIO\\QrCode\\' => 
+        'SimpleSoftwareIO\\QrCode\\' =>
         array (
             0 => __DIR__ . '/..' . '/simplesoftwareio/simple-qrcode/src',
         ),
-        'Sabberworm\\CSS\\' => 
+        'Sabberworm\\CSS\\' =>
         array (
             0 => __DIR__ . '/..' . '/sabberworm/php-css-parser/src',
         ),
-        'RyanChandler\\BladeCaptureDirective\\Database\\Factories\\' => 
+        'RyanChandler\\BladeCaptureDirective\\Database\\Factories\\' =>
         array (
             0 => __DIR__ . '/..' . '/ryangjchandler/blade-capture-directive/database/factories',
         ),
-        'RyanChandler\\BladeCaptureDirective\\' => 
+        'RyanChandler\\BladeCaptureDirective\\' =>
         array (
             0 => __DIR__ . '/..' . '/ryangjchandler/blade-capture-directive/src',
         ),
-        'Ramsey\\Uuid\\' => 
+        'Ramsey\\Uuid\\' =>
         array (
             0 => __DIR__ . '/..' . '/ramsey/uuid/src',
         ),
-        'Ramsey\\Collection\\' => 
+        'Ramsey\\Collection\\' =>
         array (
             0 => __DIR__ . '/..' . '/ramsey/collection/src',
         ),
-        'Psy\\' => 
+        'Psy\\' =>
         array (
             0 => __DIR__ . '/..' . '/psy/psysh/src',
         ),
-        'Psr\\SimpleCache\\' => 
+        'Psr\\SimpleCache\\' =>
         array (
             0 => __DIR__ . '/..' . '/psr/simple-cache/src',
         ),
-        'Psr\\Log\\' => 
+        'Psr\\Log\\' =>
         array (
             0 => __DIR__ . '/..' . '/psr/log/src',
         ),
-        'Psr\\Http\\Message\\' => 
+        'Psr\\Http\\Message\\' =>
         array (
             0 => __DIR__ . '/..' . '/psr/http-factory/src',
             1 => __DIR__ . '/..' . '/psr/http-message/src',
         ),
-        'Psr\\Http\\Client\\' => 
+        'Psr\\Http\\Client\\' =>
         array (
             0 => __DIR__ . '/..' . '/psr/http-client/src',
         ),
-        'Psr\\EventDispatcher\\' => 
+        'Psr\\EventDispatcher\\' =>
         array (
             0 => __DIR__ . '/..' . '/psr/event-dispatcher/src',
         ),
-        'Psr\\Container\\' => 
+        'Psr\\Container\\' =>
         array (
             0 => __DIR__ . '/..' . '/psr/container/src',
         ),
-        'Psr\\Clock\\' => 
+        'Psr\\Clock\\' =>
         array (
             0 => __DIR__ . '/..' . '/psr/clock/src',
         ),
-        'Psr\\Cache\\' => 
+        'Psr\\Cache\\' =>
         array (
             0 => __DIR__ . '/..' . '/psr/cache/src',
         ),
-        'PhpParser\\' => 
+        'PhpParser\\' =>
         array (
             0 => __DIR__ . '/..' . '/nikic/php-parser/lib/PhpParser',
         ),
-        'PhpOption\\' => 
+        'PhpOption\\' =>
         array (
             0 => __DIR__ . '/..' . '/phpoption/phpoption/src/PhpOption',
         ),
-        'PhpOffice\\PhpSpreadsheet\\' => 
+        'PhpOffice\\PhpWord\\' =>
+        array (
+            0 => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord',
+        ),
+        'PhpOffice\\PhpSpreadsheet\\' =>
         array (
             0 => __DIR__ . '/..' . '/phpoffice/phpspreadsheet/src/PhpSpreadsheet',
         ),
-        'OpenSpout\\' => 
+        'PhpOffice\\Math\\' =>
+        array (
+            0 => __DIR__ . '/..' . '/phpoffice/math/src/Math',
+        ),
+        'OpenSpout\\' =>
         array (
             0 => __DIR__ . '/..' . '/openspout/openspout/src',
         ),
-        'NunoMaduro\\Collision\\' => 
+        'NunoMaduro\\Collision\\' =>
         array (
             0 => __DIR__ . '/..' . '/nunomaduro/collision/src',
         ),
-        'Monolog\\' => 
+        'Monolog\\' =>
         array (
             0 => __DIR__ . '/..' . '/monolog/monolog/src/Monolog',
         ),
-        'Mockery\\' => 
+        'Mockery\\' =>
         array (
             0 => __DIR__ . '/..' . '/mockery/mockery/library/Mockery',
         ),
-        'Matrix\\' => 
+        'Matrix\\' =>
         array (
             0 => __DIR__ . '/..' . '/markbaker/matrix/classes/src',
         ),
-        'Masterminds\\' => 
+        'Masterminds\\' =>
         array (
             0 => __DIR__ . '/..' . '/masterminds/html5/src',
         ),
-        'Maatwebsite\\Excel\\' => 
+        'Maatwebsite\\Excel\\' =>
         array (
             0 => __DIR__ . '/..' . '/maatwebsite/excel/src',
         ),
-        'Livewire\\' => 
+        'Livewire\\' =>
         array (
             0 => __DIR__ . '/..' . '/livewire/livewire/src',
         ),
-        'League\\Uri\\' => 
+        'League\\Uri\\' =>
         array (
             0 => __DIR__ . '/..' . '/league/uri',
             1 => __DIR__ . '/..' . '/league/uri-interfaces',
         ),
-        'League\\MimeTypeDetection\\' => 
+        'League\\MimeTypeDetection\\' =>
         array (
             0 => __DIR__ . '/..' . '/league/mime-type-detection/src',
         ),
-        'League\\Flysystem\\Local\\' => 
+        'League\\Flysystem\\Local\\' =>
         array (
             0 => __DIR__ . '/..' . '/league/flysystem-local',
         ),
-        'League\\Flysystem\\' => 
+        'League\\Flysystem\\' =>
         array (
             0 => __DIR__ . '/..' . '/league/flysystem/src',
         ),
-        'League\\Csv\\' => 
+        'League\\Csv\\' =>
         array (
             0 => __DIR__ . '/..' . '/league/csv/src',
         ),
-        'League\\Config\\' => 
+        'League\\Config\\' =>
         array (
             0 => __DIR__ . '/..' . '/league/config/src',
         ),
-        'League\\CommonMark\\' => 
+        'League\\CommonMark\\' =>
         array (
             0 => __DIR__ . '/..' . '/league/commonmark/src',
         ),
-        'Laravel\\Tinker\\' => 
+        'Laravel\\Tinker\\' =>
         array (
             0 => __DIR__ . '/..' . '/laravel/tinker/src',
         ),
-        'Laravel\\SerializableClosure\\' => 
+        'Laravel\\SerializableClosure\\' =>
         array (
             0 => __DIR__ . '/..' . '/laravel/serializable-closure/src',
         ),
-        'Laravel\\Sail\\' => 
+        'Laravel\\Sail\\' =>
         array (
             0 => __DIR__ . '/..' . '/laravel/sail/src',
         ),
-        'Laravel\\Prompts\\' => 
+        'Laravel\\Prompts\\' =>
         array (
             0 => __DIR__ . '/..' . '/laravel/prompts/src',
         ),
-        'Laravel\\Pail\\' => 
+        'Laravel\\Pail\\' =>
         array (
             0 => __DIR__ . '/..' . '/laravel/pail/src',
         ),
-        'Kirschbaum\\PowerJoins\\' => 
+        'Kirschbaum\\PowerJoins\\' =>
         array (
             0 => __DIR__ . '/..' . '/kirschbaum-development/eloquent-power-joins/src',
         ),
-        'Illuminate\\Support\\' => 
+        'Illuminate\\Support\\' =>
         array (
             0 => __DIR__ . '/..' . '/laravel/framework/src/Illuminate/Macroable',
             1 => __DIR__ . '/..' . '/laravel/framework/src/Illuminate/Collections',
             2 => __DIR__ . '/..' . '/laravel/framework/src/Illuminate/Conditionable',
         ),
-        'Illuminate\\' => 
+        'Illuminate\\' =>
         array (
             0 => __DIR__ . '/..' . '/laravel/framework/src/Illuminate',
         ),
-        'GuzzleHttp\\UriTemplate\\' => 
+        'GuzzleHttp\\UriTemplate\\' =>
         array (
             0 => __DIR__ . '/..' . '/guzzlehttp/uri-template/src',
         ),
-        'GuzzleHttp\\Psr7\\' => 
+        'GuzzleHttp\\Psr7\\' =>
         array (
             0 => __DIR__ . '/..' . '/guzzlehttp/psr7/src',
         ),
-        'GuzzleHttp\\Promise\\' => 
+        'GuzzleHttp\\Promise\\' =>
         array (
             0 => __DIR__ . '/..' . '/guzzlehttp/promises/src',
         ),
-        'GuzzleHttp\\' => 
+        'GuzzleHttp\\' =>
         array (
             0 => __DIR__ . '/..' . '/guzzlehttp/guzzle/src',
         ),
-        'GrahamCampbell\\ResultType\\' => 
+        'GrahamCampbell\\ResultType\\' =>
         array (
             0 => __DIR__ . '/..' . '/graham-campbell/result-type/src',
         ),
-        'Fruitcake\\Cors\\' => 
+        'Fruitcake\\Cors\\' =>
         array (
             0 => __DIR__ . '/..' . '/fruitcake/php-cors/src',
         ),
-        'FontLib\\' => 
+        'FontLib\\' =>
         array (
             0 => __DIR__ . '/..' . '/dompdf/php-font-lib/src/FontLib',
         ),
-        'Filament\\Widgets\\' => 
+        'Filament\\Widgets\\' =>
         array (
             0 => __DIR__ . '/..' . '/filament/widgets/src',
         ),
-        'Filament\\Tables\\' => 
+        'Filament\\Tables\\' =>
         array (
             0 => __DIR__ . '/..' . '/filament/tables/src',
         ),
-        'Filament\\Support\\' => 
+        'Filament\\Support\\' =>
         array (
             0 => __DIR__ . '/..' . '/filament/support/src',
         ),
-        'Filament\\Notifications\\' => 
+        'Filament\\Notifications\\' =>
         array (
             0 => __DIR__ . '/..' . '/filament/notifications/src',
         ),
-        'Filament\\Infolists\\' => 
+        'Filament\\Infolists\\' =>
         array (
             0 => __DIR__ . '/..' . '/filament/infolists/src',
         ),
-        'Filament\\Forms\\' => 
+        'Filament\\Forms\\' =>
         array (
             0 => __DIR__ . '/..' . '/filament/forms/src',
         ),
-        'Filament\\Actions\\' => 
+        'Filament\\Actions\\' =>
         array (
             0 => __DIR__ . '/..' . '/filament/actions/src',
         ),
-        'Filament\\' => 
+        'Filament\\' =>
         array (
             0 => __DIR__ . '/..' . '/filament/filament/src',
         ),
-        'Faker\\' => 
+        'Faker\\' =>
         array (
             0 => __DIR__ . '/..' . '/fakerphp/faker/src/Faker',
         ),
-        'Egulias\\EmailValidator\\' => 
+        'Egulias\\EmailValidator\\' =>
         array (
             0 => __DIR__ . '/..' . '/egulias/email-validator/src',
         ),
-        'Dotenv\\' => 
+        'Dotenv\\' =>
         array (
             0 => __DIR__ . '/..' . '/vlucas/phpdotenv/src',
         ),
-        'Dompdf\\' => 
+        'Dompdf\\' =>
         array (
             0 => __DIR__ . '/..' . '/dompdf/dompdf/src',
         ),
-        'Doctrine\\Inflector\\' => 
+        'Doctrine\\Inflector\\' =>
         array (
             0 => __DIR__ . '/..' . '/doctrine/inflector/lib/Doctrine/Inflector',
         ),
-        'Doctrine\\Deprecations\\' => 
+        'Doctrine\\Deprecations\\' =>
         array (
             0 => __DIR__ . '/..' . '/doctrine/deprecations/src',
         ),
-        'Doctrine\\DBAL\\' => 
+        'Doctrine\\DBAL\\' =>
         array (
             0 => __DIR__ . '/..' . '/doctrine/dbal/src',
         ),
-        'Doctrine\\Common\\Lexer\\' => 
+        'Doctrine\\Common\\Lexer\\' =>
         array (
             0 => __DIR__ . '/..' . '/doctrine/lexer/src',
         ),
-        'Dflydev\\DotAccessData\\' => 
+        'Dflydev\\DotAccessData\\' =>
         array (
             0 => __DIR__ . '/..' . '/dflydev/dot-access-data/src',
         ),
-        'DeepCopy\\' => 
+        'DeepCopy\\' =>
         array (
             0 => __DIR__ . '/..' . '/myclabs/deep-copy/src/DeepCopy',
         ),
-        'Database\\Seeders\\' => 
+        'Database\\Seeders\\' =>
         array (
             0 => __DIR__ . '/../..' . '/database/seeders',
             1 => __DIR__ . '/..' . '/laravel/pint/database/seeders',
         ),
-        'Database\\Factories\\' => 
+        'Database\\Factories\\' =>
         array (
             0 => __DIR__ . '/../..' . '/database/factories',
             1 => __DIR__ . '/..' . '/laravel/pint/database/factories',
         ),
-        'DanHarrin\\LivewireRateLimiting\\' => 
+        'DanHarrin\\LivewireRateLimiting\\' =>
         array (
             0 => __DIR__ . '/..' . '/danharrin/livewire-rate-limiting/src',
         ),
-        'DanHarrin\\DateFormatConverter\\' => 
+        'DanHarrin\\DateFormatConverter\\' =>
         array (
             0 => __DIR__ . '/..' . '/danharrin/date-format-converter/src',
         ),
-        'DASPRiD\\Enum\\' => 
+        'DASPRiD\\Enum\\' =>
         array (
             0 => __DIR__ . '/..' . '/dasprid/enum/src',
         ),
-        'Cron\\' => 
+        'Cron\\' =>
         array (
             0 => __DIR__ . '/..' . '/dragonmantank/cron-expression/src/Cron',
         ),
-        'Composer\\Semver\\' => 
+        'Composer\\Semver\\' =>
         array (
             0 => __DIR__ . '/..' . '/composer/semver/src',
         ),
-        'Composer\\Pcre\\' => 
+        'Composer\\Pcre\\' =>
         array (
             0 => __DIR__ . '/..' . '/composer/pcre/src',
         ),
-        'Complex\\' => 
+        'Complex\\' =>
         array (
             0 => __DIR__ . '/..' . '/markbaker/complex/classes/src',
         ),
-        'Carbon\\Doctrine\\' => 
+        'Carbon\\Doctrine\\' =>
         array (
             0 => __DIR__ . '/..' . '/carbonphp/carbon-doctrine-types/src/Carbon/Doctrine',
         ),
-        'Carbon\\' => 
+        'Carbon\\' =>
         array (
             0 => __DIR__ . '/..' . '/nesbot/carbon/src/Carbon',
         ),
-        'Brick\\Math\\' => 
+        'Brick\\Math\\' =>
         array (
             0 => __DIR__ . '/..' . '/brick/math/src',
         ),
-        'BladeUI\\Icons\\' => 
+        'BladeUI\\Icons\\' =>
         array (
             0 => __DIR__ . '/..' . '/blade-ui-kit/blade-icons/src',
         ),
-        'BladeUI\\Heroicons\\' => 
+        'BladeUI\\Heroicons\\' =>
         array (
             0 => __DIR__ . '/..' . '/blade-ui-kit/blade-heroicons/src',
         ),
-        'Barryvdh\\DomPDF\\' => 
+        'Barryvdh\\DomPDF\\' =>
         array (
             0 => __DIR__ . '/..' . '/barryvdh/laravel-dompdf/src',
         ),
-        'BaconQrCode\\' => 
+        'BaconQrCode\\' =>
         array (
             0 => __DIR__ . '/..' . '/bacon/bacon-qr-code/src',
         ),
-        'App\\' => 
+        'App\\' =>
         array (
             0 => __DIR__ . '/../..' . '/app',
             1 => __DIR__ . '/..' . '/laravel/pint/app',
         ),
-        'AnourValar\\EloquentSerialize\\' => 
+        'AnourValar\\EloquentSerialize\\' =>
         array (
             0 => __DIR__ . '/..' . '/anourvalar/eloquent-serialize/src',
         ),
     );
 
     public static $prefixesPsr0 = array (
-        'H' => 
+        'H' =>
         array (
-            'HTMLPurifier' => 
+            'HTMLPurifier' =>
             array (
                 0 => __DIR__ . '/..' . '/ezyang/htmlpurifier/library',
             ),
@@ -772,11 +782,16 @@ class ComposerStaticInit88970a0117c062eed55fa8728fc43833
         'App\\Exports\\StudentImportReferenceSheet' => __DIR__ . '/../..' . '/app/Exports/StudentImportReferenceSheet.php',
         'App\\Exports\\StudentImportTemplateExport' => __DIR__ . '/../..' . '/app/Exports/StudentImportTemplateExport.php',
         'App\\Filament\\Imports\\StudentImporter' => __DIR__ . '/../..' . '/app/Filament/Imports/StudentImporter.php',
+        'App\\Filament\\Pages\\AccountsDashboard' => __DIR__ . '/../..' . '/app/Filament/Pages/AccountsDashboard.php',
         'App\\Filament\\Pages\\AttendanceReports' => __DIR__ . '/../..' . '/app/Filament/Pages/AttendanceReports.php',
         'App\\Filament\\Pages\\Dashboard' => __DIR__ . '/../..' . '/app/Filament/Pages/Dashboard.php',
+        'App\\Filament\\Pages\\EnterResults' => __DIR__ . '/../..' . '/app/Filament/Pages/EnterResults.php',
         'App\\Filament\\Pages\\FeeReports' => __DIR__ . '/../..' . '/app/Filament/Pages/FeeReports.php',
+        'App\\Filament\\Pages\\FinancialReports' => __DIR__ . '/../..' . '/app/Filament/Pages/FinancialReports.php',
+        'App\\Filament\\Pages\\GenerateReportCards' => __DIR__ . '/../..' . '/app/Filament/Pages/GenerateReportCards.php',
         'App\\Filament\\Pages\\HomeworkDetails' => __DIR__ . '/../..' . '/app/Filament/Pages/HomeworkDetails.php',
         'App\\Filament\\Pages\\LibrarianDashboard' => __DIR__ . '/../..' . '/app/Filament/Pages/LibrarianDashboard.php',
+        'App\\Filament\\Pages\\ManageTimetable' => __DIR__ . '/../..' . '/app/Filament/Pages/ManageTimetable.php',
         'App\\Filament\\Pages\\MarkAttendance' => __DIR__ . '/../..' . '/app/Filament/Pages/MarkAttendance.php',
         'App\\Filament\\Pages\\MyReports' => __DIR__ . '/../..' . '/app/Filament/Pages/MyReports.php',
         'App\\Filament\\Pages\\MySchedule' => __DIR__ . '/../..' . '/app/Filament/Pages/MySchedule.php',
@@ -788,12 +803,41 @@ class ComposerStaticInit88970a0117c062eed55fa8728fc43833
         'App\\Filament\\Pages\\SubjectAssignmentManager' => __DIR__ . '/../..' . '/app/Filament/Pages/SubjectAssignmentManager.php',
         'App\\Filament\\Pages\\TeacherDashboard' => __DIR__ . '/../..' . '/app/Filament/Pages/TeacherDashboard.php',
         'App\\Filament\\Pages\\TeacherProfile' => __DIR__ . '/../..' . '/app/Filament/Pages/TeacherProfile.php',
+        'App\\Filament\\Pages\\TeacherSchedules' => __DIR__ . '/../..' . '/app/Filament/Pages/TeacherSchedules.php',
         'App\\Filament\\Pages\\ViewHomework' => __DIR__ . '/../..' . '/app/Filament/Pages/ViewHomework.php',
         'App\\Filament\\Resources\\AcademicYearResource' => __DIR__ . '/../..' . '/app/Filament/Resources/AcademicYearResource.php',
         'App\\Filament\\Resources\\AcademicYearResource\\Pages\\CreateAcademicYear' => __DIR__ . '/../..' . '/app/Filament/Resources/AcademicYearResource/Pages/CreateAcademicYear.php',
         'App\\Filament\\Resources\\AcademicYearResource\\Pages\\EditAcademicYear' => __DIR__ . '/../..' . '/app/Filament/Resources/AcademicYearResource/Pages/EditAcademicYear.php',
         'App\\Filament\\Resources\\AcademicYearResource\\Pages\\ListAcademicYears' => __DIR__ . '/../..' . '/app/Filament/Resources/AcademicYearResource/Pages/ListAcademicYears.php',
         'App\\Filament\\Resources\\AcademicYearResource\\Pages\\ViewAcademicYear' => __DIR__ . '/../..' . '/app/Filament/Resources/AcademicYearResource/Pages/ViewAcademicYear.php',
+        'App\\Filament\\Resources\\Accounting\\BankAccountResource' => __DIR__ . '/../..' . '/app/Filament/Resources/Accounting/BankAccountResource.php',
+        'App\\Filament\\Resources\\Accounting\\BankAccountResource\\Pages\\CreateBankAccount' => __DIR__ . '/../..' . '/app/Filament/Resources/Accounting/BankAccountResource/Pages/CreateBankAccount.php',
+        'App\\Filament\\Resources\\Accounting\\BankAccountResource\\Pages\\EditBankAccount' => __DIR__ . '/../..' . '/app/Filament/Resources/Accounting/BankAccountResource/Pages/EditBankAccount.php',
+        'App\\Filament\\Resources\\Accounting\\BankAccountResource\\Pages\\ListBankAccounts' => __DIR__ . '/../..' . '/app/Filament/Resources/Accounting/BankAccountResource/Pages/ListBankAccounts.php',
+        'App\\Filament\\Resources\\Accounting\\BankTransactionResource' => __DIR__ . '/../..' . '/app/Filament/Resources/Accounting/BankTransactionResource.php',
+        'App\\Filament\\Resources\\Accounting\\BankTransactionResource\\Pages\\CreateBankTransaction' => __DIR__ . '/../..' . '/app/Filament/Resources/Accounting/BankTransactionResource/Pages/CreateBankTransaction.php',
+        'App\\Filament\\Resources\\Accounting\\BankTransactionResource\\Pages\\EditBankTransaction' => __DIR__ . '/../..' . '/app/Filament/Resources/Accounting/BankTransactionResource/Pages/EditBankTransaction.php',
+        'App\\Filament\\Resources\\Accounting\\BankTransactionResource\\Pages\\ListBankTransactions' => __DIR__ . '/../..' . '/app/Filament/Resources/Accounting/BankTransactionResource/Pages/ListBankTransactions.php',
+        'App\\Filament\\Resources\\Accounting\\ChartOfAccountResource' => __DIR__ . '/../..' . '/app/Filament/Resources/Accounting/ChartOfAccountResource.php',
+        'App\\Filament\\Resources\\Accounting\\ChartOfAccountResource\\Pages\\CreateChartOfAccount' => __DIR__ . '/../..' . '/app/Filament/Resources/Accounting/ChartOfAccountResource/Pages/CreateChartOfAccount.php',
+        'App\\Filament\\Resources\\Accounting\\ChartOfAccountResource\\Pages\\EditChartOfAccount' => __DIR__ . '/../..' . '/app/Filament/Resources/Accounting/ChartOfAccountResource/Pages/EditChartOfAccount.php',
+        'App\\Filament\\Resources\\Accounting\\ChartOfAccountResource\\Pages\\ListChartOfAccounts' => __DIR__ . '/../..' . '/app/Filament/Resources/Accounting/ChartOfAccountResource/Pages/ListChartOfAccounts.php',
+        'App\\Filament\\Resources\\Accounting\\ExpenseCategoryResource' => __DIR__ . '/../..' . '/app/Filament/Resources/Accounting/ExpenseCategoryResource.php',
+        'App\\Filament\\Resources\\Accounting\\ExpenseCategoryResource\\Pages\\CreateExpenseCategory' => __DIR__ . '/../..' . '/app/Filament/Resources/Accounting/ExpenseCategoryResource/Pages/CreateExpenseCategory.php',
+        'App\\Filament\\Resources\\Accounting\\ExpenseCategoryResource\\Pages\\EditExpenseCategory' => __DIR__ . '/../..' . '/app/Filament/Resources/Accounting/ExpenseCategoryResource/Pages/EditExpenseCategory.php',
+        'App\\Filament\\Resources\\Accounting\\ExpenseCategoryResource\\Pages\\ListExpenseCategories' => __DIR__ . '/../..' . '/app/Filament/Resources/Accounting/ExpenseCategoryResource/Pages/ListExpenseCategories.php',
+        'App\\Filament\\Resources\\Accounting\\ExpenseResource' => __DIR__ . '/../..' . '/app/Filament/Resources/Accounting/ExpenseResource.php',
+        'App\\Filament\\Resources\\Accounting\\ExpenseResource\\Pages\\CreateExpense' => __DIR__ . '/../..' . '/app/Filament/Resources/Accounting/ExpenseResource/Pages/CreateExpense.php',
+        'App\\Filament\\Resources\\Accounting\\ExpenseResource\\Pages\\EditExpense' => __DIR__ . '/../..' . '/app/Filament/Resources/Accounting/ExpenseResource/Pages/EditExpense.php',
+        'App\\Filament\\Resources\\Accounting\\ExpenseResource\\Pages\\ListExpenses' => __DIR__ . '/../..' . '/app/Filament/Resources/Accounting/ExpenseResource/Pages/ListExpenses.php',
+        'App\\Filament\\Resources\\Accounting\\PaymentVoucherResource' => __DIR__ . '/../..' . '/app/Filament/Resources/Accounting/PaymentVoucherResource.php',
+        'App\\Filament\\Resources\\Accounting\\PaymentVoucherResource\\Pages\\CreatePaymentVoucher' => __DIR__ . '/../..' . '/app/Filament/Resources/Accounting/PaymentVoucherResource/Pages/CreatePaymentVoucher.php',
+        'App\\Filament\\Resources\\Accounting\\PaymentVoucherResource\\Pages\\EditPaymentVoucher' => __DIR__ . '/../..' . '/app/Filament/Resources/Accounting/PaymentVoucherResource/Pages/EditPaymentVoucher.php',
+        'App\\Filament\\Resources\\Accounting\\PaymentVoucherResource\\Pages\\ListPaymentVouchers' => __DIR__ . '/../..' . '/app/Filament/Resources/Accounting/PaymentVoucherResource/Pages/ListPaymentVouchers.php',
+        'App\\Filament\\Resources\\Accounting\\VendorResource' => __DIR__ . '/../..' . '/app/Filament/Resources/Accounting/VendorResource.php',
+        'App\\Filament\\Resources\\Accounting\\VendorResource\\Pages\\CreateVendor' => __DIR__ . '/../..' . '/app/Filament/Resources/Accounting/VendorResource/Pages/CreateVendor.php',
+        'App\\Filament\\Resources\\Accounting\\VendorResource\\Pages\\EditVendor' => __DIR__ . '/../..' . '/app/Filament/Resources/Accounting/VendorResource/Pages/EditVendor.php',
+        'App\\Filament\\Resources\\Accounting\\VendorResource\\Pages\\ListVendors' => __DIR__ . '/../..' . '/app/Filament/Resources/Accounting/VendorResource/Pages/ListVendors.php',
         'App\\Filament\\Resources\\AdminResource\\Widgets\\StudentsOverview' => __DIR__ . '/../..' . '/app/Filament/Resources/AdminResource/Widgets/StudentsOverview.php',
         'App\\Filament\\Resources\\AttendanceResource' => __DIR__ . '/../..' . '/app/Filament/Resources/AttendanceResource.php',
         'App\\Filament\\Resources\\AttendanceResource\\Pages\\CreateAttendance' => __DIR__ . '/../..' . '/app/Filament/Resources/AttendanceResource/Pages/CreateAttendance.php',
@@ -837,7 +881,10 @@ class ComposerStaticInit88970a0117c062eed55fa8728fc43833
         'App\\Filament\\Resources\\EmployeeResource\\Pages\\CreateEmployee' => __DIR__ . '/../..' . '/app/Filament/Resources/EmployeeResource/Pages/CreateEmployee.php',
         'App\\Filament\\Resources\\EmployeeResource\\Pages\\EditEmployee' => __DIR__ . '/../..' . '/app/Filament/Resources/EmployeeResource/Pages/EditEmployee.php',
         'App\\Filament\\Resources\\EmployeeResource\\Pages\\ListEmployees' => __DIR__ . '/../..' . '/app/Filament/Resources/EmployeeResource/Pages/ListEmployees.php',
+        'App\\Filament\\Resources\\EmployeeResource\\Pages\\ViewEmployee' => __DIR__ . '/../..' . '/app/Filament/Resources/EmployeeResource/Pages/ViewEmployee.php',
+        'App\\Filament\\Resources\\EmployeeResource\\RelationManagers\\DocumentsRelationManager' => __DIR__ . '/../..' . '/app/Filament/Resources/EmployeeResource/RelationManagers/DocumentsRelationManager.php',
         'App\\Filament\\Resources\\EmployeeResource\\RelationManagers\\HomeworksRelationManager' => __DIR__ . '/../..' . '/app/Filament/Resources/EmployeeResource/RelationManagers/HomeworksRelationManager.php',
+        'App\\Filament\\Resources\\EmployeeResource\\RelationManagers\\LeaveApplicationsRelationManager' => __DIR__ . '/../..' . '/app/Filament/Resources/EmployeeResource/RelationManagers/LeaveApplicationsRelationManager.php',
         'App\\Filament\\Resources\\EmployeeResource\\RelationManagers\\PayrollsRelationManager' => __DIR__ . '/../..' . '/app/Filament/Resources/EmployeeResource/RelationManagers/PayrollsRelationManager.php',
         'App\\Filament\\Resources\\EmployeeResource\\RelationManagers\\SubjectsRelationManager' => __DIR__ . '/../..' . '/app/Filament/Resources/EmployeeResource/RelationManagers/SubjectsRelationManager.php',
         'App\\Filament\\Resources\\EventResource' => __DIR__ . '/../..' . '/app/Filament/Resources/EventResource.php',
@@ -871,6 +918,11 @@ class ComposerStaticInit88970a0117c062eed55fa8728fc43833
         'App\\Filament\\Resources\\GradeSubjectResource\\Pages\\CreateGradeSubject' => __DIR__ . '/../..' . '/app/Filament/Resources/GradeSubjectResource/Pages/CreateGradeSubject.php',
         'App\\Filament\\Resources\\GradeSubjectResource\\Pages\\EditGradeSubject' => __DIR__ . '/../..' . '/app/Filament/Resources/GradeSubjectResource/Pages/EditGradeSubject.php',
         'App\\Filament\\Resources\\GradeSubjectResource\\Pages\\ListGradeSubjects' => __DIR__ . '/../..' . '/app/Filament/Resources/GradeSubjectResource/Pages/ListGradeSubjects.php',
+        'App\\Filament\\Resources\\GradingScaleResource' => __DIR__ . '/../..' . '/app/Filament/Resources/GradingScaleResource.php',
+        'App\\Filament\\Resources\\GradingScaleResource\\Pages\\CreateGradingScale' => __DIR__ . '/../..' . '/app/Filament/Resources/GradingScaleResource/Pages/CreateGradingScale.php',
+        'App\\Filament\\Resources\\GradingScaleResource\\Pages\\EditGradingScale' => __DIR__ . '/../..' . '/app/Filament/Resources/GradingScaleResource/Pages/EditGradingScale.php',
+        'App\\Filament\\Resources\\GradingScaleResource\\Pages\\ListGradingScales' => __DIR__ . '/../..' . '/app/Filament/Resources/GradingScaleResource/Pages/ListGradingScales.php',
+        'App\\Filament\\Resources\\GradingScaleResource\\Pages\\ViewGradingScale' => __DIR__ . '/../..' . '/app/Filament/Resources/GradingScaleResource/Pages/ViewGradingScale.php',
         'App\\Filament\\Resources\\HomeworkResource' => __DIR__ . '/../..' . '/app/Filament/Resources/HomeworkResource.php',
         'App\\Filament\\Resources\\HomeworkResource\\Pages\\CreateHomework' => __DIR__ . '/../..' . '/app/Filament/Resources/HomeworkResource/Pages/CreateHomework.php',
         'App\\Filament\\Resources\\HomeworkResource\\Pages\\EditHomework' => __DIR__ . '/../..' . '/app/Filament/Resources/HomeworkResource/Pages/EditHomework.php',
@@ -882,6 +934,11 @@ class ComposerStaticInit88970a0117c062eed55fa8728fc43833
         'App\\Filament\\Resources\\HomeworkSubmissionResource\\Pages\\EditHomeworkSubmission' => __DIR__ . '/../..' . '/app/Filament/Resources/HomeworkSubmissionResource/Pages/EditHomeworkSubmission.php',
         'App\\Filament\\Resources\\HomeworkSubmissionResource\\Pages\\ListHomeworkSubmissions' => __DIR__ . '/../..' . '/app/Filament/Resources/HomeworkSubmissionResource/Pages/ListHomeworkSubmissions.php',
         'App\\Filament\\Resources\\HomeworkSubmissionResource\\Pages\\ViewHomeworkSubmission' => __DIR__ . '/../..' . '/app/Filament/Resources/HomeworkSubmissionResource/Pages/ViewHomeworkSubmission.php',
+        'App\\Filament\\Resources\\LeaveApplicationResource' => __DIR__ . '/../..' . '/app/Filament/Resources/LeaveApplicationResource.php',
+        'App\\Filament\\Resources\\LeaveApplicationResource\\Pages\\CreateLeaveApplication' => __DIR__ . '/../..' . '/app/Filament/Resources/LeaveApplicationResource/Pages/CreateLeaveApplication.php',
+        'App\\Filament\\Resources\\LeaveApplicationResource\\Pages\\EditLeaveApplication' => __DIR__ . '/../..' . '/app/Filament/Resources/LeaveApplicationResource/Pages/EditLeaveApplication.php',
+        'App\\Filament\\Resources\\LeaveApplicationResource\\Pages\\ListLeaveApplications' => __DIR__ . '/../..' . '/app/Filament/Resources/LeaveApplicationResource/Pages/ListLeaveApplications.php',
+        'App\\Filament\\Resources\\LeaveApplicationResource\\Pages\\ViewLeaveApplication' => __DIR__ . '/../..' . '/app/Filament/Resources/LeaveApplicationResource/Pages/ViewLeaveApplication.php',
         'App\\Filament\\Resources\\NewsResource' => __DIR__ . '/../..' . '/app/Filament/Resources/NewsResource.php',
         'App\\Filament\\Resources\\NewsResource\\Pages\\CreateNews' => __DIR__ . '/../..' . '/app/Filament/Resources/NewsResource/Pages/CreateNews.php',
         'App\\Filament\\Resources\\NewsResource\\Pages\\EditNews' => __DIR__ . '/../..' . '/app/Filament/Resources/NewsResource/Pages/EditNews.php',
@@ -920,7 +977,6 @@ class ComposerStaticInit88970a0117c062eed55fa8728fc43833
         'App\\Filament\\Resources\\QrPaymentResource\\Pages\\ListQrPayments' => __DIR__ . '/../..' . '/app/Filament/Resources/QrPaymentResource/Pages/ListQrPayments.php',
         'App\\Filament\\Resources\\QrPaymentResource\\Pages\\ViewQrPayment' => __DIR__ . '/../..' . '/app/Filament/Resources/QrPaymentResource/Pages/ViewQrPayment.php',
         'App\\Filament\\Resources\\RelationManagers\\SmsLogsRelationManager' => __DIR__ . '/../..' . '/app/Filament/Resources/RelationManagers/SmsLogsRelationManager.php',
-        'App\\Filament\\Resources\\RelationManagers\\SubmissionsRelationManager' => __DIR__ . '/../..' . '/app/Filament/Resources/RelationManagers/SubmissionsRelationManager.php',
         'App\\Filament\\Resources\\ResultResource' => __DIR__ . '/../..' . '/app/Filament/Resources/ResultResource.php',
         'App\\Filament\\Resources\\ResultResource\\Pages\\CreateResult' => __DIR__ . '/../..' . '/app/Filament/Resources/ResultResource/Pages/CreateResult.php',
         'App\\Filament\\Resources\\ResultResource\\Pages\\EditResult' => __DIR__ . '/../..' . '/app/Filament/Resources/ResultResource/Pages/EditResult.php',
@@ -931,6 +987,10 @@ class ComposerStaticInit88970a0117c062eed55fa8728fc43833
         'App\\Filament\\Resources\\RoleResource\\Pages\\CreateRole' => __DIR__ . '/../..' . '/app/Filament/Resources/RoleResource/Pages/CreateRole.php',
         'App\\Filament\\Resources\\RoleResource\\Pages\\EditRole' => __DIR__ . '/../..' . '/app/Filament/Resources/RoleResource/Pages/EditRole.php',
         'App\\Filament\\Resources\\RoleResource\\Pages\\ListRoles' => __DIR__ . '/../..' . '/app/Filament/Resources/RoleResource/Pages/ListRoles.php',
+        'App\\Filament\\Resources\\SalaryGradeResource' => __DIR__ . '/../..' . '/app/Filament/Resources/SalaryGradeResource.php',
+        'App\\Filament\\Resources\\SalaryGradeResource\\Pages\\CreateSalaryGrade' => __DIR__ . '/../..' . '/app/Filament/Resources/SalaryGradeResource/Pages/CreateSalaryGrade.php',
+        'App\\Filament\\Resources\\SalaryGradeResource\\Pages\\EditSalaryGrade' => __DIR__ . '/../..' . '/app/Filament/Resources/SalaryGradeResource/Pages/EditSalaryGrade.php',
+        'App\\Filament\\Resources\\SalaryGradeResource\\Pages\\ListSalaryGrades' => __DIR__ . '/../..' . '/app/Filament/Resources/SalaryGradeResource/Pages/ListSalaryGrades.php',
         'App\\Filament\\Resources\\SchoolClassResource' => __DIR__ . '/../..' . '/app/Filament/Resources/SchoolClassResource.php',
         'App\\Filament\\Resources\\SchoolClassResource\\Pages\\CreateSchoolClass' => __DIR__ . '/../..' . '/app/Filament/Resources/SchoolClassResource/Pages/CreateSchoolClass.php',
         'App\\Filament\\Resources\\SchoolClassResource\\Pages\\EditSchoolClass' => __DIR__ . '/../..' . '/app/Filament/Resources/SchoolClassResource/Pages/EditSchoolClass.php',
@@ -958,6 +1018,10 @@ class ComposerStaticInit88970a0117c062eed55fa8728fc43833
         'App\\Filament\\Resources\\SmsLogResource\\Widgets\\SmsCostOverview' => __DIR__ . '/../..' . '/app/Filament/Resources/SmsLogResource/Widgets/SmsCostOverview.php',
         'App\\Filament\\Resources\\SmsLogResource\\Widgets\\SmsDashboardWidget' => __DIR__ . '/../..' . '/app/Filament/Resources/SmsLogResource/Widgets/SmsDashboardWidget.php',
         'App\\Filament\\Resources\\SmsLogResource\\Widgets\\SmsTypeDistributionWidget' => __DIR__ . '/../..' . '/app/Filament/Resources/SmsLogResource/Widgets/SmsTypeDistributionWidget.php',
+        'App\\Filament\\Resources\\StaffDesignationResource' => __DIR__ . '/../..' . '/app/Filament/Resources/StaffDesignationResource.php',
+        'App\\Filament\\Resources\\StaffDesignationResource\\Pages\\CreateStaffDesignation' => __DIR__ . '/../..' . '/app/Filament/Resources/StaffDesignationResource/Pages/CreateStaffDesignation.php',
+        'App\\Filament\\Resources\\StaffDesignationResource\\Pages\\EditStaffDesignation' => __DIR__ . '/../..' . '/app/Filament/Resources/StaffDesignationResource/Pages/EditStaffDesignation.php',
+        'App\\Filament\\Resources\\StaffDesignationResource\\Pages\\ListStaffDesignations' => __DIR__ . '/../..' . '/app/Filament/Resources/StaffDesignationResource/Pages/ListStaffDesignations.php',
         'App\\Filament\\Resources\\StudentFeeResource' => __DIR__ . '/../..' . '/app/Filament/Resources/StudentFeeResource.php',
         'App\\Filament\\Resources\\StudentFeeResource\\Pages\\CreateStudentFee' => __DIR__ . '/../..' . '/app/Filament/Resources/StudentFeeResource/Pages/CreateStudentFee.php',
         'App\\Filament\\Resources\\StudentFeeResource\\Pages\\EditStudentFee' => __DIR__ . '/../..' . '/app/Filament/Resources/StudentFeeResource/Pages/EditStudentFee.php',
@@ -990,6 +1054,10 @@ class ComposerStaticInit88970a0117c062eed55fa8728fc43833
         'App\\Filament\\Resources\\TeacherResource\\Pages\\ListTeachers' => __DIR__ . '/../..' . '/app/Filament/Resources/TeacherResource/Pages/ListTeachers.php',
         'App\\Filament\\Resources\\TeacherResource\\Pages\\ViewTeacher' => __DIR__ . '/../..' . '/app/Filament/Resources/TeacherResource/Pages/ViewTeacher.php',
         'App\\Filament\\Resources\\TeacherResource\\RelationManagers\\SubjectTeachingsRelationManager' => __DIR__ . '/../..' . '/app/Filament/Resources/TeacherResource/RelationManagers/SubjectTeachingsRelationManager.php',
+        'App\\Filament\\Resources\\TimetablePeriodResource' => __DIR__ . '/../..' . '/app/Filament/Resources/TimetablePeriodResource.php',
+        'App\\Filament\\Resources\\TimetablePeriodResource\\Pages\\CreateTimetablePeriod' => __DIR__ . '/../..' . '/app/Filament/Resources/TimetablePeriodResource/Pages/CreateTimetablePeriod.php',
+        'App\\Filament\\Resources\\TimetablePeriodResource\\Pages\\EditTimetablePeriod' => __DIR__ . '/../..' . '/app/Filament/Resources/TimetablePeriodResource/Pages/EditTimetablePeriod.php',
+        'App\\Filament\\Resources\\TimetablePeriodResource\\Pages\\ListTimetablePeriods' => __DIR__ . '/../..' . '/app/Filament/Resources/TimetablePeriodResource/Pages/ListTimetablePeriods.php',
         'App\\Filament\\Resources\\UserCredentialResource' => __DIR__ . '/../..' . '/app/Filament/Resources/UserCredentialResource.php',
         'App\\Filament\\Resources\\UserCredentialResource\\Pages\\CreateUserCredential' => __DIR__ . '/../..' . '/app/Filament/Resources/UserCredentialResource/Pages/CreateUserCredential.php',
         'App\\Filament\\Resources\\UserCredentialResource\\Pages\\EditUserCredential' => __DIR__ . '/../..' . '/app/Filament/Resources/UserCredentialResource/Pages/EditUserCredential.php',
@@ -1006,15 +1074,21 @@ class ComposerStaticInit88970a0117c062eed55fa8728fc43833
         'App\\Filament\\Widgets\\RecentHomework' => __DIR__ . '/../..' . '/app/Filament/Widgets/RecentHomework.php',
         'App\\Filament\\Widgets\\SmsBalanceWidget' => __DIR__ . '/../..' . '/app/Filament/Widgets/SmsBalanceWidget.php',
         'App\\Filament\\Widgets\\StudentBusPassWidget' => __DIR__ . '/../..' . '/app/Filament/Widgets/StudentBusPassWidget.php',
+        'App\\Http\\Controllers\\AccountantGuideController' => __DIR__ . '/../..' . '/app/Http/Controllers/AccountantGuideController.php',
         'App\\Http\\Controllers\\AttendanceController' => __DIR__ . '/../..' . '/app/Http/Controllers/AttendanceController.php',
         'App\\Http\\Controllers\\BusPassController' => __DIR__ . '/../..' . '/app/Http/Controllers/BusPassController.php',
         'App\\Http\\Controllers\\Controller' => __DIR__ . '/../..' . '/app/Http/Controllers/Controller.php',
         'App\\Http\\Controllers\\FeeStatementsController' => __DIR__ . '/../..' . '/app/Http/Controllers/FeeStatementsController.php',
+        'App\\Http\\Controllers\\FinancialReportController' => __DIR__ . '/../..' . '/app/Http/Controllers/FinancialReportController.php',
         'App\\Http\\Controllers\\HomeworkController' => __DIR__ . '/../..' . '/app/Http/Controllers/HomeworkController.php',
+        'App\\Http\\Controllers\\LeaveApplicationController' => __DIR__ . '/../..' . '/app/Http/Controllers/LeaveApplicationController.php',
         'App\\Http\\Controllers\\PaymentStatementController' => __DIR__ . '/../..' . '/app/Http/Controllers/PaymentStatementController.php',
         'App\\Http\\Controllers\\PayslipController' => __DIR__ . '/../..' . '/app/Http/Controllers/PayslipController.php',
         'App\\Http\\Controllers\\PublicPaymentController' => __DIR__ . '/../..' . '/app/Http/Controllers/PublicPaymentController.php',
+        'App\\Http\\Controllers\\QuickGuideController' => __DIR__ . '/../..' . '/app/Http/Controllers/QuickGuideController.php',
+        'App\\Http\\Controllers\\ReportCardController' => __DIR__ . '/../..' . '/app/Http/Controllers/ReportCardController.php',
         'App\\Http\\Controllers\\StudentFeeController' => __DIR__ . '/../..' . '/app/Http/Controllers/StudentFeeController.php',
+        'App\\Http\\Controllers\\TimetableController' => __DIR__ . '/../..' . '/app/Http/Controllers/TimetableController.php',
         'App\\Http\\Middleware\\CheckRole' => __DIR__ . '/../..' . '/app/Http/Middleware/CheckRole.php',
         'App\\Http\\Middleware\\CheckSetupStatus' => __DIR__ . '/../..' . '/app/Http/Middleware/CheckSetupStatus.php',
         'App\\Http\\Middleware\\RedirectToDashboard' => __DIR__ . '/../..' . '/app/Http/Middleware/RedirectToDashboard.php',
@@ -1022,6 +1096,17 @@ class ComposerStaticInit88970a0117c062eed55fa8728fc43833
         'App\\Mail\\HomeworkNotification' => __DIR__ . '/../..' . '/app/Mail/HomeworkNotification.php',
         'App\\Mail\\StaffCredentialsCreated' => __DIR__ . '/../..' . '/app/Mail/StaffCredentialsCreated.php',
         'App\\Models\\AcademicYear' => __DIR__ . '/../..' . '/app/Models/AcademicYear.php',
+        'App\\Models\\Accounting\\AccountCategory' => __DIR__ . '/../..' . '/app/Models/Accounting/AccountCategory.php',
+        'App\\Models\\Accounting\\BankAccount' => __DIR__ . '/../..' . '/app/Models/Accounting/BankAccount.php',
+        'App\\Models\\Accounting\\BankTransaction' => __DIR__ . '/../..' . '/app/Models/Accounting/BankTransaction.php',
+        'App\\Models\\Accounting\\ChartOfAccount' => __DIR__ . '/../..' . '/app/Models/Accounting/ChartOfAccount.php',
+        'App\\Models\\Accounting\\Expense' => __DIR__ . '/../..' . '/app/Models/Accounting/Expense.php',
+        'App\\Models\\Accounting\\ExpenseCategory' => __DIR__ . '/../..' . '/app/Models/Accounting/ExpenseCategory.php',
+        'App\\Models\\Accounting\\IncomeRecord' => __DIR__ . '/../..' . '/app/Models/Accounting/IncomeRecord.php',
+        'App\\Models\\Accounting\\JournalEntry' => __DIR__ . '/../..' . '/app/Models/Accounting/JournalEntry.php',
+        'App\\Models\\Accounting\\JournalEntryLine' => __DIR__ . '/../..' . '/app/Models/Accounting/JournalEntryLine.php',
+        'App\\Models\\Accounting\\PaymentVoucher' => __DIR__ . '/../..' . '/app/Models/Accounting/PaymentVoucher.php',
+        'App\\Models\\Accounting\\Vendor' => __DIR__ . '/../..' . '/app/Models/Accounting/Vendor.php',
         'App\\Models\\Album' => __DIR__ . '/../..' . '/app/Models/Album.php',
         'App\\Models\\Attendance' => __DIR__ . '/../..' . '/app/Models/Attendance.php',
         'App\\Models\\AuditLog' => __DIR__ . '/../..' . '/app/Models/AuditLog.php',
@@ -1032,14 +1117,20 @@ class ComposerStaticInit88970a0117c062eed55fa8728fc43833
         'App\\Models\\ClassSection' => __DIR__ . '/../..' . '/app/Models/ClassSection.php',
         'App\\Models\\ClassSubjectTeacher' => __DIR__ . '/../..' . '/app/Models/ClassSubjectTeacher.php',
         'App\\Models\\Employee' => __DIR__ . '/../..' . '/app/Models/Employee.php',
+        'App\\Models\\EmployeeDocument' => __DIR__ . '/../..' . '/app/Models/EmployeeDocument.php',
         'App\\Models\\Event' => __DIR__ . '/../..' . '/app/Models/Event.php',
         'App\\Models\\FeeStructure' => __DIR__ . '/../..' . '/app/Models/FeeStructure.php',
         'App\\Models\\GalleryImage' => __DIR__ . '/../..' . '/app/Models/GalleryImage.php',
         'App\\Models\\GetInTouch' => __DIR__ . '/../..' . '/app/Models/GetInTouch.php',
         'App\\Models\\Grade' => __DIR__ . '/../..' . '/app/Models/Grade.php',
         'App\\Models\\GradeSubject' => __DIR__ . '/../..' . '/app/Models/GradeSubject.php',
+        'App\\Models\\GradingScale' => __DIR__ . '/../..' . '/app/Models/GradingScale.php',
+        'App\\Models\\GradingScaleItem' => __DIR__ . '/../..' . '/app/Models/GradingScaleItem.php',
         'App\\Models\\Homework' => __DIR__ . '/../..' . '/app/Models/Homework.php',
         'App\\Models\\HomeworkSubmission' => __DIR__ . '/../..' . '/app/Models/HomeworkSubmission.php',
+        'App\\Models\\LeaveApplication' => __DIR__ . '/../..' . '/app/Models/LeaveApplication.php',
+        'App\\Models\\LeaveBalance' => __DIR__ . '/../..' . '/app/Models/LeaveBalance.php',
+        'App\\Models\\LeaveType' => __DIR__ . '/../..' . '/app/Models/LeaveType.php',
         'App\\Models\\MessageBroadcast' => __DIR__ . '/../..' . '/app/Models/MessageBroadcast.php',
         'App\\Models\\MessageTemplate' => __DIR__ . '/../..' . '/app/Models/MessageTemplate.php',
         'App\\Models\\News' => __DIR__ . '/../..' . '/app/Models/News.php',
@@ -1049,23 +1140,42 @@ class ComposerStaticInit88970a0117c062eed55fa8728fc43833
         'App\\Models\\Permission' => __DIR__ . '/../..' . '/app/Models/Permission.php',
         'App\\Models\\Photo' => __DIR__ . '/../..' . '/app/Models/Photo.php',
         'App\\Models\\QrPayment' => __DIR__ . '/../..' . '/app/Models/QrPayment.php',
+        'App\\Models\\ReportCardComment' => __DIR__ . '/../..' . '/app/Models/ReportCardComment.php',
         'App\\Models\\Result' => __DIR__ . '/../..' . '/app/Models/Result.php',
         'App\\Models\\Role' => __DIR__ . '/../..' . '/app/Models/Role.php',
+        'App\\Models\\SalaryGrade' => __DIR__ . '/../..' . '/app/Models/SalaryGrade.php',
         'App\\Models\\SchoolClass' => __DIR__ . '/../..' . '/app/Models/SchoolClass.php',
         'App\\Models\\SchoolSection' => __DIR__ . '/../..' . '/app/Models/SchoolSection.php',
         'App\\Models\\SchoolSettings' => __DIR__ . '/../..' . '/app/Models/SchoolSettings.php',
         'App\\Models\\SmsCredit' => __DIR__ . '/../..' . '/app/Models/SmsCredit.php',
         'App\\Models\\SmsCreditTransaction' => __DIR__ . '/../..' . '/app/Models/SmsCreditTransaction.php',
         'App\\Models\\SmsLog' => __DIR__ . '/../..' . '/app/Models/SmsLog.php',
+        'App\\Models\\StaffDesignation' => __DIR__ . '/../..' . '/app/Models/StaffDesignation.php',
         'App\\Models\\Student' => __DIR__ . '/../..' . '/app/Models/Student.php',
         'App\\Models\\StudentFee' => __DIR__ . '/../..' . '/app/Models/StudentFee.php',
         'App\\Models\\Subject' => __DIR__ . '/../..' . '/app/Models/Subject.php',
         'App\\Models\\SubjectTeaching' => __DIR__ . '/../..' . '/app/Models/SubjectTeaching.php',
         'App\\Models\\Teacher' => __DIR__ . '/../..' . '/app/Models/Teacher.php',
+        'App\\Models\\TeacherDesignation' => __DIR__ . '/../..' . '/app/Models/TeacherDesignation.php',
         'App\\Models\\Term' => __DIR__ . '/../..' . '/app/Models/Term.php',
+        'App\\Models\\TimetableEntry' => __DIR__ . '/../..' . '/app/Models/TimetableEntry.php',
+        'App\\Models\\TimetablePeriod' => __DIR__ . '/../..' . '/app/Models/TimetablePeriod.php',
         'App\\Models\\User' => __DIR__ . '/../..' . '/app/Models/User.php',
         'App\\Models\\UserActivity' => __DIR__ . '/../..' . '/app/Models/UserActivity.php',
         'App\\Models\\UserCredential' => __DIR__ . '/../..' . '/app/Models/UserCredential.php',
+        'App\\Notifications\\HomeworkSubmitted' => __DIR__ . '/../..' . '/app/Notifications/HomeworkSubmitted.php',
+        'App\\Notifications\\LowAttendanceAlert' => __DIR__ . '/../..' . '/app/Notifications/LowAttendanceAlert.php',
+        'App\\Notifications\\NewEmployeeHired' => __DIR__ . '/../..' . '/app/Notifications/NewEmployeeHired.php',
+        'App\\Notifications\\NewEventCreated' => __DIR__ . '/../..' . '/app/Notifications/NewEventCreated.php',
+        'App\\Notifications\\NewStudentRegistered' => __DIR__ . '/../..' . '/app/Notifications/NewStudentRegistered.php',
+        'App\\Notifications\\OverdueFeeAlert' => __DIR__ . '/../..' . '/app/Notifications/OverdueFeeAlert.php',
+        'App\\Notifications\\PaymentReceived' => __DIR__ . '/../..' . '/app/Notifications/PaymentReceived.php',
+        'App\\Observers\\EmployeeObserver' => __DIR__ . '/../..' . '/app/Observers/EmployeeObserver.php',
+        'App\\Observers\\EventObserver' => __DIR__ . '/../..' . '/app/Observers/EventObserver.php',
+        'App\\Observers\\HomeworkSubmissionObserver' => __DIR__ . '/../..' . '/app/Observers/HomeworkSubmissionObserver.php',
+        'App\\Observers\\PaymentTransactionObserver' => __DIR__ . '/../..' . '/app/Observers/PaymentTransactionObserver.php',
+        'App\\Observers\\StudentFeeObserver' => __DIR__ . '/../..' . '/app/Observers/StudentFeeObserver.php',
+        'App\\Observers\\StudentObserver' => __DIR__ . '/../..' . '/app/Observers/StudentObserver.php',
         'App\\Policies\\HomeworkPolicy' => __DIR__ . '/../..' . '/app/Policies/HomeworkPolicy.php',
         'App\\Policies\\HomeworkSubmissionPolicy' => __DIR__ . '/../..' . '/app/Policies/HomeworkSubmissionPolicy.php',
         'App\\Policies\\ResultPolicy' => __DIR__ . '/../..' . '/app/Policies/ResultPolicy.php',
@@ -1073,15 +1183,23 @@ class ComposerStaticInit88970a0117c062eed55fa8728fc43833
         'App\\Providers\\Filament\\AdminPanelProvider' => __DIR__ . '/../..' . '/app/Providers/Filament/AdminPanelProvider.php',
         'App\\Providers\\Filament\\FilamentAuthorizationProvider' => __DIR__ . '/../..' . '/app/Providers/Filament/FilamentAuthorizationProvider.php',
         'App\\Providers\\RouteServiceProvider' => __DIR__ . '/../..' . '/app/Providers/RouteServiceProvider.php',
+        'App\\Services\\Accounting\\AccountingIntegrationService' => __DIR__ . '/../..' . '/app/Services/Accounting/AccountingIntegrationService.php',
+        'App\\Services\\Accounting\\FinancialReportService' => __DIR__ . '/../..' . '/app/Services/Accounting/FinancialReportService.php',
+        'App\\Services\\Accounting\\JournalEntryService' => __DIR__ . '/../..' . '/app/Services/Accounting/JournalEntryService.php',
+        'App\\Services\\AdminNotificationService' => __DIR__ . '/../..' . '/app/Services/AdminNotificationService.php',
         'App\\Services\\BalanceForwardService' => __DIR__ . '/../..' . '/app/Services/BalanceForwardService.php',
         'App\\Services\\CGrateService' => __DIR__ . '/../..' . '/app/Services/CGrateService.php',
         'App\\Services\\CacheService' => __DIR__ . '/../..' . '/app/Services/CacheService.php',
+        'App\\Services\\ImprovedAccountantGuideDocxService' => __DIR__ . '/../..' . '/app/Services/ImprovedAccountantGuideDocxService.php',
         'App\\Services\\PayrollCalculationService' => __DIR__ . '/../..' . '/app/Services/PayrollCalculationService.php',
+        'App\\Services\\ResultsImportService' => __DIR__ . '/../..' . '/app/Services/ResultsImportService.php',
+        'App\\Services\\ResultsService' => __DIR__ . '/../..' . '/app/Services/ResultsService.php',
         'App\\Services\\SmsCreditService' => __DIR__ . '/../..' . '/app/Services/SmsCreditService.php',
         'App\\Services\\SmsService' => __DIR__ . '/../..' . '/app/Services/SmsService.php',
         'App\\Services\\StudentFeeService' => __DIR__ . '/../..' . '/app/Services/StudentFeeService.php',
         'App\\Services\\TeacherAssignmentValidator' => __DIR__ . '/../..' . '/app/Services/TeacherAssignmentValidator.php',
         'App\\Services\\TermService' => __DIR__ . '/../..' . '/app/Services/TermService.php',
+        'App\\Traits\\HasSectionBasedAccess' => __DIR__ . '/../..' . '/app/Traits/HasSectionBasedAccess.php',
         'App\\Traits\\HasTeacherAccess' => __DIR__ . '/../..' . '/app/Traits/HasTeacherAccess.php',
         'Attribute' => __DIR__ . '/..' . '/symfony/polyfill-php80/Resources/stubs/Attribute.php',
         'BaconQrCode\\Common\\BitArray' => __DIR__ . '/..' . '/bacon/bacon-qr-code/src/Common/BitArray.php',
@@ -1325,6 +1443,7 @@ class ComposerStaticInit88970a0117c062eed55fa8728fc43833
         'Database\\Factories\\UserFactory' => __DIR__ . '/../..' . '/database/factories/UserFactory.php',
         'Database\\Seeders\\AcademicYearAndTermSeeder' => __DIR__ . '/../..' . '/database/seeders/AcademicYearAndTermSeeder.php',
         'Database\\Seeders\\AlbumSeeder' => __DIR__ . '/../..' . '/database/seeders/AlbumSeeder.php',
+        'Database\\Seeders\\ChartOfAccountsSeeder' => __DIR__ . '/../..' . '/database/seeders/ChartOfAccountsSeeder.php',
         'Database\\Seeders\\ClassSectionSeeder' => __DIR__ . '/../..' . '/database/seeders/ClassSectionSeeder.php',
         'Database\\Seeders\\ClassSeeder' => __DIR__ . '/../..' . '/database/seeders/ClassSeeder.php',
         'Database\\Seeders\\ClassTeacherSeeder' => __DIR__ . '/../..' . '/database/seeders/ClassTeacherSeeder.php',
@@ -1332,11 +1451,13 @@ class ComposerStaticInit88970a0117c062eed55fa8728fc43833
         'Database\\Seeders\\EmployeeSeeder' => __DIR__ . '/../..' . '/database/seeders/EmployeeSeeder.php',
         'Database\\Seeders\\EssentialDataSeeder' => __DIR__ . '/../..' . '/database/seeders/EssentialDataSeeder.php',
         'Database\\Seeders\\EventSeeder' => __DIR__ . '/../..' . '/database/seeders/EventSeeder.php',
+        'Database\\Seeders\\ExpenseCategoriesSeeder' => __DIR__ . '/../..' . '/database/seeders/ExpenseCategoriesSeeder.php',
         'Database\\Seeders\\FeeStructureSeeder' => __DIR__ . '/../..' . '/database/seeders/FeeStructureSeeder.php',
         'Database\\Seeders\\GalleryImageSeeder' => __DIR__ . '/../..' . '/database/seeders/GalleryImageSeeder.php',
         'Database\\Seeders\\GetInTouchSeeder' => __DIR__ . '/../..' . '/database/seeders/GetInTouchSeeder.php',
         'Database\\Seeders\\GradeSeeder' => __DIR__ . '/../..' . '/database/seeders/GradeSeeder.php',
         'Database\\Seeders\\GradeSubjectSeeder' => __DIR__ . '/../..' . '/database/seeders/GradeSubjectSeeder.php',
+        'Database\\Seeders\\GradingScaleSeeder' => __DIR__ . '/../..' . '/database/seeders/GradingScaleSeeder.php',
         'Database\\Seeders\\HomeworkSeeder' => __DIR__ . '/../..' . '/database/seeders/HomeworkSeeder.php',
         'Database\\Seeders\\HomeworkSubmissionSeeder' => __DIR__ . '/../..' . '/database/seeders/HomeworkSubmissionSeeder.php',
         'Database\\Seeders\\MessageBroadcastSeeder' => __DIR__ . '/../..' . '/database/seeders/MessageBroadcastSeeder.php',
@@ -1352,6 +1473,8 @@ class ComposerStaticInit88970a0117c062eed55fa8728fc43833
         'Database\\Seeders\\SchoolSectionSeeder' => __DIR__ . '/../..' . '/database/seeders/SchoolSectionSeeder.php',
         'Database\\Seeders\\SchoolSettingsSeeder' => __DIR__ . '/../..' . '/database/seeders/SchoolSettingsSeeder.php',
         'Database\\Seeders\\SmsLogSeeder' => __DIR__ . '/../..' . '/database/seeders/SmsLogSeeder.php',
+        'Database\\Seeders\\StFrancisSchoolDataSeeder' => __DIR__ . '/../..' . '/database/seeders/StFrancisSchoolDataSeeder.php',
+        'Database\\Seeders\\StaffDesignationSeeder' => __DIR__ . '/../..' . '/database/seeders/StaffDesignationSeeder.php',
         'Database\\Seeders\\StudentFeeSeeder' => __DIR__ . '/../..' . '/database/seeders/StudentFeeSeeder.php',
         'Database\\Seeders\\StudentSeeder' => __DIR__ . '/../..' . '/database/seeders/StudentSeeder.php',
         'Database\\Seeders\\SubjectSeeder' => __DIR__ . '/../..' . '/database/seeders/SubjectSeeder.php',
@@ -7640,6 +7763,27 @@ class ComposerStaticInit88970a0117c062eed55fa8728fc43833
         'PharIo\\Version\\VersionConstraintParser' => __DIR__ . '/..' . '/phar-io/version/src/VersionConstraintParser.php',
         'PharIo\\Version\\VersionConstraintValue' => __DIR__ . '/..' . '/phar-io/version/src/VersionConstraintValue.php',
         'PharIo\\Version\\VersionNumber' => __DIR__ . '/..' . '/phar-io/version/src/VersionNumber.php',
+        'PhpOffice\\Math\\Element\\AbstractElement' => __DIR__ . '/..' . '/phpoffice/math/src/Math/Element/AbstractElement.php',
+        'PhpOffice\\Math\\Element\\AbstractGroupElement' => __DIR__ . '/..' . '/phpoffice/math/src/Math/Element/AbstractGroupElement.php',
+        'PhpOffice\\Math\\Element\\Fraction' => __DIR__ . '/..' . '/phpoffice/math/src/Math/Element/Fraction.php',
+        'PhpOffice\\Math\\Element\\Identifier' => __DIR__ . '/..' . '/phpoffice/math/src/Math/Element/Identifier.php',
+        'PhpOffice\\Math\\Element\\Numeric' => __DIR__ . '/..' . '/phpoffice/math/src/Math/Element/Numeric.php',
+        'PhpOffice\\Math\\Element\\Operator' => __DIR__ . '/..' . '/phpoffice/math/src/Math/Element/Operator.php',
+        'PhpOffice\\Math\\Element\\Row' => __DIR__ . '/..' . '/phpoffice/math/src/Math/Element/Row.php',
+        'PhpOffice\\Math\\Element\\Semantics' => __DIR__ . '/..' . '/phpoffice/math/src/Math/Element/Semantics.php',
+        'PhpOffice\\Math\\Element\\Superscript' => __DIR__ . '/..' . '/phpoffice/math/src/Math/Element/Superscript.php',
+        'PhpOffice\\Math\\Exception\\InvalidInputException' => __DIR__ . '/..' . '/phpoffice/math/src/Math/Exception/InvalidInputException.php',
+        'PhpOffice\\Math\\Exception\\MathException' => __DIR__ . '/..' . '/phpoffice/math/src/Math/Exception/MathException.php',
+        'PhpOffice\\Math\\Exception\\NotImplementedException' => __DIR__ . '/..' . '/phpoffice/math/src/Math/Exception/NotImplementedException.php',
+        'PhpOffice\\Math\\Exception\\SecurityException' => __DIR__ . '/..' . '/phpoffice/math/src/Math/Exception/SecurityException.php',
+        'PhpOffice\\Math\\Math' => __DIR__ . '/..' . '/phpoffice/math/src/Math/Math.php',
+        'PhpOffice\\Math\\Reader\\MathML' => __DIR__ . '/..' . '/phpoffice/math/src/Math/Reader/MathML.php',
+        'PhpOffice\\Math\\Reader\\OfficeMathML' => __DIR__ . '/..' . '/phpoffice/math/src/Math/Reader/OfficeMathML.php',
+        'PhpOffice\\Math\\Reader\\ReaderInterface' => __DIR__ . '/..' . '/phpoffice/math/src/Math/Reader/ReaderInterface.php',
+        'PhpOffice\\Math\\Reader\\Security\\XmlScanner' => __DIR__ . '/..' . '/phpoffice/math/src/Math/Reader/Security/XmlScanner.php',
+        'PhpOffice\\Math\\Writer\\MathML' => __DIR__ . '/..' . '/phpoffice/math/src/Math/Writer/MathML.php',
+        'PhpOffice\\Math\\Writer\\OfficeMathML' => __DIR__ . '/..' . '/phpoffice/math/src/Math/Writer/OfficeMathML.php',
+        'PhpOffice\\Math\\Writer\\WriterInterface' => __DIR__ . '/..' . '/phpoffice/math/src/Math/Writer/WriterInterface.php',
         'PhpOffice\\PhpSpreadsheet\\Calculation\\ArrayEnabled' => __DIR__ . '/..' . '/phpoffice/phpspreadsheet/src/PhpSpreadsheet/Calculation/ArrayEnabled.php',
         'PhpOffice\\PhpSpreadsheet\\Calculation\\BinaryComparison' => __DIR__ . '/..' . '/phpoffice/phpspreadsheet/src/PhpSpreadsheet/Calculation/BinaryComparison.php',
         'PhpOffice\\PhpSpreadsheet\\Calculation\\Calculation' => __DIR__ . '/..' . '/phpoffice/phpspreadsheet/src/PhpSpreadsheet/Calculation/Calculation.php',
@@ -8146,6 +8290,327 @@ class ComposerStaticInit88970a0117c062eed55fa8728fc43833
         'PhpOffice\\PhpSpreadsheet\\Writer\\ZipStream0' => __DIR__ . '/..' . '/phpoffice/phpspreadsheet/src/PhpSpreadsheet/Writer/ZipStream0.php',
         'PhpOffice\\PhpSpreadsheet\\Writer\\ZipStream2' => __DIR__ . '/..' . '/phpoffice/phpspreadsheet/src/PhpSpreadsheet/Writer/ZipStream2.php',
         'PhpOffice\\PhpSpreadsheet\\Writer\\ZipStream3' => __DIR__ . '/..' . '/phpoffice/phpspreadsheet/src/PhpSpreadsheet/Writer/ZipStream3.php',
+        'PhpOffice\\PhpWord\\Autoloader' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Autoloader.php',
+        'PhpOffice\\PhpWord\\Collection\\AbstractCollection' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Collection/AbstractCollection.php',
+        'PhpOffice\\PhpWord\\Collection\\Bookmarks' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Collection/Bookmarks.php',
+        'PhpOffice\\PhpWord\\Collection\\Charts' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Collection/Charts.php',
+        'PhpOffice\\PhpWord\\Collection\\Comments' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Collection/Comments.php',
+        'PhpOffice\\PhpWord\\Collection\\Endnotes' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Collection/Endnotes.php',
+        'PhpOffice\\PhpWord\\Collection\\Footnotes' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Collection/Footnotes.php',
+        'PhpOffice\\PhpWord\\Collection\\Titles' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Collection/Titles.php',
+        'PhpOffice\\PhpWord\\ComplexType\\FootnoteProperties' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/ComplexType/FootnoteProperties.php',
+        'PhpOffice\\PhpWord\\ComplexType\\ProofState' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/ComplexType/ProofState.php',
+        'PhpOffice\\PhpWord\\ComplexType\\RubyProperties' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/ComplexType/RubyProperties.php',
+        'PhpOffice\\PhpWord\\ComplexType\\TblWidth' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/ComplexType/TblWidth.php',
+        'PhpOffice\\PhpWord\\ComplexType\\TrackChangesView' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/ComplexType/TrackChangesView.php',
+        'PhpOffice\\PhpWord\\Element\\AbstractContainer' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Element/AbstractContainer.php',
+        'PhpOffice\\PhpWord\\Element\\AbstractElement' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Element/AbstractElement.php',
+        'PhpOffice\\PhpWord\\Element\\Bookmark' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Element/Bookmark.php',
+        'PhpOffice\\PhpWord\\Element\\Cell' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Element/Cell.php',
+        'PhpOffice\\PhpWord\\Element\\Chart' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Element/Chart.php',
+        'PhpOffice\\PhpWord\\Element\\CheckBox' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Element/CheckBox.php',
+        'PhpOffice\\PhpWord\\Element\\Comment' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Element/Comment.php',
+        'PhpOffice\\PhpWord\\Element\\Endnote' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Element/Endnote.php',
+        'PhpOffice\\PhpWord\\Element\\Field' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Element/Field.php',
+        'PhpOffice\\PhpWord\\Element\\Footer' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Element/Footer.php',
+        'PhpOffice\\PhpWord\\Element\\Footnote' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Element/Footnote.php',
+        'PhpOffice\\PhpWord\\Element\\FormField' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Element/FormField.php',
+        'PhpOffice\\PhpWord\\Element\\Formula' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Element/Formula.php',
+        'PhpOffice\\PhpWord\\Element\\Header' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Element/Header.php',
+        'PhpOffice\\PhpWord\\Element\\Image' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Element/Image.php',
+        'PhpOffice\\PhpWord\\Element\\Line' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Element/Line.php',
+        'PhpOffice\\PhpWord\\Element\\Link' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Element/Link.php',
+        'PhpOffice\\PhpWord\\Element\\ListItem' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Element/ListItem.php',
+        'PhpOffice\\PhpWord\\Element\\ListItemRun' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Element/ListItemRun.php',
+        'PhpOffice\\PhpWord\\Element\\OLEObject' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Element/OLEObject.php',
+        'PhpOffice\\PhpWord\\Element\\PageBreak' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Element/PageBreak.php',
+        'PhpOffice\\PhpWord\\Element\\PreserveText' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Element/PreserveText.php',
+        'PhpOffice\\PhpWord\\Element\\Row' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Element/Row.php',
+        'PhpOffice\\PhpWord\\Element\\Ruby' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Element/Ruby.php',
+        'PhpOffice\\PhpWord\\Element\\SDT' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Element/SDT.php',
+        'PhpOffice\\PhpWord\\Element\\Section' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Element/Section.php',
+        'PhpOffice\\PhpWord\\Element\\Shape' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Element/Shape.php',
+        'PhpOffice\\PhpWord\\Element\\TOC' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Element/TOC.php',
+        'PhpOffice\\PhpWord\\Element\\Table' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Element/Table.php',
+        'PhpOffice\\PhpWord\\Element\\Text' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Element/Text.php',
+        'PhpOffice\\PhpWord\\Element\\TextBox' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Element/TextBox.php',
+        'PhpOffice\\PhpWord\\Element\\TextBreak' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Element/TextBreak.php',
+        'PhpOffice\\PhpWord\\Element\\TextRun' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Element/TextRun.php',
+        'PhpOffice\\PhpWord\\Element\\Title' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Element/Title.php',
+        'PhpOffice\\PhpWord\\Element\\TrackChange' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Element/TrackChange.php',
+        'PhpOffice\\PhpWord\\Escaper\\AbstractEscaper' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Escaper/AbstractEscaper.php',
+        'PhpOffice\\PhpWord\\Escaper\\EscaperInterface' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Escaper/EscaperInterface.php',
+        'PhpOffice\\PhpWord\\Escaper\\RegExp' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Escaper/RegExp.php',
+        'PhpOffice\\PhpWord\\Escaper\\Rtf' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Escaper/Rtf.php',
+        'PhpOffice\\PhpWord\\Escaper\\Xml' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Escaper/Xml.php',
+        'PhpOffice\\PhpWord\\Exception\\CopyFileException' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Exception/CopyFileException.php',
+        'PhpOffice\\PhpWord\\Exception\\CreateTemporaryFileException' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Exception/CreateTemporaryFileException.php',
+        'PhpOffice\\PhpWord\\Exception\\Exception' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Exception/Exception.php',
+        'PhpOffice\\PhpWord\\Exception\\InvalidImageException' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Exception/InvalidImageException.php',
+        'PhpOffice\\PhpWord\\Exception\\InvalidObjectException' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Exception/InvalidObjectException.php',
+        'PhpOffice\\PhpWord\\Exception\\InvalidStyleException' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Exception/InvalidStyleException.php',
+        'PhpOffice\\PhpWord\\Exception\\UnsupportedImageTypeException' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Exception/UnsupportedImageTypeException.php',
+        'PhpOffice\\PhpWord\\IOFactory' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/IOFactory.php',
+        'PhpOffice\\PhpWord\\Media' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Media.php',
+        'PhpOffice\\PhpWord\\Metadata\\Compatibility' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Metadata/Compatibility.php',
+        'PhpOffice\\PhpWord\\Metadata\\DocInfo' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Metadata/DocInfo.php',
+        'PhpOffice\\PhpWord\\Metadata\\Protection' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Metadata/Protection.php',
+        'PhpOffice\\PhpWord\\Metadata\\Settings' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Metadata/Settings.php',
+        'PhpOffice\\PhpWord\\PhpWord' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/PhpWord.php',
+        'PhpOffice\\PhpWord\\Reader\\AbstractReader' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Reader/AbstractReader.php',
+        'PhpOffice\\PhpWord\\Reader\\HTML' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Reader/HTML.php',
+        'PhpOffice\\PhpWord\\Reader\\MsDoc' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Reader/MsDoc.php',
+        'PhpOffice\\PhpWord\\Reader\\ODText' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Reader/ODText.php',
+        'PhpOffice\\PhpWord\\Reader\\ODText\\AbstractPart' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Reader/ODText/AbstractPart.php',
+        'PhpOffice\\PhpWord\\Reader\\ODText\\Content' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Reader/ODText/Content.php',
+        'PhpOffice\\PhpWord\\Reader\\ODText\\Meta' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Reader/ODText/Meta.php',
+        'PhpOffice\\PhpWord\\Reader\\RTF' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Reader/RTF.php',
+        'PhpOffice\\PhpWord\\Reader\\RTF\\Document' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Reader/RTF/Document.php',
+        'PhpOffice\\PhpWord\\Reader\\ReaderInterface' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Reader/ReaderInterface.php',
+        'PhpOffice\\PhpWord\\Reader\\Word2007' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Reader/Word2007.php',
+        'PhpOffice\\PhpWord\\Reader\\Word2007\\AbstractPart' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Reader/Word2007/AbstractPart.php',
+        'PhpOffice\\PhpWord\\Reader\\Word2007\\Comments' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Reader/Word2007/Comments.php',
+        'PhpOffice\\PhpWord\\Reader\\Word2007\\DocPropsApp' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Reader/Word2007/DocPropsApp.php',
+        'PhpOffice\\PhpWord\\Reader\\Word2007\\DocPropsCore' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Reader/Word2007/DocPropsCore.php',
+        'PhpOffice\\PhpWord\\Reader\\Word2007\\DocPropsCustom' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Reader/Word2007/DocPropsCustom.php',
+        'PhpOffice\\PhpWord\\Reader\\Word2007\\Document' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Reader/Word2007/Document.php',
+        'PhpOffice\\PhpWord\\Reader\\Word2007\\Endnotes' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Reader/Word2007/Endnotes.php',
+        'PhpOffice\\PhpWord\\Reader\\Word2007\\Footnotes' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Reader/Word2007/Footnotes.php',
+        'PhpOffice\\PhpWord\\Reader\\Word2007\\Numbering' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Reader/Word2007/Numbering.php',
+        'PhpOffice\\PhpWord\\Reader\\Word2007\\Settings' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Reader/Word2007/Settings.php',
+        'PhpOffice\\PhpWord\\Reader\\Word2007\\Styles' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Reader/Word2007/Styles.php',
+        'PhpOffice\\PhpWord\\Settings' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Settings.php',
+        'PhpOffice\\PhpWord\\Shared\\AbstractEnum' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Shared/AbstractEnum.php',
+        'PhpOffice\\PhpWord\\Shared\\Converter' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Shared/Converter.php',
+        'PhpOffice\\PhpWord\\Shared\\Css' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Shared/Css.php',
+        'PhpOffice\\PhpWord\\Shared\\Drawing' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Shared/Drawing.php',
+        'PhpOffice\\PhpWord\\Shared\\Html' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Shared/Html.php',
+        'PhpOffice\\PhpWord\\Shared\\Microsoft\\PasswordEncoder' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Shared/Microsoft/PasswordEncoder.php',
+        'PhpOffice\\PhpWord\\Shared\\OLERead' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Shared/OLERead.php',
+        'PhpOffice\\PhpWord\\Shared\\Text' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Shared/Text.php',
+        'PhpOffice\\PhpWord\\Shared\\Validate' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Shared/Validate.php',
+        'PhpOffice\\PhpWord\\Shared\\XMLReader' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Shared/XMLReader.php',
+        'PhpOffice\\PhpWord\\Shared\\XMLWriter' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Shared/XMLWriter.php',
+        'PhpOffice\\PhpWord\\Shared\\ZipArchive' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Shared/ZipArchive.php',
+        'PhpOffice\\PhpWord\\SimpleType\\Border' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/SimpleType/Border.php',
+        'PhpOffice\\PhpWord\\SimpleType\\DocProtect' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/SimpleType/DocProtect.php',
+        'PhpOffice\\PhpWord\\SimpleType\\Jc' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/SimpleType/Jc.php',
+        'PhpOffice\\PhpWord\\SimpleType\\JcTable' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/SimpleType/JcTable.php',
+        'PhpOffice\\PhpWord\\SimpleType\\LineSpacingRule' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/SimpleType/LineSpacingRule.php',
+        'PhpOffice\\PhpWord\\SimpleType\\NumberFormat' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/SimpleType/NumberFormat.php',
+        'PhpOffice\\PhpWord\\SimpleType\\TblWidth' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/SimpleType/TblWidth.php',
+        'PhpOffice\\PhpWord\\SimpleType\\TextAlignment' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/SimpleType/TextAlignment.php',
+        'PhpOffice\\PhpWord\\SimpleType\\VerticalJc' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/SimpleType/VerticalJc.php',
+        'PhpOffice\\PhpWord\\SimpleType\\Zoom' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/SimpleType/Zoom.php',
+        'PhpOffice\\PhpWord\\Style' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Style.php',
+        'PhpOffice\\PhpWord\\Style\\AbstractStyle' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Style/AbstractStyle.php',
+        'PhpOffice\\PhpWord\\Style\\Border' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Style/Border.php',
+        'PhpOffice\\PhpWord\\Style\\Cell' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Style/Cell.php',
+        'PhpOffice\\PhpWord\\Style\\Chart' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Style/Chart.php',
+        'PhpOffice\\PhpWord\\Style\\Extrusion' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Style/Extrusion.php',
+        'PhpOffice\\PhpWord\\Style\\Fill' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Style/Fill.php',
+        'PhpOffice\\PhpWord\\Style\\Font' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Style/Font.php',
+        'PhpOffice\\PhpWord\\Style\\Frame' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Style/Frame.php',
+        'PhpOffice\\PhpWord\\Style\\Image' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Style/Image.php',
+        'PhpOffice\\PhpWord\\Style\\Indentation' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Style/Indentation.php',
+        'PhpOffice\\PhpWord\\Style\\Language' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Style/Language.php',
+        'PhpOffice\\PhpWord\\Style\\Line' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Style/Line.php',
+        'PhpOffice\\PhpWord\\Style\\LineNumbering' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Style/LineNumbering.php',
+        'PhpOffice\\PhpWord\\Style\\ListItem' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Style/ListItem.php',
+        'PhpOffice\\PhpWord\\Style\\Numbering' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Style/Numbering.php',
+        'PhpOffice\\PhpWord\\Style\\NumberingLevel' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Style/NumberingLevel.php',
+        'PhpOffice\\PhpWord\\Style\\Outline' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Style/Outline.php',
+        'PhpOffice\\PhpWord\\Style\\Paper' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Style/Paper.php',
+        'PhpOffice\\PhpWord\\Style\\Paragraph' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Style/Paragraph.php',
+        'PhpOffice\\PhpWord\\Style\\Row' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Style/Row.php',
+        'PhpOffice\\PhpWord\\Style\\Section' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Style/Section.php',
+        'PhpOffice\\PhpWord\\Style\\Shading' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Style/Shading.php',
+        'PhpOffice\\PhpWord\\Style\\Shadow' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Style/Shadow.php',
+        'PhpOffice\\PhpWord\\Style\\Shape' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Style/Shape.php',
+        'PhpOffice\\PhpWord\\Style\\Spacing' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Style/Spacing.php',
+        'PhpOffice\\PhpWord\\Style\\TOC' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Style/TOC.php',
+        'PhpOffice\\PhpWord\\Style\\Tab' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Style/Tab.php',
+        'PhpOffice\\PhpWord\\Style\\Table' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Style/Table.php',
+        'PhpOffice\\PhpWord\\Style\\TablePosition' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Style/TablePosition.php',
+        'PhpOffice\\PhpWord\\Style\\TextBox' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Style/TextBox.php',
+        'PhpOffice\\PhpWord\\TemplateProcessor' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/TemplateProcessor.php',
+        'PhpOffice\\PhpWord\\Writer\\AbstractWriter' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/AbstractWriter.php',
+        'PhpOffice\\PhpWord\\Writer\\EPub3' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/EPub3.php',
+        'PhpOffice\\PhpWord\\Writer\\EPub3\\Element\\AbstractElement' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/EPub3/Element/AbstractElement.php',
+        'PhpOffice\\PhpWord\\Writer\\EPub3\\Element\\Image' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/EPub3/Element/Image.php',
+        'PhpOffice\\PhpWord\\Writer\\EPub3\\Element\\Text' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/EPub3/Element/Text.php',
+        'PhpOffice\\PhpWord\\Writer\\EPub3\\Part' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/EPub3/Part.php',
+        'PhpOffice\\PhpWord\\Writer\\EPub3\\Part\\AbstractPart' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/EPub3/Part/AbstractPart.php',
+        'PhpOffice\\PhpWord\\Writer\\EPub3\\Part\\Content' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/EPub3/Part/Content.php',
+        'PhpOffice\\PhpWord\\Writer\\EPub3\\Part\\ContentXhtml' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/EPub3/Part/ContentXhtml.php',
+        'PhpOffice\\PhpWord\\Writer\\EPub3\\Part\\Manifest' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/EPub3/Part/Manifest.php',
+        'PhpOffice\\PhpWord\\Writer\\EPub3\\Part\\Meta' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/EPub3/Part/Meta.php',
+        'PhpOffice\\PhpWord\\Writer\\EPub3\\Part\\Mimetype' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/EPub3/Part/Mimetype.php',
+        'PhpOffice\\PhpWord\\Writer\\EPub3\\Part\\Nav' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/EPub3/Part/Nav.php',
+        'PhpOffice\\PhpWord\\Writer\\EPub3\\Style\\AbstractStyle' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/EPub3/Style/AbstractStyle.php',
+        'PhpOffice\\PhpWord\\Writer\\EPub3\\Style\\Font' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/EPub3/Style/Font.php',
+        'PhpOffice\\PhpWord\\Writer\\EPub3\\Style\\Paragraph' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/EPub3/Style/Paragraph.php',
+        'PhpOffice\\PhpWord\\Writer\\EPub3\\Style\\Table' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/EPub3/Style/Table.php',
+        'PhpOffice\\PhpWord\\Writer\\HTML' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/HTML.php',
+        'PhpOffice\\PhpWord\\Writer\\HTML\\Element\\AbstractElement' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/HTML/Element/AbstractElement.php',
+        'PhpOffice\\PhpWord\\Writer\\HTML\\Element\\Bookmark' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/HTML/Element/Bookmark.php',
+        'PhpOffice\\PhpWord\\Writer\\HTML\\Element\\Container' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/HTML/Element/Container.php',
+        'PhpOffice\\PhpWord\\Writer\\HTML\\Element\\Endnote' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/HTML/Element/Endnote.php',
+        'PhpOffice\\PhpWord\\Writer\\HTML\\Element\\Footnote' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/HTML/Element/Footnote.php',
+        'PhpOffice\\PhpWord\\Writer\\HTML\\Element\\Image' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/HTML/Element/Image.php',
+        'PhpOffice\\PhpWord\\Writer\\HTML\\Element\\Link' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/HTML/Element/Link.php',
+        'PhpOffice\\PhpWord\\Writer\\HTML\\Element\\ListItem' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/HTML/Element/ListItem.php',
+        'PhpOffice\\PhpWord\\Writer\\HTML\\Element\\ListItemRun' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/HTML/Element/ListItemRun.php',
+        'PhpOffice\\PhpWord\\Writer\\HTML\\Element\\PageBreak' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/HTML/Element/PageBreak.php',
+        'PhpOffice\\PhpWord\\Writer\\HTML\\Element\\Ruby' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/HTML/Element/Ruby.php',
+        'PhpOffice\\PhpWord\\Writer\\HTML\\Element\\Table' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/HTML/Element/Table.php',
+        'PhpOffice\\PhpWord\\Writer\\HTML\\Element\\Text' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/HTML/Element/Text.php',
+        'PhpOffice\\PhpWord\\Writer\\HTML\\Element\\TextBreak' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/HTML/Element/TextBreak.php',
+        'PhpOffice\\PhpWord\\Writer\\HTML\\Element\\TextRun' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/HTML/Element/TextRun.php',
+        'PhpOffice\\PhpWord\\Writer\\HTML\\Element\\Title' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/HTML/Element/Title.php',
+        'PhpOffice\\PhpWord\\Writer\\HTML\\Part\\AbstractPart' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/HTML/Part/AbstractPart.php',
+        'PhpOffice\\PhpWord\\Writer\\HTML\\Part\\Body' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/HTML/Part/Body.php',
+        'PhpOffice\\PhpWord\\Writer\\HTML\\Part\\Head' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/HTML/Part/Head.php',
+        'PhpOffice\\PhpWord\\Writer\\HTML\\Style\\AbstractStyle' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/HTML/Style/AbstractStyle.php',
+        'PhpOffice\\PhpWord\\Writer\\HTML\\Style\\Font' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/HTML/Style/Font.php',
+        'PhpOffice\\PhpWord\\Writer\\HTML\\Style\\Generic' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/HTML/Style/Generic.php',
+        'PhpOffice\\PhpWord\\Writer\\HTML\\Style\\Image' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/HTML/Style/Image.php',
+        'PhpOffice\\PhpWord\\Writer\\HTML\\Style\\Paragraph' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/HTML/Style/Paragraph.php',
+        'PhpOffice\\PhpWord\\Writer\\HTML\\Style\\Table' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/HTML/Style/Table.php',
+        'PhpOffice\\PhpWord\\Writer\\ODText' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/ODText.php',
+        'PhpOffice\\PhpWord\\Writer\\ODText\\Element\\AbstractElement' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/ODText/Element/AbstractElement.php',
+        'PhpOffice\\PhpWord\\Writer\\ODText\\Element\\Container' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/ODText/Element/Container.php',
+        'PhpOffice\\PhpWord\\Writer\\ODText\\Element\\Field' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/ODText/Element/Field.php',
+        'PhpOffice\\PhpWord\\Writer\\ODText\\Element\\Formula' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/ODText/Element/Formula.php',
+        'PhpOffice\\PhpWord\\Writer\\ODText\\Element\\Image' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/ODText/Element/Image.php',
+        'PhpOffice\\PhpWord\\Writer\\ODText\\Element\\Link' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/ODText/Element/Link.php',
+        'PhpOffice\\PhpWord\\Writer\\ODText\\Element\\ListItemRun' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/ODText/Element/ListItemRun.php',
+        'PhpOffice\\PhpWord\\Writer\\ODText\\Element\\PageBreak' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/ODText/Element/PageBreak.php',
+        'PhpOffice\\PhpWord\\Writer\\ODText\\Element\\Ruby' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/ODText/Element/Ruby.php',
+        'PhpOffice\\PhpWord\\Writer\\ODText\\Element\\Table' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/ODText/Element/Table.php',
+        'PhpOffice\\PhpWord\\Writer\\ODText\\Element\\Text' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/ODText/Element/Text.php',
+        'PhpOffice\\PhpWord\\Writer\\ODText\\Element\\TextBreak' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/ODText/Element/TextBreak.php',
+        'PhpOffice\\PhpWord\\Writer\\ODText\\Element\\TextRun' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/ODText/Element/TextRun.php',
+        'PhpOffice\\PhpWord\\Writer\\ODText\\Element\\Title' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/ODText/Element/Title.php',
+        'PhpOffice\\PhpWord\\Writer\\ODText\\Part\\AbstractPart' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/ODText/Part/AbstractPart.php',
+        'PhpOffice\\PhpWord\\Writer\\ODText\\Part\\Content' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/ODText/Part/Content.php',
+        'PhpOffice\\PhpWord\\Writer\\ODText\\Part\\Manifest' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/ODText/Part/Manifest.php',
+        'PhpOffice\\PhpWord\\Writer\\ODText\\Part\\Meta' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/ODText/Part/Meta.php',
+        'PhpOffice\\PhpWord\\Writer\\ODText\\Part\\Mimetype' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/ODText/Part/Mimetype.php',
+        'PhpOffice\\PhpWord\\Writer\\ODText\\Part\\Styles' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/ODText/Part/Styles.php',
+        'PhpOffice\\PhpWord\\Writer\\ODText\\Style\\AbstractStyle' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/ODText/Style/AbstractStyle.php',
+        'PhpOffice\\PhpWord\\Writer\\ODText\\Style\\Font' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/ODText/Style/Font.php',
+        'PhpOffice\\PhpWord\\Writer\\ODText\\Style\\Image' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/ODText/Style/Image.php',
+        'PhpOffice\\PhpWord\\Writer\\ODText\\Style\\Numbering' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/ODText/Style/Numbering.php',
+        'PhpOffice\\PhpWord\\Writer\\ODText\\Style\\Paragraph' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/ODText/Style/Paragraph.php',
+        'PhpOffice\\PhpWord\\Writer\\ODText\\Style\\Section' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/ODText/Style/Section.php',
+        'PhpOffice\\PhpWord\\Writer\\ODText\\Style\\Table' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/ODText/Style/Table.php',
+        'PhpOffice\\PhpWord\\Writer\\PDF' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/PDF.php',
+        'PhpOffice\\PhpWord\\Writer\\PDF\\AbstractRenderer' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/PDF/AbstractRenderer.php',
+        'PhpOffice\\PhpWord\\Writer\\PDF\\DomPDF' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/PDF/DomPDF.php',
+        'PhpOffice\\PhpWord\\Writer\\PDF\\MPDF' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/PDF/MPDF.php',
+        'PhpOffice\\PhpWord\\Writer\\PDF\\TCPDF' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/PDF/TCPDF.php',
+        'PhpOffice\\PhpWord\\Writer\\RTF' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/RTF.php',
+        'PhpOffice\\PhpWord\\Writer\\RTF\\Element\\AbstractElement' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/RTF/Element/AbstractElement.php',
+        'PhpOffice\\PhpWord\\Writer\\RTF\\Element\\Container' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/RTF/Element/Container.php',
+        'PhpOffice\\PhpWord\\Writer\\RTF\\Element\\Field' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/RTF/Element/Field.php',
+        'PhpOffice\\PhpWord\\Writer\\RTF\\Element\\Image' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/RTF/Element/Image.php',
+        'PhpOffice\\PhpWord\\Writer\\RTF\\Element\\Link' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/RTF/Element/Link.php',
+        'PhpOffice\\PhpWord\\Writer\\RTF\\Element\\ListItem' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/RTF/Element/ListItem.php',
+        'PhpOffice\\PhpWord\\Writer\\RTF\\Element\\PageBreak' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/RTF/Element/PageBreak.php',
+        'PhpOffice\\PhpWord\\Writer\\RTF\\Element\\Ruby' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/RTF/Element/Ruby.php',
+        'PhpOffice\\PhpWord\\Writer\\RTF\\Element\\Table' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/RTF/Element/Table.php',
+        'PhpOffice\\PhpWord\\Writer\\RTF\\Element\\Text' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/RTF/Element/Text.php',
+        'PhpOffice\\PhpWord\\Writer\\RTF\\Element\\TextBreak' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/RTF/Element/TextBreak.php',
+        'PhpOffice\\PhpWord\\Writer\\RTF\\Element\\TextRun' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/RTF/Element/TextRun.php',
+        'PhpOffice\\PhpWord\\Writer\\RTF\\Element\\Title' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/RTF/Element/Title.php',
+        'PhpOffice\\PhpWord\\Writer\\RTF\\Part\\AbstractPart' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/RTF/Part/AbstractPart.php',
+        'PhpOffice\\PhpWord\\Writer\\RTF\\Part\\Document' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/RTF/Part/Document.php',
+        'PhpOffice\\PhpWord\\Writer\\RTF\\Part\\Header' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/RTF/Part/Header.php',
+        'PhpOffice\\PhpWord\\Writer\\RTF\\Style\\AbstractStyle' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/RTF/Style/AbstractStyle.php',
+        'PhpOffice\\PhpWord\\Writer\\RTF\\Style\\Border' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/RTF/Style/Border.php',
+        'PhpOffice\\PhpWord\\Writer\\RTF\\Style\\Font' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/RTF/Style/Font.php',
+        'PhpOffice\\PhpWord\\Writer\\RTF\\Style\\Indentation' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/RTF/Style/Indentation.php',
+        'PhpOffice\\PhpWord\\Writer\\RTF\\Style\\Paragraph' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/RTF/Style/Paragraph.php',
+        'PhpOffice\\PhpWord\\Writer\\RTF\\Style\\Section' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/RTF/Style/Section.php',
+        'PhpOffice\\PhpWord\\Writer\\RTF\\Style\\Tab' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/RTF/Style/Tab.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Element\\AbstractElement' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Element/AbstractElement.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Element\\Bookmark' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Element/Bookmark.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Element\\Chart' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Element/Chart.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Element\\CheckBox' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Element/CheckBox.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Element\\Container' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Element/Container.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Element\\Endnote' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Element/Endnote.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Element\\Field' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Element/Field.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Element\\Footnote' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Element/Footnote.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Element\\FormField' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Element/FormField.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Element\\Formula' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Element/Formula.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Element\\Image' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Element/Image.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Element\\Line' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Element/Line.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Element\\Link' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Element/Link.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Element\\ListItem' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Element/ListItem.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Element\\ListItemRun' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Element/ListItemRun.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Element\\OLEObject' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Element/OLEObject.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Element\\PageBreak' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Element/PageBreak.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Element\\ParagraphAlignment' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Element/ParagraphAlignment.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Element\\PreserveText' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Element/PreserveText.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Element\\Ruby' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Element/Ruby.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Element\\SDT' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Element/SDT.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Element\\Shape' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Element/Shape.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Element\\TOC' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Element/TOC.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Element\\Table' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Element/Table.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Element\\TableAlignment' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Element/TableAlignment.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Element\\Text' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Element/Text.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Element\\TextBox' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Element/TextBox.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Element\\TextBreak' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Element/TextBreak.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Element\\TextRun' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Element/TextRun.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Element\\Title' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Element/Title.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Part\\AbstractPart' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Part/AbstractPart.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Part\\Chart' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Part/Chart.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Part\\Comments' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Part/Comments.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Part\\ContentTypes' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Part/ContentTypes.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Part\\DocPropsApp' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Part/DocPropsApp.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Part\\DocPropsCore' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Part/DocPropsCore.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Part\\DocPropsCustom' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Part/DocPropsCustom.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Part\\Document' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Part/Document.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Part\\Endnotes' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Part/Endnotes.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Part\\FontTable' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Part/FontTable.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Part\\Footer' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Part/Footer.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Part\\Footnotes' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Part/Footnotes.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Part\\Header' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Part/Header.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Part\\Numbering' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Part/Numbering.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Part\\Rels' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Part/Rels.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Part\\RelsDocument' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Part/RelsDocument.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Part\\RelsPart' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Part/RelsPart.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Part\\Settings' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Part/Settings.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Part\\Styles' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Part/Styles.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Part\\Theme' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Part/Theme.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Part\\WebSettings' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Part/WebSettings.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Style\\AbstractStyle' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Style/AbstractStyle.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Style\\Cell' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Style/Cell.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Style\\Extrusion' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Style/Extrusion.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Style\\Fill' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Style/Fill.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Style\\Font' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Style/Font.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Style\\Frame' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Style/Frame.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Style\\Image' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Style/Image.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Style\\Indentation' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Style/Indentation.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Style\\Line' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Style/Line.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Style\\LineNumbering' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Style/LineNumbering.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Style\\MarginBorder' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Style/MarginBorder.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Style\\Outline' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Style/Outline.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Style\\Paragraph' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Style/Paragraph.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Style\\Row' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Style/Row.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Style\\Section' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Style/Section.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Style\\Shading' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Style/Shading.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Style\\Shadow' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Style/Shadow.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Style\\Shape' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Style/Shape.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Style\\Spacing' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Style/Spacing.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Style\\Tab' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Style/Tab.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Style\\Table' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Style/Table.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Style\\TablePosition' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Style/TablePosition.php',
+        'PhpOffice\\PhpWord\\Writer\\Word2007\\Style\\TextBox' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/Word2007/Style/TextBox.php',
+        'PhpOffice\\PhpWord\\Writer\\WriterInterface' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/WriterInterface.php',
+        'PhpOffice\\PhpWord\\Writer\\WriterPartInterface' => __DIR__ . '/..' . '/phpoffice/phpword/src/PhpWord/Writer/WriterPartInterface.php',
         'PhpOption\\LazyOption' => __DIR__ . '/..' . '/phpoption/phpoption/src/PhpOption/LazyOption.php',
         'PhpOption\\None' => __DIR__ . '/..' . '/phpoption/phpoption/src/PhpOption/None.php',
         'PhpOption\\Option' => __DIR__ . '/..' . '/phpoption/phpoption/src/PhpOption/Option.php',

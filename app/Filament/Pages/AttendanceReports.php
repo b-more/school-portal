@@ -169,6 +169,7 @@ class AttendanceReports extends Page implements HasForms, HasTable
                     ->options([
                         'present' => 'Present',
                         'absent' => 'Absent',
+                        'sick' => 'Sick',
                         'late' => 'Late',
                         'excused' => 'Excused',
                     ])
@@ -213,9 +214,10 @@ class AttendanceReports extends Page implements HasForms, HasTable
                     ->badge()
                     ->color(fn (string $state): string => match ($state) {
                         'present' => 'success',
-                        'late' => 'warning',
                         'absent' => 'danger',
-                        'excused' => 'info',
+                        'sick' => 'info',
+                        'late' => 'warning',
+                        'excused' => 'gray',
                         default => 'gray',
                     })
                     ->formatStateUsing(fn (string $state): string => ucfirst($state)),
@@ -249,6 +251,7 @@ class AttendanceReports extends Page implements HasForms, HasTable
                     ->options([
                         'present' => 'Present',
                         'absent' => 'Absent',
+                        'sick' => 'Sick',
                         'late' => 'Late',
                         'excused' => 'Excused',
                     ]),
@@ -293,6 +296,7 @@ class AttendanceReports extends Page implements HasForms, HasTable
                             ->options([
                                 'present' => 'Present',
                                 'absent' => 'Absent',
+                                'sick' => 'Sick',
                                 'late' => 'Late',
                                 'excused' => 'Excused',
                             ])
@@ -497,6 +501,7 @@ class AttendanceReports extends Page implements HasForms, HasTable
                 'total_records' => $attendances->count(),
                 'present_count' => $attendances->where('status', 'present')->count(),
                 'absent_count' => $attendances->where('status', 'absent')->count(),
+                'sick_count' => $attendances->where('status', 'sick')->count(),
                 'late_count' => $attendances->where('status', 'late')->count(),
                 'excused_count' => $attendances->where('status', 'excused')->count(),
                 'unique_students' => $attendances->unique('student_id')->count(),
@@ -574,8 +579,9 @@ class AttendanceReports extends Page implements HasForms, HasTable
                     'days' => [],
                     'present' => 0,
                     'absent' => 0,
-                    'late' => 0,
                     'sick' => 0,
+                    'late' => 0,
+                    'excused' => 0,
                 ];
 
                 for ($day = 1; $day <= $daysInMonth; $day++) {
@@ -584,13 +590,17 @@ class AttendanceReports extends Page implements HasForms, HasTable
 
                     if (isset($attendanceRecords[$key])) {
                         $record = $attendanceRecords[$key]->first();
-                        $status = $this->getStatusCode($record->status);
-                        $studentData['days'][$day] = $status;
+                        $symbol = $this->getStatusCode($record->status);
+                        $studentData['days'][$day] = $symbol;
 
-                        if ($status === 'P') $studentData['present']++;
-                        elseif ($status === 'A') $studentData['absent']++;
-                        elseif ($status === 'L') $studentData['late']++;
-                        elseif ($status === 'S') $studentData['sick']++;
+                        match ($symbol) {
+                            'P' => $studentData['present']++,
+                            'X' => $studentData['absent']++,
+                            'S' => $studentData['sick']++,
+                            'Y' => $studentData['late']++,
+                            'L' => $studentData['excused']++,
+                            default => null,
+                        };
                     } else {
                         $studentData['days'][$day] = '-';
                     }
@@ -644,13 +654,7 @@ class AttendanceReports extends Page implements HasForms, HasTable
      */
     protected function getStatusCode(string $status): string
     {
-        return match ($status) {
-            'present' => 'P',
-            'absent' => 'A',
-            'late' => 'L',
-            'excused', 'sick' => 'S',
-            default => '-',
-        };
+        return Attendance::getStatusSymbol($status);
     }
 
     /**
@@ -674,9 +678,10 @@ class AttendanceReports extends Page implements HasForms, HasTable
                 $headerRow[] = $day;
             }
             $headerRow[] = 'P';
-            $headerRow[] = 'A';
-            $headerRow[] = 'L';
+            $headerRow[] = 'X';
             $headerRow[] = 'S';
+            $headerRow[] = 'Y';
+            $headerRow[] = 'L';
             fputcsv($file, $headerRow);
 
             // Student rows
@@ -688,8 +693,9 @@ class AttendanceReports extends Page implements HasForms, HasTable
                 }
                 $row[] = $student['present'];
                 $row[] = $student['absent'];
-                $row[] = $student['late'];
                 $row[] = $student['sick'];
+                $row[] = $student['late'];
+                $row[] = $student['excused'];
                 fputcsv($file, $row);
             }
 

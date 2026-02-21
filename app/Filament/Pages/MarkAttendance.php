@@ -168,14 +168,11 @@ class MarkAttendance extends Page implements HasForms
     {
         $current = $this->attendanceData[$studentId] ?? 'present';
 
-        // Simple toggle: present -> absent -> late -> present
-        if ($current === 'present') {
-            $this->attendanceData[$studentId] = 'absent';
-        } elseif ($current === 'absent') {
-            $this->attendanceData[$studentId] = 'late';
-        } else {
-            $this->attendanceData[$studentId] = 'present';
-        }
+        // Cycle: present → absent → sick → late → excused → present
+        $cycle = ['present', 'absent', 'sick', 'late', 'excused'];
+        $index = array_search($current, $cycle);
+        $next = ($index !== false) ? ($index + 1) % count($cycle) : 0;
+        $this->attendanceData[$studentId] = $cycle[$next];
     }
 
     public function setStatus($studentId, $status): void
@@ -260,11 +257,14 @@ class MarkAttendance extends Page implements HasForms
 
     protected function getAttendanceSummary(): string
     {
-        $present = collect($this->attendanceData)->filter(fn($s) => $s === 'present')->count();
-        $absent = collect($this->attendanceData)->filter(fn($s) => $s === 'absent')->count();
-        $late = collect($this->attendanceData)->filter(fn($s) => $s === 'late')->count();
+        $data = collect($this->attendanceData);
+        $present = $data->filter(fn($s) => $s === 'present')->count();
+        $absent = $data->filter(fn($s) => $s === 'absent')->count();
+        $sick = $data->filter(fn($s) => $s === 'sick')->count();
+        $late = $data->filter(fn($s) => $s === 'late')->count();
+        $excused = $data->filter(fn($s) => $s === 'excused')->count();
 
-        return "Present: {$present} | Absent: {$absent} | Late: {$late}";
+        return "Present: {$present} | Absent: {$absent} | Sick: {$sick} | Late: {$late} | Excused: {$excused}";
     }
 
     public static function shouldRegisterNavigation(): bool

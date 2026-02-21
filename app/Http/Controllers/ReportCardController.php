@@ -40,7 +40,8 @@ class ReportCardController extends Controller
         $comment = ReportCardComment::findOrCreateFor($student->id, $term->id, $reportData['academicYear']->id);
         $comment->markAsGenerated();
 
-        $filename = "report-card-{$student->student_id_number}-term{$term->id}-{$year}.pdf";
+        $sanitizedId = str_replace('/', '-', $student->student_id_number);
+        $filename = "report-card-{$sanitizedId}-term{$term->id}-{$year}.pdf";
 
         return $pdf->download($filename);
     }
@@ -89,7 +90,8 @@ class ReportCardController extends Controller
             $pdf = Pdf::loadView('pdf.report-card', $reportData);
             $pdf->setPaper('A4', 'portrait');
 
-            $filename = $this->sanitizeFilename($student->name) . "-{$student->student_id_number}.pdf";
+            $sanitizedId = str_replace('/', '-', $student->student_id_number);
+            $filename = $this->sanitizeFilename($student->name) . "-{$sanitizedId}.pdf";
             $filepath = $tempDir . '/' . $filename;
 
             $pdf->save($filepath);

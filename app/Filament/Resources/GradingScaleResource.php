@@ -25,6 +25,21 @@ class GradingScaleResource extends Resource
 
     public static function shouldRegisterNavigation(): bool
     {
+        return in_array(auth()->user()?->role_id, [RoleConstants::ADMIN, RoleConstants::SCHOOL_SECRETARY]);
+    }
+
+    public static function canCreate(): bool
+    {
+        return auth()->user()?->role_id === RoleConstants::ADMIN;
+    }
+
+    public static function canEdit($record): bool
+    {
+        return auth()->user()?->role_id === RoleConstants::ADMIN;
+    }
+
+    public static function canDelete($record): bool
+    {
         return auth()->user()?->role_id === RoleConstants::ADMIN;
     }
 

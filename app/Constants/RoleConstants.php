@@ -25,6 +25,9 @@ class RoleConstants
     public const DEPUTY_HEAD_PRIMARY = 17;
     public const DEPUTY_HEAD_SECONDARY = 18;
 
+    // Administrative Staff
+    public const SCHOOL_SECRETARY = 19;
+
     /**
      * Get all role IDs
      */
@@ -49,6 +52,7 @@ class RoleConstants
             self::HEAD_TEACHER_SECONDARY,
             self::DEPUTY_HEAD_PRIMARY,
             self::DEPUTY_HEAD_SECONDARY,
+            self::SCHOOL_SECRETARY,
         ];
     }
 
@@ -74,6 +78,7 @@ class RoleConstants
             self::HEAD_TEACHER_SECONDARY,
             self::DEPUTY_HEAD_PRIMARY,
             self::DEPUTY_HEAD_SECONDARY,
+            self::SCHOOL_SECRETARY,
         ];
     }
 
@@ -135,6 +140,18 @@ class RoleConstants
             self::HEAD_TEACHER_SECONDARY,
             self::DEPUTY_HEAD_PRIMARY,
             self::DEPUTY_HEAD_SECONDARY,
+            self::SCHOOL_SECRETARY,
+        ];
+    }
+
+    /**
+     * Get administrative role IDs
+     */
+    public static function administrative(): array
+    {
+        return [
+            self::ADMIN,
+            self::SCHOOL_SECRETARY,
         ];
     }
 

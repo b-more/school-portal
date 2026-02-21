@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Filament\Notifications\Notification;
 use Carbon\Carbon;
 
-class SubmissionsRelationManager extends RelationManager
+class SubmissionRelationManager extends RelationManager
 {
     protected static string $relationship = 'submissions';
 
